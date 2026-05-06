@@ -1,0 +1,34 @@
+// Suggested group events — surfaced when user picks calendar slots that match
+// `bucket` maps each event to a rough time-of-day so we can match to TIME_WINDOWS
+export const SUGGESTED_EVENTS = [
+  { id:'e-stroller-run', day:'Tue', bucket:'morning', time:'9:00 AM',  name:'Stroller Run',
+    place:'Dolores Park · north end',  going: 8,  recurring:'Weekly',  tags:['Stroller','Free','All paces'],
+    hue:'linear-gradient(135deg, #C8553D 0%, #D9A441 100%)' },
+  { id:'e-coffee-mom',   day:'Thu', bucket:'morning', time:'10:00 AM', name:'Mom Coffee Hour',
+    place:'Blue Bottle · Mission',     going: 5,  recurring:'Weekly',  tags:['Toddlers OK','Highchairs'],
+    hue:'linear-gradient(135deg, #7E9678 0%, #B5C9AB 100%)' },
+  { id:'e-helen-play',   day:'Sat', bucket:'morning', time:'10:30 AM', name:'Saturday Playgroup',
+    place:'Helen Diller Playground',   going: 12, recurring:'Weekly',  tags:['Ages 1–4','Splash pad'],
+    hue:'linear-gradient(135deg, #D9A441 0%, #C8553D 100%)' },
+  { id:'e-storytime',    day:'Wed', bucket:'morning', time:'10:00 AM', name:'Storytime + Coffee',
+    place:'Mission Library',           going: 6,  recurring:'Weekly',  tags:['Free','Ages 0–3'],
+    hue:'linear-gradient(135deg, #B98EB6 0%, #C8553D 100%)' },
+  { id:'e-yoga',         day:'Fri', bucket:'morning', time:'9:30 AM',  name:'Mom + Baby Yoga',
+    place:'Cosmic Kids · Mission',     going: 4,  recurring:'Weekly',  tags:['Bring mat','45 min'],
+    hue:'linear-gradient(135deg, #D7997D 0%, #D9A441 100%)' },
+  { id:'e-sat-brunch',   day:'Sat', bucket:'midday', time:'12:30 PM',  name:'Sat Mom Brunch',
+    place:"Reveille · Castro",         going: 7,  recurring:'Weekly',  tags:['Patio','Kids menu'],
+    hue:'linear-gradient(135deg, #5A7E55 0%, #7E9678 100%)' },
+  { id:'e-park-pic',     day:'Sun', bucket:'midday', time:'1:00 PM',   name:'Sunday Park Picnic',
+    place:'Bernal Heights · summit',   going: 9,  recurring:'Weekly',  tags:['Bring blanket','Kids run free'],
+    hue:'linear-gradient(135deg, #C8553D 0%, #B98EB6 100%)' },
+  { id:'e-evening-walk', day:'Mon', bucket:'evening',time:'6:00 PM',   name:'Sunset Stroll',
+    place:'Crissy Field',              going: 5,  recurring:'Weekly',  tags:['Stroller','Bay views'],
+    hue:'linear-gradient(135deg, #7E9678 0%, #D9A441 100%)' },
+];
+
+export const EVENTS = [
+  { title: 'Toddler music circle', when: 'Thu · 10 AM', where: 'Bernal Heights Library', going: 12, hue: 'linear-gradient(135deg,#D9A441,#E8B4A0)' },
+  { title: 'Stroller walk + matcha', when: 'Sat · 9 AM',  where: 'Crissy Field',           going: 24, hue: 'linear-gradient(135deg,#7E9678,#9CB397)' },
+  { title: 'New-mom slow morning',   when: 'Wed · 11 AM', where: 'The Mill',                going: 8,  hue: 'linear-gradient(135deg,#C8553D,#E8B4A0)' },
+];

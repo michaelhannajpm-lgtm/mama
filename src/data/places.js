@@ -1,0 +1,232 @@
+import {
+  Coffee, TreePine, Sparkles, Building2, Home, Library, Users,
+  PawPrint, Waves, Droplets,
+  Heart, Flame, Star, Award,
+} from 'lucide-react';
+
+// Real places organized by category (San Francisco area)
+export const PLACES = {
+  cafes: [
+    { id:'bb-mission',   name:'Blue Bottle',     area:'Mission',      dist: 0.3,
+      desc:'Bright, oat milk fans, fast WiFi',
+      tags:['Stroller','Highchairs','Street parking'] },
+    { id:'sg-7th',       name:'Sightglass',      area:'SoMa',         dist: 1.1,
+      desc:'Industrial chic, espresso forward',
+      tags:['Stroller-OK','Quiet','Paid lot'] },
+    { id:'mill',         name:'The Mill',        area:'NoPa',         dist: 2.2,
+      desc:'Famous toast, light bites, kid-loved',
+      tags:['Stroller','Kids menu','Street parking'] },
+    { id:'reveille',     name:'Reveille',        area:'Castro',       dist: 0.9,
+      desc:'Sunny patio, wide aisles for strollers',
+      tags:['Stroller','Patio','Street parking'] },
+    { id:'andytown',     name:'Andytown',        area:'Outer Sunset', dist: 4.4,
+      desc:'Beach vibe, Snowy Plover signature',
+      tags:['Stroller','Outdoor','Free parking'] },
+    { id:'jane',         name:'Jane',            area:'Polk Gulch',   dist: 2.1,
+      desc:'Healthy bowls, juices, quick bites',
+      tags:['Highchairs','Quick','Metered'] },
+    { id:'ritual',       name:'Ritual',          area:'Mission',      dist: 0.4,
+      desc:"Classic SF coffee, locals' regular",
+      tags:['Stroller','WiFi','Street parking'] },
+    { id:'fourbarrel',   name:'Four Barrel',     area:'Mission',      dist: 0.5,
+      desc:'Hip, slow-brewed coffee specialists',
+      tags:['Stroller','Outdoor','Street parking'] },
+  ],
+  parks: [
+    { id:'dolores',      name:'Dolores Park',    area:'Mission',     dist: 0.2,
+      desc:'Iconic hangout, picnic energy',
+      tags:['Stroller paths','Restrooms','Street parking'] },
+    { id:'crissy',       name:'Crissy Field',    area:'Marina',      dist: 3.3,
+      desc:'Bay views, runs, beach access',
+      tags:['Beach','Restrooms','Free lot'] },
+    { id:'altaplaza',    name:'Alta Plaza',      area:'Pac Heights', dist: 2.4,
+      desc:'Hilltop, dog-friendly, sweeping views',
+      tags:['Playground','Steep paths','Street parking'] },
+    { id:'goldengate',   name:'Golden Gate Park',area:'Inner Sunset',dist: 3.1,
+      desc:'Massive — lakes, gardens, museums',
+      tags:['Vast','Restrooms','Paid lot'] },
+    { id:'lafayette',    name:'Lafayette Park',  area:'Pac Heights', dist: 2.3,
+      desc:'Quiet, dog park, calm vibe',
+      tags:['Playground','Restrooms','Street parking'] },
+    { id:'bernal',       name:'Bernal Heights Pk',area:'Bernal',      dist: 1.0,
+      desc:'Killer 360° views, off-leash zone',
+      tags:['Hilly','Off-leash','Street parking'] },
+    { id:'presidio',     name:'Presidio',        area:'Presidio',    dist: 4.0,
+      desc:'Forest paths, cafés tucked inside',
+      tags:['Stroller paths','Cafés','Free lot'] },
+    { id:'fortmason',    name:'Fort Mason',      area:'Marina',      dist: 3.0,
+      desc:'Waterfront, big lawns, food trucks',
+      tags:['Lawns','Restrooms','Free lot'] },
+  ],
+  playgrounds: [
+    { id:'helendiller',  name:'Helen Diller',    area:'Dolores Park', dist: 0.2,
+      desc:'Newest design, splash pad in summer',
+      tags:['Splash pad','Restrooms','Street parking'] },
+    { id:'koret',        name:"Koret Children's",area:'Golden Gate Pk',dist: 3.2,
+      desc:'Carousel, big climbs, classic SF',
+      tags:['Carousel','Restrooms','Paid lot'] },
+    { id:'yerbabuena',   name:'Yerba Buena',     area:'SoMa',         dist: 1.6,
+      desc:'Indoor option, bowling + ice rink nearby',
+      tags:['Indoor','Restrooms','Paid lot'] },
+    { id:'huntington',   name:'Huntington',      area:'Nob Hill',     dist: 2.0,
+      desc:'Quiet, fountains, smaller scale',
+      tags:['Quiet','Restrooms','Street parking'] },
+    { id:'mountainlake', name:'Mountain Lake',   area:'Inner Richmond',dist: 4.0,
+      desc:'Lake-side, ducks, picnic tables',
+      tags:['Picnic','Restrooms','Free lot'] },
+  ],
+  museums: [
+    { id:'calacademy',   name:'CA Academy of Sciences',area:'Golden Gate Pk',dist: 3.3,
+      desc:'Aquarium + planetarium + rainforest',
+      tags:['All-day','Café','Paid lot'] },
+    { id:'badm',         name:'Bay Area Discovery',     area:'Sausalito',    dist: 8.0,
+      desc:'Hands-on, outdoor exhibits, water play',
+      tags:['Hands-on','Outdoor','Free lot'] },
+    { id:'ccm',          name:"Children's Creativity",  area:'SoMa',         dist: 1.5,
+      desc:'Tinker labs, art, animation studio',
+      tags:['Hands-on','Café','Paid lot'] },
+    { id:'deyoung',      name:'de Young',               area:'Golden Gate Pk',dist: 3.4,
+      desc:'Family Sundays free, art + workshops',
+      tags:['Stroller','Café','Paid lot'] },
+    { id:'disney',       name:'Walt Disney Family',     area:'Presidio',     dist: 4.2,
+      desc:'Animation history, calm pace',
+      tags:['Quiet','Stroller','Free lot'] },
+    { id:'exploratorium',name:'Exploratorium',          area:'Embarcadero',  dist: 2.5,
+      desc:'Hands-on science wonderland',
+      tags:['Hands-on','Café','Paid lot'] },
+  ],
+  indoor: [
+    { id:'recess',       name:'Recess SF',       area:'Dogpatch',       dist: 1.8,
+      desc:'Drop-in play, café for parents',
+      tags:['Hands-on','Café','Paid lot'] },
+    { id:'tumbletea',    name:'Tumble + Tea',    area:'Inner Richmond', dist: 3.8,
+      desc:'Tumble class + tea bar',
+      tags:['Indoor','Café','Street parking'] },
+    { id:'habitot',      name:'Habitot',         area:'Berkeley',       dist: 13.0,
+      desc:'Hands-on for under-5s, dress-up',
+      tags:['Toddlers','Restrooms','Paid lot'] },
+    { id:'mrsdoubtfire', name:'Cosmic Kids',     area:'Mission',        dist: 0.6,
+      desc:'Yoga + play classes for tots',
+      tags:['Classes','Stroller','Street parking'] },
+  ],
+  libraries: [
+    { id:'lib-mission',  name:'Mission Branch',     area:'Mission',     dist: 0.4,
+      desc:'Story time Wed mornings',
+      tags:['Story time','Restrooms','Street parking'] },
+    { id:'lib-glen',     name:'Glen Park Branch',   area:'Glen Park',   dist: 1.7,
+      desc:"Modern, kids' floor, near BART",
+      tags:['Story time','Restrooms','Free lot'] },
+    { id:'lib-bernal',   name:'Bernal Branch',      area:'Bernal',      dist: 1.1,
+      desc:'Charming, friendly staff, garden',
+      tags:['Quiet','Restrooms','Street parking'] },
+    { id:'lib-northbeach',name:'North Beach Branch',area:'North Beach', dist: 2.7,
+      desc:'Beautiful new building, light-filled',
+      tags:['Story time','Restrooms','Street parking'] },
+    { id:'lib-noe',      name:'Noe Valley Branch',  area:'Noe Valley',  dist: 1.3,
+      desc:'Story Tue + Fri, popular with locals',
+      tags:['Story time','Restrooms','Street parking'] },
+  ],
+  homes: [
+    { id:'home-yours',   name:'Your place',         area:'Hosted by you',     dist: 0,
+      desc:'Cozy, no driving, kids in their space',
+      tags:['Comfort','Snacks ready','No driving'] },
+    { id:'home-hers',    name:'Her place',          area:'Hosted by her',     dist: 0,
+      desc:'New scene, less prep on your side',
+      tags:['Less prep','New space','Light driving'] },
+    { id:'home-flex',    name:'Either home',        area:'Whatever works',    dist: 0,
+      desc:'Trade off, whoever has the easier day',
+      tags:['Flexible','Easy','Easy'] },
+  ],
+  zoos: [
+    { id:'sfzoo',        name:'SF Zoo',             area:'Outer Sunset',      dist: 5.5,
+      desc:'Classic, lots of walking, train ride',
+      tags:['Stroller','Café','Paid lot'] },
+    { id:'oakzoo',       name:'Oakland Zoo',        area:'Oakland Hills',     dist: 12.0,
+      desc:'Newer, gondola ride, California Trail',
+      tags:['Stroller','Café','Paid lot'] },
+    { id:'aqbay',        name:'Aquarium of the Bay',area:'Embarcadero',       dist: 2.8,
+      desc:'Marine life, smaller, central spot',
+      tags:['Stroller','Café','Paid lot'] },
+  ],
+  water: [
+    { id:'baker',        name:'Baker Beach',        area:'Presidio',          dist: 4.5,
+      desc:'GG Bridge views, calm waves',
+      tags:['Bring towels','Restrooms','Free lot'] },
+    { id:'ocean',        name:'Ocean Beach',        area:'Outer Sunset',      dist: 5.0,
+      desc:'Wide, windy, dramatic surf',
+      tags:['Bring layers','Restrooms','Free lot'] },
+    { id:'crissy-bch',   name:'Crissy Beach',       area:'Marina',            dist: 3.4,
+      desc:'Calmer water, bridge views, wide',
+      tags:['Stroller','Restrooms','Free lot'] },
+    { id:'stow',         name:'Stow Lake',          area:'Golden Gate Pk',    dist: 3.5,
+      desc:'Pedal boats, ducks, easy loop',
+      tags:['Boats','Restrooms','Free lot'] },
+    { id:'aquatic-park', name:'Aquatic Park Lagoon',area:'North Beach',       dist: 3.2,
+      desc:'Calm bay swimming, sandy beach',
+      tags:['Calm water','Restrooms','Paid lot'] },
+    { id:'mountain-lake',name:'Mountain Lake',      area:'Inner Richmond',    dist: 4.0,
+      desc:'Tiny lake, easy stroll, ducks',
+      tags:['Easy','Restrooms','Free lot'] },
+  ],
+  pools: [
+    { id:'mission-pool', name:'Mission Pool',       area:'Mission',           dist: 0.5,
+      desc:'Outdoor, summer only, family hours',
+      tags:['Outdoor','Family swim','Street parking'] },
+    { id:'hamilton',     name:'Hamilton Rec Pool',  area:'Pac Heights',       dist: 2.5,
+      desc:'Year-round indoor, swim lessons',
+      tags:['Indoor','Lessons','Street parking'] },
+    { id:'northbeach-p', name:'North Beach Pool',   area:'North Beach',       dist: 2.7,
+      desc:'Indoor, drop-in classes',
+      tags:['Indoor','Classes','Street parking'] },
+    { id:'rossi',        name:'Rossi Pool',         area:'Inner Richmond',    dist: 3.6,
+      desc:'Outdoor, less crowded, neighborhood gem',
+      tags:['Outdoor','Family swim','Free lot'] },
+    { id:'sava',         name:'Sava Pool',          area:'Outer Sunset',      dist: 4.8,
+      desc:'Newer, popular for kids, slide',
+      tags:['Indoor','Lessons','Free lot'] },
+  ],
+};
+
+export const PLACE_CATEGORIES = [
+  { id:'cafes',       label:'Cafés',       icon: Coffee },
+  { id:'parks',       label:'Parks',       icon: TreePine },
+  { id:'playgrounds', label:'Playgrounds', icon: Sparkles },
+  { id:'museums',     label:'Museums',     icon: Building2 },
+  { id:'indoor',      label:'Indoor play', icon: Home },
+  { id:'libraries',   label:'Libraries',   icon: Library },
+  { id:'homes',       label:'Home meetups',icon: Users },
+  { id:'zoos',        label:'Zoos',        icon: PawPrint },
+  { id:'water',       label:'Beaches',     icon: Waves },
+  { id:'pools',       label:'Pools',       icon: Droplets },
+];
+export const PLACES_NO_PREF = 'any';
+
+// Helper to look up a place across all categories
+export const findPlace = (id) => {
+  for (const cat of Object.keys(PLACES)) {
+    const p = PLACES[cat].find(x => x.id === id);
+    if (p) return { ...p, category: cat };
+  }
+  return null;
+};
+
+// Top picks — hand-curated best-reviewed places, with rating + review count
+export const TOP_PICKS = [
+  { placeId:'dolores',     rating: 4.9, reviews: 247, badge:'Mom favorite' },
+  { placeId:'helendiller', rating: 4.9, reviews: 156, badge:'Trending'     },
+  { placeId:'bb-mission',  rating: 4.8, reviews: 189, badge:'Top rated'    },
+  { placeId:'calacademy',  rating: 4.8, reviews: 312, badge:'Best for kids'},
+  { placeId:'recess',      rating: 4.7, reviews: 134, badge:'Editor pick'  },
+];
+
+// Refined editorial badge metadata — semantic icon + tinted color per badge
+export const BADGE_META = {
+  'Mom favorite':  { icon: Heart,    color: '#C8553D', fill: true  },  // terracotta, filled
+  'Trending':      { icon: Flame,    color: '#B85A3D', fill: false },  // warm orange
+  'Top rated':     { icon: Star,     color: '#A0791E', fill: true  },  // dark amber (saffron deepened)
+  'Best for kids': { icon: Sparkles, color: '#5E7A5A', fill: false },  // sageDark
+  'Editor pick':   { icon: Award,    color: '#2A1E22', fill: false },  // ink
+  'Yours':         { icon: Sparkles, color: '#5E7A5A', fill: false },  // sageDark — user-added places
+};
+
+export const PLACE_CATEGORIES_ALL_DATA = PLACE_CATEGORIES; // alias kept for clarity
