@@ -23,143 +23,19 @@ import {
   SAMPLE_MOMS, MOM_POOL, ALL_AVAILABLE_MOMS, matchingMoms,
 } from './data/moms';
 import { SUGGESTED_EVENTS, EVENTS } from './data/events';
-
-// ---------- Tiny SVG ornaments ----------
-const Sprig = ({ className='', style={}, color=C.sage }) => (
-  <svg viewBox="0 0 60 60" className={className} style={style} fill="none">
-    <path d="M30 8 C30 28, 30 40, 30 54" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
-    <path d="M30 18 C24 14, 18 14, 14 18 C20 22, 26 22, 30 20"   fill={color} opacity=".55"/>
-    <path d="M30 26 C36 22, 42 22, 46 26 C40 30, 34 30, 30 28"  fill={color} opacity=".55"/>
-    <path d="M30 36 C25 33, 20 33, 16 37 C22 40, 27 40, 30 38"  fill={color} opacity=".55"/>
-  </svg>
-);
-
-// MamaLogo — round seal mark · two leaves form a heart, terracotta + sage
-const MamaLogo = ({ size = 84, className = '', style = {} }) => (
-  <svg viewBox="0 0 100 100" width={size} height={size} className={className} style={style}>
-    {/* Outer dotted ring — wax-seal feel */}
-    <circle cx="50" cy="50" r="48" fill="none" stroke={C.ink} strokeWidth="0.5"
-            strokeDasharray="0.6 2.6" opacity="0.4"/>
-    {/* Inner thin ring */}
-    <circle cx="50" cy="50" r="44" fill="none" stroke={C.ink} strokeWidth="0.4" opacity="0.22"/>
-    {/* Cream interior */}
-    <circle cx="50" cy="50" r="42" fill={C.creamSoft}/>
-
-    {/* Two leaves curling inward to form a heart */}
-    {/* Left leaf — terracotta */}
-    <path d="M 50 76 C 38 70 25 60 23 45 C 22 33 31 26 40 30 C 47 33 50 41 50 50 Z"
-          fill={C.terracotta} opacity="0.92"/>
-    {/* Right leaf — sage */}
-    <path d="M 50 76 C 62 70 75 60 77 45 C 78 33 69 26 60 30 C 53 33 50 41 50 50 Z"
-          fill={C.sageDark} opacity="0.92"/>
-    {/* Center vein down the middle */}
-    <line x1="50" y1="32" x2="50" y2="74" stroke={C.cream} strokeWidth="0.7" opacity="0.55"/>
-    {/* Stem rising at the top */}
-    <path d="M 50 32 L 50 22" stroke={C.ink} strokeWidth="1" strokeLinecap="round" opacity="0.6"/>
-    {/* Saffron berry/dot at top of stem */}
-    <circle cx="50" cy="20" r="2" fill={C.saffron}/>
-  </svg>
-);
-
-const Sun3 = ({ className='', style={}, color=C.saffron }) => (
-  <svg viewBox="0 0 80 80" className={className} style={style} fill="none">
-    <circle cx="40" cy="40" r="14" fill={color} opacity=".85"/>
-    {Array.from({length:12}).map((_,i)=>{
-      const a = (i/12)*Math.PI*2;
-      const x1 = 40+Math.cos(a)*22, y1 = 40+Math.sin(a)*22;
-      const x2 = 40+Math.cos(a)*30, y2 = 40+Math.sin(a)*30;
-      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="1.6" strokeLinecap="round"/>
-    })}
-  </svg>
-);
-
-// ---------- Layout: Phone Frame ----------
-const PhoneFrame = ({ children }) => (
-  <div className="relative" style={{
-    width: 'min(390px, calc(100vw - 16px))',
-    height: 'min(820px, calc(100vh - 24px))',
-    maxHeight: 820,
-    borderRadius: 54, padding: 12,
-    background: '#1B1517',
-    boxShadow: '0 40px 80px -20px rgba(42,30,34,.45), 0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.06)',
-  }}>
-    <div className="relative w-full h-full overflow-hidden" style={{
-      borderRadius: 42, background: C.cream,
-    }}>
-      {/* Notch */}
-      <div className="absolute left-1/2 -translate-x-1/2 z-50" style={{
-        top: 10, width: 110, height: 30, borderRadius: 20, background: '#1B1517'
-      }}/>
-      {children}
-    </div>
-  </div>
-);
-
-// ---------- Status Bar ----------
-const StatusBar = ({ light=false }) => (
-  <div className="flex items-center justify-between px-7 pt-3" style={{ height: 44, color: light ? '#fff' : C.ink }}>
-    <span className="text-[13px]" style={{ fontFamily:'Albert Sans', fontWeight:600 }}>9:41</span>
-    <div className="flex items-center gap-1">
-      <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor"><path d="M8 8.5c.7 0 1.3.6 1.3 1.3M5.4 6.1a3.5 3.5 0 0 1 5.2 0M2.8 3.5a7 7 0 0 1 10.4 0"/></svg>
-      <svg width="14" height="10" viewBox="0 0 14 10" fill="currentColor"><rect x="0" y="3" width="2" height="5" rx="1"/><rect x="3" y="2" width="2" height="6" rx="1"/><rect x="6" y="1" width="2" height="7" rx="1"/><rect x="9" y="0" width="2" height="8" rx="1"/></svg>
-      <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x=".5" y=".5" width="18" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="14" height="7" rx="1" fill="currentColor"/><rect x="20" y="3.5" width="1.2" height="4" rx=".5" fill="currentColor"/></svg>
-    </div>
-  </div>
-);
-
-// ---------- Reusable Bits ----------
-const Pill = ({ active, children, onClick, size='md' }) => (
-  <button onClick={onClick}
-    className="transition-all"
-    style={{
-      padding: size==='sm' ? '7px 12px' : '10px 16px',
-      borderRadius: 999, fontSize: size==='sm' ? 12.5 : 14,
-      fontFamily: 'Albert Sans', fontWeight: 500,
-      border: `1px solid ${active ? C.ink : C.divider}`,
-      background: active ? C.ink : C.paper,
-      color: active ? C.cream : C.ink,
-    }}>
-    {children}
-  </button>
-);
-
-const Dot = ({ on }) => (
-  <div className="transition-all" style={{
-    width: on ? 22 : 6, height: 6, borderRadius: 4,
-    background: on ? C.terracotta : C.divider,
-  }}/>
-);
-
-const StepHeader = ({ step, total, onBack, onSkip }) => (
-  <div className="flex items-center justify-between px-6 pt-2 pb-4">
-    <button onClick={onBack} disabled={step===0} className="w-9 h-9 flex items-center justify-center rounded-full"
-      style={{ background: step===0 ? 'transparent' : C.paper, color: step===0 ? 'transparent' : C.ink, border: step===0?'none':`1px solid ${C.divider}` }}>
-      <ArrowLeft size={16}/>
-    </button>
-    <div className="flex gap-1.5">
-      {Array.from({length: total}).map((_,i)=> <Dot key={i} on={i===step}/>)}
-    </div>
-    <button onClick={onSkip} className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>
-      {step < total-1 ? 'Skip' : ''}
-    </button>
-  </div>
-);
-
-const PrimaryBtn = ({ children, onClick, disabled, variant='dark' }) => (
-  <button onClick={onClick} disabled={disabled}
-    className="w-full transition-all active:scale-[.98]"
-    style={{
-      height: 56, borderRadius: 18,
-      background: disabled ? '#D8CCB6' : (variant==='dark' ? C.ink : C.terracotta),
-      color: variant==='dark' ? C.cream : '#fff',
-      fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 15.5,
-      letterSpacing: '.02em',
-      boxShadow: disabled ? 'none' : '0 12px 24px -10px rgba(42,30,34,.45)',
-      display:'flex', alignItems:'center', justifyContent:'center', gap: 8,
-    }}>
-    {children}
-  </button>
-);
+import { Sprig } from './components/icons/Sprig';
+import { MamaLogo } from './components/icons/MamaLogo';
+import { Sun3 } from './components/icons/Sun3';
+import { PhoneFrame } from './components/PhoneFrame';
+import { StatusBar } from './components/StatusBar';
+import { Pill } from './components/Pill';
+import { Dot } from './components/Dot';
+import { StepHeader } from './components/StepHeader';
+import { PrimaryBtn } from './components/PrimaryBtn';
+import { Sheet } from './components/Sheet';
+import { Toast } from './components/Toast';
+import { MatchCard } from './components/MatchCard';
+import { MiniMatchCard } from './components/MiniMatchCard';
 
 // ====================================================================
 // SCREEN 1 — Loneliness + market insight (editorial cover)
@@ -1811,27 +1687,6 @@ const Screen8 = ({ onNext, onBack, prefs, scheduled1to1, joinedEvents, setJoined
   );
 };
 
-const MiniMatchCard = ({ mom }) => (
-  <div className="rounded-[18px] p-3 flex items-center gap-3" style={{ background: C.paper, border:`1px solid ${C.divider}` }}>
-    <div className="w-12 h-12 rounded-full flex items-center justify-center text-[15px]" style={{
-      background: mom.hue, color:'#fff', fontFamily:'Fraunces', fontWeight:500
-    }}>{mom.name.split(' ').map(s=>s[0]).join('')}</div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-1.5">
-        <div className="text-[14px]" style={{ fontFamily:'Fraunces', fontWeight:500, color: C.ink }}>{mom.name}</div>
-        {mom.verified && <ShieldCheck size={12} style={{ color: C.sageDark }}/>}
-      </div>
-      <div className="text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
-        Kids {mom.kids} · {mom.distance}
-      </div>
-    </div>
-    <div className="text-right">
-      <div style={{ fontFamily:'Fraunces', fontSize: 18, fontWeight:500, color: C.terracotta }}>{mom.overlap}<span className="text-[11px]" style={{ color: C.inkMuted }}>%</span></div>
-      <div className="text-[9.5px] tracking-[.1em] uppercase" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>match</div>
-    </div>
-  </div>
-);
-
 // ====================================================================
 // MAIN APP
 // ====================================================================
@@ -2281,69 +2136,6 @@ const PlacesTab = ({ prefs, setPrefs, location, goToMatches, flash }) => {
     </div>
   );
 };
-
-const MatchCard = ({ mom, onSchedule, onProfile, onMessage }) => (
-  <div className="rounded-[22px] overflow-hidden" style={{ background: C.paper, border:`1px solid ${C.divider}` }}>
-    {/* Top: identity + match */}
-    <div className="p-4 pb-3 flex items-start gap-3">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{
-        background: mom.hue, color:'#fff', fontFamily:'Fraunces', fontWeight:500, fontSize: 18,
-      }}>{mom.name.split(' ').map(s=>s[0]).join('')}</div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <div style={{ fontFamily:'Fraunces', fontSize: 17, fontWeight:500, color: C.ink, letterSpacing:'-.01em' }}>{mom.name}</div>
-          {mom.verified && <ShieldCheck size={13} style={{ color: C.sageDark }}/>}
-        </div>
-        <div className="text-[12px] mt-0.5" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
-          {mom.type} · Kids {mom.kids} · {mom.distance}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {mom.tags.map(t => (
-            <span key={t} className="text-[10.5px] px-2 py-0.5 rounded-full"
-              style={{ background: C.creamSoft, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:500, border:`1px solid ${C.divider}` }}>
-              {t}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="text-right">
-        <div style={{ fontFamily:'Fraunces', fontSize: 22, fontWeight:500, color: C.terracotta, lineHeight:1 }}>{mom.overlap}<span className="text-[11px]" style={{ color: C.inkMuted }}>%</span></div>
-        <div className="text-[9px] tracking-[.12em] uppercase mt-0.5" style={{ fontFamily:'Albert Sans', color: C.inkMuted, fontWeight:600 }}>match</div>
-      </div>
-    </div>
-
-    {/* Suggested slot strip */}
-    <div className="mx-4 rounded-[14px] p-3 flex items-center gap-2.5" style={{ background: C.creamSoft, border: `1px dashed ${C.terracotta}55` }}>
-      <CalendarIcon size={15} style={{ color: C.terracotta }}/>
-      <div className="flex-1 min-w-0">
-        <div className="text-[12.5px]" style={{ fontFamily:'Albert Sans', color: C.ink, fontWeight:600 }}>
-          Both free · {mom.nextSlot}
-        </div>
-        <div className="text-[11px] truncate" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
-          {mom.nextPlace}
-        </div>
-      </div>
-    </div>
-
-    {/* Action stack — schedule first, profile second, message third */}
-    <div className="p-4 pt-3 space-y-2">
-      <button onClick={onSchedule} className="w-full rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[.98]"
-        style={{ height: 48, background: C.terracotta, color:'#fff', fontFamily:'Albert Sans', fontWeight:600, fontSize: 14.5, letterSpacing:'.02em' }}>
-        <CalendarIcon size={16}/> Schedule meetup
-      </button>
-      <div className="grid grid-cols-2 gap-2">
-        <button onClick={onProfile} className="rounded-xl flex items-center justify-center gap-1.5 transition-all"
-          style={{ height: 40, background: C.paper, border:`1px solid ${C.divider}`, color: C.ink, fontFamily:'Albert Sans', fontSize: 13, fontWeight:500 }}>
-          <User size={14}/> View profile
-        </button>
-        <button onClick={onMessage} className="rounded-xl flex items-center justify-center gap-1.5 transition-all"
-          style={{ height: 40, background: C.paper, border:`1px solid ${C.divider}`, color: C.ink, fontFamily:'Albert Sans', fontSize: 13, fontWeight:500 }}>
-          <MessageCircle size={14}/> Message
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 // -- Events --
 // ====================================================================
@@ -3278,40 +3070,6 @@ const PremiumSheet = ({ onClose, onActivate }) => (
       </div>
     </div>
   </Sheet>
-);
-
-const Sheet = ({ children, onClose, tall, dark }) => (
-  <div className="absolute inset-0 z-40" style={{ background:'rgba(20,14,16,.45)' }} onClick={onClose}>
-    <div onClick={e=>e.stopPropagation()} className="absolute left-0 right-0 bottom-0 overflow-hidden"
-      style={{
-        borderTopLeftRadius: 28, borderTopRightRadius: 28,
-        background: dark ? C.ink : C.cream,
-        maxHeight: tall ? '88%' : '78%',
-        animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)'
-      }}>
-      <div className="flex justify-center pt-3 pb-2">
-        <div style={{ width: 38, height: 4, borderRadius: 4, background: dark ? '#3a2f33' : C.divider }}/>
-      </div>
-      <button onClick={onClose} className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
-        style={{ background: dark ? '#2f2528' : C.paper, color: dark ? C.cream : C.ink, border: `1px solid ${dark ? '#3a2f33' : C.divider}` }}>
-        <X size={14}/>
-      </button>
-      <div className="overflow-y-auto" style={{ maxHeight: tall ? 'calc(88vh - 50px)' : 'calc(78vh - 50px)', scrollbarWidth:'none' }}>
-        {children}
-      </div>
-    </div>
-  </div>
-);
-
-const Toast = ({ msg }) => (
-  <div className="absolute left-1/2 -translate-x-1/2 z-50" style={{
-    bottom: 100, padding: '12px 18px', borderRadius: 999,
-    background: C.ink, color: C.cream, fontFamily:'Albert Sans', fontSize: 13, fontWeight:500,
-    boxShadow:'0 16px 36px -10px rgba(0,0,0,.45)',
-    animation: 'fadeIn .3s ease',
-  }}>
-    {msg}
-  </div>
 );
 
 // ====================================================================
