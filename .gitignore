@@ -5,3 +5,6 @@ dist/
 .env
 .env.local
 .vscode/
+
+# Claude Code — personal/local overrides only; keep .claude/ checked in
+.claude/settings.local.json

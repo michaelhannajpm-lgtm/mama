@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run preview)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm i:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx vite:*)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)",
+      "Bash(ls:*)",
+      "Bash(find src:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Read(//Users/michael/Projects/mama-app/**)",
+      "Edit(//Users/michael/Projects/mama-app/src/**)",
+      "Edit(//Users/michael/Projects/mama-app/.claude/**)",
+      "Edit(//Users/michael/Projects/mama-app/CLAUDE.md)",
+      "Edit(//Users/michael/Projects/mama-app/README.md)",
+      "Write(//Users/michael/Projects/mama-app/src/**)",
+      "Write(//Users/michael/Projects/mama-app/.claude/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push:*)",
+      "Bash(git reset --hard:*)",
+      "Edit(//Users/michael/Projects/mama-app/.git/**)",
+      "Edit(//Users/michael/Projects/mama-app/node_modules/**)",
+      "Edit(//Users/michael/Projects/mama-app/package-lock.json)"
+    ],
+    "ask": [
+      "Bash(npm uninstall:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATHS\" | grep -qE '\\.(jsx|js|ts|tsx)$'; then npx vite build --mode development > /dev/null 2>&1 || echo '⚠ build check failed'; fi",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
