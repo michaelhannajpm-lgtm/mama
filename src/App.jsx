@@ -9,24 +9,7 @@ import {
   PawPrint, Waves, Droplets, Flame, Award,
   Mail, Eye, EyeOff, Phone
 } from 'lucide-react';
-
-// ---------- Design Tokens ----------
-const C = {
-  cream: '#F6EFE2',
-  creamSoft: '#FBF6EC',
-  paper: '#FFFEFA',
-  ink: '#2A1E22',
-  inkSoft: '#5C4A4F',
-  inkMuted: '#8C7A7E',
-  terracotta: '#C8553D',
-  terracottaDark: '#A8412C',
-  sage: '#7E9678',
-  sageDark: '#5E7A5A',
-  saffron: '#D9A441',
-  rose: '#E8B4A0',
-  divider: '#E8DECB',
-  premium: '#1B1517',
-};
+import { C } from './theme';
 
 // ---------- Data ----------
 const MOM_TYPES = [
@@ -3790,26 +3773,6 @@ export default function App() {
   const [joinedEvents, setJoinedEvents] = useState([]);
   // Message history per mom: { [momId]: [{ text, fromUser, ts }, ...] }
   const [messageHistory, setMessageHistory] = useState({});
-
-  // Load fonts once
-  useEffect(() => {
-    const id = 'mama-fonts';
-    if (document.getElementById(id)) return;
-    const link = document.createElement('link');
-    link.id = id; link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Albert+Sans:wght@300;400;500;600;700&display=swap';
-    document.head.appendChild(link);
-
-    const style = document.createElement('style');
-    style.id = 'mama-anim';
-    style.textContent = `
-      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-      @keyframes fadeIn { from { opacity:0; transform:translate(-50%,8px);} to { opacity:1; transform:translate(-50%,0);} }
-      @keyframes fadeInUp { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform: translateY(0);} }
-      @keyframes popBadge { 0% { transform: scale(.4); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
-    `;
-    document.head.appendChild(style);
-  }, []);
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
 
