@@ -564,6 +564,76 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
     };
   })();
 
+  const fmtKidsAges = (jsonb) => {
+    if (!jsonb || typeof jsonb !== 'object') return null;
+    const parts = Object.entries(jsonb).map(([age, n]) => `${n}× ${age}`);
+    return parts.length ? parts.join(', ') : null;
+  };
+
+  const fmtRelative = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const ms = Date.now() - d.getTime();
+    const m = Math.floor(ms / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const days = Math.floor(h / 24);
+    if (days < 30) return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
+
+  const fmtAbsolute = (iso) => iso ? new Date(iso).toLocaleString() : null;
+
+  const placeName = (uuid) => {
+    const p = placesById?.get(uuid);
+    if (p?.name) return p.name;
+    return uuid?.slice(0, 8) ?? '—';
+  };
+
+  const Section = ({ title, children }) => (
+    <div className="py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+      <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+
+  const KV = ({ label, value, mono = false }) => (
+    <div className="flex items-baseline gap-3 py-0.5">
+      <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>
+        {label}
+      </div>
+      <div
+        className="text-[12.5px] flex-1 break-words"
+        style={{ fontFamily: mono ? 'monospace' : 'Albert Sans', color: value == null || value === '' ? C.inkMuted : C.ink }}
+      >
+        {value == null || value === '' ? '—' : value}
+      </div>
+    </div>
+  );
+
+  const Chips = ({ items, color = C.ink, bg = C.creamSoft }) => {
+    if (!items || items.length === 0) {
+      return <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>—</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((it, i) => (
+          <span
+            key={`${it}-${i}`}
+            className="rounded-full px-2 py-0.5 text-[11.5px]"
+            style={{ background: bg, color, fontFamily: 'Albert Sans' }}
+          >
+            {it}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div
       onClick={onClose}
@@ -639,11 +709,124 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
           </button>
         </div>
 
-        {/* Body — Task 5 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
-            (body — Task 5)
-          </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5">
+          <Section title="Photos">
+            {Array.isArray(mom.photos) && mom.photos.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {mom.photos.map((url, i) => (
+                  <img
+                    key={`${url}-${i}`}
+                    src={url}
+                    alt=""
+                    className="rounded-lg"
+                    style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>No photos</span>
+            )}
+          </Section>
+
+          <Section title="Bio">
+            <div className="text-[13px] leading-snug" style={{ fontFamily: 'Albert Sans', color: mom.bio ? C.ink : C.inkMuted }}>
+              {mom.bio || '—'}
+            </div>
+          </Section>
+
+          <Section title="Identity">
+            <KV label="Display name" value={mom.display_name}/>
+            <KV label="Username"     value={mom.username ? `@${mom.username}` : null}/>
+            <KV label="Age"          value={mom.age}/>
+            <KV label="Profile id"   value={mom.id} mono/>
+            <KV label="Auth user id" value={mom.auth_user_id} mono/>
+          </Section>
+
+          <Section title="Family">
+            <KV label="Kids ages" value={fmtKidsAges(mom.kids_ages)}/>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Mom types</div>
+              <div className="flex-1"><Chips items={mom.mom_types}/></div>
+            </div>
+          </Section>
+
+          <Section title="Preferences">
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Values</div>
+              <div className="flex-1"><Chips items={mom.values} bg={`${C.saffron}25`}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Interests</div>
+              <div className="flex-1"><Chips items={mom.interests} bg={`${C.sageDark}20`} color={C.sageDark}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Free slots</div>
+              <div className="flex-1"><Chips items={mom.free_slots}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Places</div>
+              <div className="flex-1"><Chips items={(mom.places || []).map(placeName)}/></div>
+            </div>
+            <KV
+              label="Pref. events"
+              value={mom.preferred_event_ids?.length
+                ? `${mom.preferred_event_ids.length} event${mom.preferred_event_ids.length === 1 ? '' : 's'}: ${mom.preferred_event_ids.slice(0, 3).map(id => id.slice(0, 8)).join(', ')}${mom.preferred_event_ids.length > 3 ? '…' : ''}`
+                : null}
+            />
+          </Section>
+
+          <Section title="Geo">
+            <KV label="City"         value={mom.city}/>
+            <KV label="Neighborhood" value={mom.neighborhood}/>
+            <KV label="Lat / Lng"    value={mom.home_lat != null && mom.home_lng != null ? `${Number(mom.home_lat).toFixed(6)}, ${Number(mom.home_lng).toFixed(6)}` : null} mono/>
+            <KV label="Distance"     value={mom.distance_miles != null ? `${mom.distance_miles} mi` : null}/>
+          </Section>
+
+          <Section title="Flags">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: 'visible',        label: 'Visible',   on: !!mom.visible,        onColor: C.sageDark },
+                { key: 'verified',       label: 'Verified',  on: !!mom.verified,       onColor: C.sageDark },
+                { key: 'blocked_global', label: 'Blocked',   on: !!mom.blocked_global, onColor: C.terracotta },
+              ].map(f => (
+                <span
+                  key={f.key}
+                  className="rounded-full px-2.5 py-1 text-[11px]"
+                  style={{
+                    background: f.on ? `${f.onColor}20` : C.creamSoft,
+                    color: f.on ? f.onColor : C.inkMuted,
+                    fontFamily: 'Albert Sans', fontWeight: 700, letterSpacing: '.04em',
+                  }}
+                >
+                  {f.label} · {f.on ? 'on' : 'off'}
+                </span>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Social">
+            {mom.social_links && typeof mom.social_links === 'object' && Object.keys(mom.social_links).length ? (
+              <pre
+                className="text-[11.5px] rounded-lg p-2 overflow-x-auto"
+                style={{ background: C.creamSoft, color: C.ink, fontFamily: 'monospace' }}
+              >
+                {JSON.stringify(mom.social_links, null, 2)}
+              </pre>
+            ) : (
+              <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>—</span>
+            )}
+          </Section>
+
+          <Section title="Audit">
+            <KV label="Source"      value={mom.source}/>
+            <KV label="Created"     value={fmtAbsolute(mom.created_at)} />
+            <KV label="Updated"     value={fmtAbsolute(mom.updated_at)} />
+            <KV label="Last active" value={mom.last_active_at ? `${fmtAbsolute(mom.last_active_at)} (${fmtRelative(mom.last_active_at)})` : null}/>
+          </Section>
+
+          {/* Bottom spacer so the last section isn't flush against the footer */}
+          <div style={{ height: 12 }}/>
         </div>
 
         {/* Footer — Task 6 */}
