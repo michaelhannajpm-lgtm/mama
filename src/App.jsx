@@ -1,14 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import {
-  ArrowRight, ArrowLeft, MapPin, Calendar as CalendarIcon, Shield,
-  Coffee, TreePine, Sparkles, Lock, Check, ChevronRight, ChevronDown, ChevronUp,
-  Search, MessageCircle, X, Crown, Star, Plus, Minus, Heart,
-  Compass, CalendarDays, Bell, User, Users, ShieldCheck, Quote,
-  Briefcase, Home, Flower2, Music, BookOpen, Palette,
-  Leaf, Sun, Building2, Library, Trees,
-  PawPrint, Waves, Droplets, Flame, Award,
-  Mail, Eye, EyeOff, Phone
-} from 'lucide-react';
+import { useState } from 'react';
 import { C } from './theme';
 import {
   MOM_TYPES, VALUES, VALUE_NO_PREF, INTERESTS, INTEREST_NO_PREF,
@@ -25,7 +15,6 @@ import {
 import { SUGGESTED_EVENTS, EVENTS } from './data/events';
 import { Sprig } from './components/icons/Sprig';
 import { MamaLogo } from './components/icons/MamaLogo';
-import { Sun3 } from './components/icons/Sun3';
 import { PhoneFrame } from './components/PhoneFrame';
 import { StatusBar } from './components/StatusBar';
 import { Pill } from './components/Pill';
@@ -34,7 +23,6 @@ import { StepHeader } from './components/StepHeader';
 import { PrimaryBtn } from './components/PrimaryBtn';
 import { Sheet } from './components/Sheet';
 import { Toast } from './components/Toast';
-import { MatchCard } from './components/MatchCard';
 import { MiniMatchCard } from './components/MiniMatchCard';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
 import { ProfileSheet } from './sheets/ProfileSheet';

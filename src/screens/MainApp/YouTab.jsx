@@ -5,7 +5,6 @@ import { C } from '../../theme';
 import { Sprig } from '../../components/icons/Sprig';
 import { MOM_TYPES } from '../../data/taxonomy';
 
-// -- You --
 export const YouTab = ({ profile, prefs, location, distance, restart }) => {
   const momTypeLabel = profile.momTypes
     .filter(id => id !== 'prefer_not')

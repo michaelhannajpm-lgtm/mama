@@ -11,9 +11,6 @@ import { MatchesTab } from './MatchesTab';
 import { YouTab } from './YouTab';
 
 // ====================================================================
-// MAIN APP
-// ====================================================================
-// ====================================================================
 // MAIN APP — 5 tabs: Calendar · Places · Events · Matches · Profile
 // ====================================================================
 export const MainApp = ({ profile, prefs, setPrefs, location, distance, scheduled1to1, joinedEvents, setJoinedEvents, openSchedule, openProfile, openMessage, openPremium, account, requestAccount, restart, flash }) => {
