@@ -26,7 +26,7 @@ function PrototypeApp() {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[] });
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] = useState('Tampa, FL');
   const [distance, setDistance] = useState(null);
   const [prefs, setPrefs] = useState({ slots:[], places:[] });
   const [scheduleMom, setScheduleMom] = useState(null);
@@ -47,7 +47,7 @@ function PrototypeApp() {
   const restart = () => {
     setStep(0);
     setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[] });
-    setLocation(null);
+    setLocation('Tampa, FL');
     setDistance(null);
     setPrefs({ slots:[], places:[] });
     setAccount(null);

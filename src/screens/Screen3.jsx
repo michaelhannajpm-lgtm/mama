@@ -11,9 +11,59 @@ import { Pill } from '../components/Pill';
 
 export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDistance }) => {
   const [query, setQuery] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState(null);
   const filtered = query.trim()
     ? NEIGHBORHOODS.filter(n => n.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
     : [];
+
+  const handleUseCurrentLocation = () => {
+    setLocateError(null);
+
+    // Browser doesn't support geolocation — fall back to Tampa.
+    if (!navigator.geolocation) {
+      setLocation('Tampa, FL');
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          // Nominatim reverse geocoding — free, no key. zoom=10 returns city/town level.
+          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`;
+          const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+          if (!res.ok) throw new Error(`Geocode HTTP ${res.status}`);
+          const data = await res.json();
+          const a = data.address || {};
+          const city = a.city || a.town || a.village || a.hamlet || a.county || '';
+          const stateCode = a['ISO3166-2-lvl4'] ? a['ISO3166-2-lvl4'].split('-')[1] : '';
+          const stateName = a.state || '';
+          const label = city
+            ? (stateCode ? `${city}, ${stateCode}` : stateName ? `${city}, ${stateName}` : city)
+            : (stateName || 'Tampa, FL');
+          setLocation(label);
+        } catch (e) {
+          setLocateError('Could not look that up. Using Tampa, FL.');
+          setLocation('Tampa, FL');
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        // User denied or timeout — fall back to Tampa, FL silently.
+        setLocateError('Location access denied. Using Tampa, FL.');
+        setLocation('Tampa, FL');
+        setLocating(false);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 600000, // 10 minutes
+      }
+    );
+  };
 
   const missing = [];
   if (!location) missing.push('location');
@@ -47,12 +97,21 @@ export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDi
 
           {!location ? (
             <>
-              <button onClick={()=>setLocation('Mission, SF')}
+              <button onClick={handleUseCurrentLocation} disabled={locating}
                 className="w-full rounded-2xl flex items-center gap-3 px-4 mb-2.5 transition-all active:scale-[.99]"
-                style={{ height: 50, background: C.ink, color: C.cream, fontFamily:'Albert Sans', fontWeight:500, fontSize: 13.5 }}>
+                style={{
+                  height: 50, background: C.ink, color: C.cream,
+                  fontFamily:'Albert Sans', fontWeight:500, fontSize: 13.5,
+                  opacity: locating ? 0.7 : 1,
+                }}>
                 <Compass size={16} style={{ color: C.saffron }}/>
-                Use my current location
+                {locating ? 'Finding your city…' : 'Use my current location'}
               </button>
+              {locateError && (
+                <div className="mb-2.5 text-[11px] px-1" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
+                  {locateError}
+                </div>
+              )}
 
               <div className="rounded-2xl flex items-center gap-2.5 px-4" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
                 <Search size={15} style={{ color: C.inkMuted }}/>
