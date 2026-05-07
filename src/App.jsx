@@ -1,29 +1,8 @@
 import { useState } from 'react';
 import { C } from './theme';
-import {
-  MOM_TYPES, VALUES, VALUE_NO_PREF, INTERESTS, INTEREST_NO_PREF,
-  KID_AGES, NEIGHBORHOODS, DISTANCES, WINDOW_TO_BUCKET,
-  DAYS, DAY_LABELS, TIME_WINDOWS, MONTH_NAMES, DAYS_SHORT_BY_DOW,
-} from './data/taxonomy';
-import {
-  PLACES, PLACE_CATEGORIES, PLACES_NO_PREF, findPlace,
-  TOP_PICKS, BADGE_META, PLACE_CATEGORIES_ALL_DATA,
-} from './data/places';
-import {
-  SAMPLE_MOMS, MOM_POOL, ALL_AVAILABLE_MOMS, matchingMoms,
-} from './data/moms';
-import { SUGGESTED_EVENTS, EVENTS } from './data/events';
-import { Sprig } from './components/icons/Sprig';
-import { MamaLogo } from './components/icons/MamaLogo';
+import { TIME_WINDOWS } from './data/taxonomy';
 import { PhoneFrame } from './components/PhoneFrame';
-import { StatusBar } from './components/StatusBar';
-import { Pill } from './components/Pill';
-import { Dot } from './components/Dot';
-import { StepHeader } from './components/StepHeader';
-import { PrimaryBtn } from './components/PrimaryBtn';
-import { Sheet } from './components/Sheet';
 import { Toast } from './components/Toast';
-import { MiniMatchCard } from './components/MiniMatchCard';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
 import { ProfileSheet } from './sheets/ProfileSheet';
 import { MessageSheet } from './sheets/MessageSheet';
