@@ -214,6 +214,9 @@ export const WaitlistPage = ({ onNavigate }) => {
             <a href="/live" onClick={handleNavTo('/live')}>
               Mobile view
             </a>
+            <a href="/admin" onClick={handleNavTo('/admin')}>
+              Admin
+            </a>
             <a className="wl-nav-cta" href="#join" onClick={closeNav}>Join waitlist</a>
           </div>
         </nav>

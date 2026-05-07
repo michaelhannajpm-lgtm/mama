@@ -398,14 +398,134 @@ const MomsReport = ({ rows }) => {
         </Card>
       </div>
 
-      <div className="flex items-center justify-end mt-2">
-        <button onClick={() => downloadCsv(`mama-moms-${new Date().toISOString().slice(0, 10)}.csv`, rows)}
+      {/* Aggregated stats CSV — one row per (metric, key, count) entry,
+          handy for plugging into Sheets / Numbers for market-study analysis. */}
+      <div className="flex items-center justify-end gap-2 mt-2">
+        <button onClick={() => {
+          const statsRows = [
+            ...momTypes.map(([k, n])  => ({ metric: 'mom_type',  key: k, count: n })),
+            ...values.map(([k, n])    => ({ metric: 'value',     key: k, count: n })),
+            ...interests.map(([k, n]) => ({ metric: 'interest',  key: k, count: n })),
+            ...kidAges.map(([k, n])   => ({ metric: 'kid_age',   key: k, count: n })),
+            ...locations.map(([k, n]) => ({ metric: 'location',  key: k, count: n })),
+            ...distBuckets.map(([k, n]) => ({ metric: 'distance', key: k, count: n })),
+            ...slotDays.map(([k, n])  => ({ metric: 'slot_day',  key: k, count: n })),
+            ...slotWins.map(([k, n])  => ({ metric: 'slot_window', key: k, count: n })),
+            ...places.map(([k, n])    => ({ metric: 'place',     key: k, count: n })),
+            ...auths.map(([k, n])     => ({ metric: 'auth_provider', key: k, count: n })),
+          ];
+          downloadCsv(`gomama-moms-stats-${new Date().toISOString().slice(0, 10)}.csv`, statsRows);
+        }}
+          className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+          style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
+          <Download size={14}/> Export stats
+        </button>
+        <button onClick={() => downloadCsv(`gomama-moms-list-${new Date().toISOString().slice(0, 10)}.csv`, rows)}
           className="rounded-xl px-3 py-2 flex items-center gap-1.5"
           style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
-          <Download size={14}/> Export full CSV ({fmt(rows.length)})
+          <Download size={14}/> Export moms list ({fmt(rows.length)})
         </button>
       </div>
+
+      <SectionTitle hint="all moms · main info">Moms grid</SectionTitle>
+      <MomsTable rows={rows}/>
     </div>
+  );
+};
+
+// Compact moms grid shown at the bottom of the moms report.
+const MomsTable = ({ rows }) => {
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r => [
+      r.first_name, r.username, r.email, r.phone, r.location,
+      ...(r.mom_types || []),
+      ...(r.values || []),
+      ...(r.interests || []),
+    ].some(v => (v || '').toString().toLowerCase().includes(q)));
+  }, [rows, query]);
+
+  const fmtKids = (jsonb) => {
+    if (!jsonb || typeof jsonb !== 'object') return '—';
+    const parts = Object.entries(jsonb).map(([age, n]) => `${n}×${age}`);
+    return parts.length ? parts.join(', ') : '—';
+  };
+
+  const fmtList = (arr, max = 3) => {
+    const a = arr || [];
+    if (!a.length) return '—';
+    if (a.length <= max) return a.join(', ');
+    return `${a.slice(0, max).join(', ')} +${a.length - max}`;
+  };
+
+  return (
+    <Card padding={0}>
+      <div className="px-3 py-2 flex items-center gap-2 border-b" style={{ borderColor: C.divider }}>
+        <input value={query} onChange={e => setQuery(e.target.value)}
+          placeholder="Search name / email / city / values / interests…"
+          className="flex-1 rounded-xl px-3 py-2 outline-none text-[12.5px]"
+          style={{ background: C.cream, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
+        <div className="text-[11.5px] tabular-nums" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+          {fmt(filtered.length)} / {fmt(rows.length)}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead style={{ background: C.creamSoft }}>
+            <tr>
+              {['Name', 'Email · Phone', 'City', 'Kids', 'Mom types', 'Values', 'Interests', 'Step', 'Joined'].map(h => (
+                <th key={h} className="text-left px-3 py-2" style={{
+                  color: C.inkSoft, fontWeight: 700, letterSpacing: '.04em',
+                  textTransform: 'uppercase', fontSize: 10.5, whiteSpace: 'nowrap',
+                  position: 'sticky', top: 0, background: C.creamSoft,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.slice(0, 500).map(r => (
+              <tr key={r.id} style={{ borderTop: `1px solid ${C.divider}` }}>
+                <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 600 }}>{r.first_name || '—'}</div>
+                  {r.username && <div style={{ color: C.inkMuted, fontSize: 11 }}>@{r.username}</div>}
+                </td>
+                <td className="px-3 py-2" style={{ color: C.ink }}>
+                  <div>{r.email || '—'}</div>
+                  {r.phone && <div style={{ color: C.inkMuted, fontSize: 11 }}>{r.phone}</div>}
+                </td>
+                <td className="px-3 py-2" style={{ color: C.inkSoft, whiteSpace: 'nowrap' }}>
+                  {r.location || '—'}
+                  {r.distance_miles != null && (
+                    <div style={{ color: C.inkMuted, fontSize: 11 }}>{r.distance_miles} mi</div>
+                  )}
+                </td>
+                <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap' }}>{fmtKids(r.kids_ages)}</td>
+                <td className="px-3 py-2" style={{ color: C.ink }}>{fmtList(r.mom_types, 2)}</td>
+                <td className="px-3 py-2" style={{ color: C.ink }}>{fmtList(r.values, 3)}</td>
+                <td className="px-3 py-2" style={{ color: C.ink }}>{fmtList(r.interests, 3)}</td>
+                <td className="px-3 py-2 tabular-nums" style={{ color: r.completed_at ? C.sageDark : C.inkSoft, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                  {r.completed_at ? '✓ done' : (r.current_step ?? 0)}
+                </td>
+                <td className="px-3 py-2" style={{ color: C.inkMuted, whiteSpace: 'nowrap' }}>{rel(r.created_at)}</td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={9} className="px-3 py-6 text-center" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
+                No moms match that search.
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {filtered.length > 500 && (
+        <div className="px-3 py-2 border-t text-[11.5px]" style={{ borderColor: C.divider, color: C.inkMuted, fontFamily: 'Albert Sans' }}>
+          Showing 500 of {fmt(filtered.length)}. Use "Export moms list" above for the full set.
+        </div>
+      )}
+    </Card>
   );
 };
 
