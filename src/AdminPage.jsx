@@ -765,8 +765,8 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
                     type="button"
                     onClick={() => setLightboxIndex(i)}
                     aria-label={`Enlarge photo ${i + 1}`}
-                    className="rounded-lg transition-transform hover:scale-[1.04] focus:outline-none"
-                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'block' }}
+                    className="rounded-lg transition-transform hover:scale-[1.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'block', ['--tw-ring-color']: C.ink }}
                   >
                     <img
                       src={url}
