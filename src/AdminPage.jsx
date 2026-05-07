@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
-  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout,
+  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -542,6 +542,77 @@ const MomsTable = ({ rows, momProfiles }) => {
 };
 
 // ============================================================================
+// Detail modal for a single mom_profiles row. Read-only view of every field
+// plus three flag toggles in the footer (Tasks 5–6).
+// ============================================================================
+const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
+  // Esc closes the modal. Scoped via useEffect so we don't leak listeners.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(42,30,34,0.55)', animation: 'fadeIn 0.15s ease-out' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Profile detail for ${mom.display_name || 'mom'}`}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="rounded-2xl overflow-hidden flex flex-col"
+        style={{
+          background: C.paper,
+          border: `1px solid ${C.divider}`,
+          width: '100%',
+          maxWidth: 560,
+          maxHeight: '90vh',
+          animation: 'slideUp 0.2s ease-out',
+        }}
+      >
+        {/* Sticky header — full content lands in Task 4 */}
+        <div className="px-5 py-4 flex items-start gap-3" style={{ borderBottom: `1px solid ${C.divider}`, background: C.cream }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1.1 }}>
+              {mom.display_name || '—'}
+            </div>
+            <div className="mt-0.5 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+              @{mom.username || '—'}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close profile"
+            className="rounded-full p-1.5 transition-colors"
+            style={{ background: 'transparent', color: C.inkSoft, border: `1px solid ${C.divider}` }}
+          >
+            <X size={16}/>
+          </button>
+        </div>
+
+        {/* Body — Task 5 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
+            (body — Task 5)
+          </div>
+        </div>
+
+        {/* Footer — Task 6 */}
+        <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${C.divider}`, background: C.cream }}>
+          <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
+            (footer — Task 6)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // Mom profiles tab — promoted moms in the discoverable directory.
 // ============================================================================
 const MomProfilesTab = ({ rows, places, onPatch }) => {
@@ -549,6 +620,7 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
     () => new Map((places || []).map(p => [p.id, p])),
     [places]
   );
+  const [selectedMom, setSelectedMom] = useState(null);
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -628,7 +700,16 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
             </thead>
             <tbody>
               {filtered.slice(0, 500).map(r => (
-                <tr key={r.id} style={{ borderTop: `1px solid ${C.divider}` }}>
+                <tr
+                  key={r.id}
+                  onClick={() => setSelectedMom(r)}
+                  className="cursor-pointer transition-colors hover:bg-[var(--mp-row-hover)]"
+                  style={{ borderTop: `1px solid ${C.divider}`, ['--mp-row-hover']: C.creamSoft }}
+                  aria-label={`Open profile for ${r.display_name || r.username || 'mom'}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setSelectedMom(r); }}
+                >
                   <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap', fontWeight: 600 }}>
                     {r.display_name || '—'}
                     {r.verified && (
@@ -668,6 +749,18 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
           </div>
         )}
       </Card>
+
+      {selectedMom && (
+        <MomProfileDetailModal
+          mom={selectedMom}
+          placesById={placesById}
+          onClose={() => setSelectedMom(null)}
+          onPatched={(updated) => {
+            setSelectedMom(updated);
+            onPatch?.(updated);
+          }}
+        />
+      )}
     </div>
   );
 };
