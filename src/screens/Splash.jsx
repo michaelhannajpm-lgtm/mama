@@ -4,7 +4,7 @@ import { MamaLogo } from '../components/icons/MamaLogo';
 import { StatusBar } from '../components/StatusBar';
 import { PrimaryBtn } from '../components/PrimaryBtn';
 
-export const Splash = ({ onBegin }) => (
+export const Splash = ({ onBegin, onSignIn }) => (
   <div className="h-full flex flex-col relative overflow-hidden" style={{ background: C.cream }}>
     {/* Atmosphere — same washes as Screen 1, turned up so it dominates */}
     <div className="absolute pointer-events-none" style={{
@@ -93,7 +93,13 @@ export const Splash = ({ onBegin }) => (
       <PrimaryBtn onClick={onBegin}>Begin <ArrowRight size={18}/></PrimaryBtn>
 
       <div className="mt-3 text-center text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
-        Already a Mama? <span style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'underline' }}>Sign in</span>
+        Already a Mama?{' '}
+        <button onClick={onSignIn} style={{
+          color: C.terracotta, fontWeight: 600, textDecoration: 'underline',
+          background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit',
+        }}>
+          Sign in
+        </button>
       </div>
     </div>
   </div>

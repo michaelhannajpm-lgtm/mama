@@ -18,6 +18,7 @@ import { Screen5 } from './screens/Screen5';
 import { Screen6 } from './screens/Screen6';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { AccountScreen } from './screens/AccountScreen';
+import { LoginScreen } from './screens/LoginScreen';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut } from './lib/onboarding';
 
@@ -27,6 +28,7 @@ import { recordStep, promoteSession, signOut } from './lib/onboarding';
 function PrototypeApp() {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'' });
   const [location, setLocation] = useState('Tampa, FL');
   const [distance, setDistance] = useState(null);
@@ -146,8 +148,20 @@ function PrototypeApp() {
     }}>
       <PhoneFrame>
         <div className="w-full h-full relative">
-          {!splashShown ? (
-            <Splash onBegin={()=>setSplashShown(true)}/>
+          {!splashShown && loginOpen ? (
+            <LoginScreen
+              onBack={() => setLoginOpen(false)}
+              onSuccess={(acct) => {
+                setAccount(acct);
+                setLoginOpen(false);
+                setSplashShown(true);
+                setStep(7);
+                flash(`Welcome back, ${acct.firstName} ✦`);
+              }}
+              flash={flash}
+            />
+          ) : !splashShown ? (
+            <Splash onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}/>
           ) : (<>
           {step===0 && <Screen2 onNext={()=>advance(0, {})} onBack={()=>setStep(0)}/>}
           {step===1 && <Screen3 onNext={()=>advance(1, { location, distance_miles: distance })} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}

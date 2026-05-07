@@ -99,6 +99,30 @@ export const completeSignup = async ({
   return body; // { ok, auth_user_id, username, first_name }
 };
 
+// Sign in an existing user with phone or email + password.
+// Returns the supabase session on success; throws with a friendly message on failure.
+export const signInWithPassword = async ({ method, phone, email, password }) => {
+  if (!isSupabaseReady()) {
+    throw new Error('Sign-in is not configured yet');
+  }
+  const credentials = method === 'phone'
+    ? { phone: `+1${phone.replace(/\D/g, '')}`, password }
+    : { email: (email || '').trim().toLowerCase(), password };
+  const { data, error } = await supabase.auth.signInWithPassword(credentials);
+  if (error) {
+    // Friendly message — Supabase returns "Invalid login credentials" by default
+    const msg = error.message || 'Could not sign in';
+    const friendly =
+      /invalid login credentials/i.test(msg) ? 'Wrong email/phone or password.' :
+      /email not confirmed/i.test(msg) ? 'Please confirm your email before signing in.' :
+      msg;
+    const err = new Error(friendly);
+    err.status = error.status;
+    throw err;
+  }
+  return data;
+};
+
 export const signInWithProvider = async (provider) => {
   if (!isSupabaseReady()) {
     throw new Error('Social sign-in is not configured yet');
