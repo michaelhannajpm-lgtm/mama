@@ -3,8 +3,8 @@ import { C } from '../theme';
 
 export const MatchCardFull = ({ mom, profile, onSchedule, onMessage, onProfile }) => {
   const userTags = [
-    ...((profile && profile.interests) || []),
-    ...((profile && profile.values) || []),
+    ...(profile.interests || []),
+    ...(profile.values || []),
   ];
   const momTags = [
     ...(mom.interests || []),
@@ -59,16 +59,17 @@ export const MatchCardFull = ({ mom, profile, onSchedule, onMessage, onProfile }
         </div>
 
         <div className="flex flex-wrap gap-1.5 mt-1.5">
-          {display.map((t, i) => (
-            <span key={i} className="px-2.5 py-1 rounded-full" style={{
+          {display.map((t) => (
+            <span key={t} className="px-2.5 py-1 rounded-full" style={{
               background: `${C.terracotta}15`, color: C.terracotta,
               fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 11,
             }}>{t}</span>
           ))}
         </div>
 
-        <div className="mt-2 truncate" style={{
+        <div className="mt-2" style={{
           fontFamily: 'Albert Sans', fontWeight: 400, fontSize: 12, color: C.inkSoft, lineHeight: 1.4,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
           "{mom.bio}"
         </div>
@@ -80,12 +81,12 @@ export const MatchCardFull = ({ mom, profile, onSchedule, onMessage, onProfile }
           }}>
             <Calendar size={14}/> Schedule
           </button>
-          <button onClick={() => onMessage(mom)} className="rounded-2xl flex items-center justify-center" style={{
+          <button onClick={() => onMessage(mom)} aria-label={`Message ${mom.name}`} className="rounded-2xl flex items-center justify-center" style={{
             width: 44, height: 42, background: C.paper, border: `1px solid ${C.divider}`, color: C.ink,
           }}>
             <MessageCircle size={16}/>
           </button>
-          <button onClick={() => onProfile(mom)} className="rounded-2xl flex items-center justify-center" style={{
+          <button onClick={() => onProfile(mom)} aria-label={`View ${mom.name}'s profile`} className="rounded-2xl flex items-center justify-center" style={{
             width: 44, height: 42, background: C.paper, border: `1px solid ${C.divider}`, color: C.ink,
           }}>
             <User size={16}/>
