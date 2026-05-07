@@ -5,6 +5,7 @@ import { Sheet } from '../components/Sheet';
 import {
   MOM_TYPES, VALUES, INTERESTS, KID_AGES,
 } from '../data/taxonomy';
+import { updateMomProfile } from '../lib/onboarding';
 
 const Section = ({ title, hint, children }) => (
   <div className="mb-5">
@@ -83,17 +84,39 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
     socialLinks: { ...d.socialLinks, [key]: value },
   }));
 
-  const handleSave = () => {
-    setProfile(p => ({
-      ...p,
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (saving) return;
+    const nextProfile = {
       bio: draft.bio.trim(),
       kidsAges: draft.kidsAges,
       momTypes: draft.primaryType ? [draft.primaryType] : [],
       values: draft.values,
       interests: draft.interests,
       socialLinks: draft.socialLinks,
-    }));
-    onClose();
+    };
+    // Local state always updates so the UI reflects the change immediately.
+    setProfile(p => ({ ...p, ...nextProfile }));
+
+    // Best-effort persist to Supabase. Errors are swallowed — the local
+    // edit still stands, and the user can retry on the next save.
+    setSaving(true);
+    try {
+      await updateMomProfile({
+        bio: nextProfile.bio,
+        kids_ages: draft.kidsAges,
+        mom_types: nextProfile.momTypes,
+        values: draft.values,
+        interests: draft.interests,
+        social_links: draft.socialLinks,
+      });
+    } catch {
+      /* swallow — local edit already landed */
+    } finally {
+      setSaving(false);
+      onClose();
+    }
   };
 
   return (

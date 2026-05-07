@@ -152,6 +152,39 @@ export const promoteSession = async () => {
   return res.json().catch(() => null);
 };
 
+// Patch the signed-in mom's mom_profiles row.
+// Returns the updated profile on success; throws with a friendly message on
+// failure. Silently no-ops (returns null) if the user isn't signed in — the
+// caller should fall back to local-only state in that case.
+export const updateMomProfile = async (patch) => {
+  if (!isSupabaseReady()) return null;
+  const { data } = await supabase.auth.getSession();
+  const access_token = data?.session?.access_token;
+  if (!access_token) return null;
+
+  let res;
+  try {
+    res = await fetch('/api/mom-profiles/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token, patch }),
+    });
+  } catch {
+    return null; // backend not reachable (e.g. `npm run dev` without `vercel dev`)
+  }
+  // 404 → no mom_profile row yet (older signup, or local-mode signup). Treat
+  // as a soft miss so the local edit still lands and we don't block the user.
+  if (res.status === 404) return null;
+  let body = {};
+  try { body = await res.json(); } catch { /* ignore */ }
+  if (!res.ok) {
+    const err = new Error(body?.error || 'Could not save profile');
+    err.status = res.status;
+    throw err;
+  }
+  return body.profile || null;
+};
+
 export const signOut = async () => {
   if (isSupabaseReady()) {
     try { await supabase.auth.signOut(); } catch { /* ignore */ }
