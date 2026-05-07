@@ -84,8 +84,15 @@ export const completeSignup = async ({
   if (res.status === 404) return localSignupFallback({ firstName });
   let body = {};
   try { body = await res.json(); } catch { /* ignore */ }
+  // Backend reachable but a feature isn't configured (e.g. Supabase phone
+  // signups disabled, SMS provider missing) — fall back so the demo keeps
+  // moving rather than blocking the user on infra config.
+  const msg = (body && body.error) || '';
+  if (!res.ok && /disabled|not configured|not enabled|not available|provider/i.test(msg)) {
+    return localSignupFallback({ firstName });
+  }
   if (!res.ok) {
-    const err = new Error(body.error || 'Could not create account');
+    const err = new Error(msg || 'Could not create account');
     err.status = res.status;
     throw err;
   }
