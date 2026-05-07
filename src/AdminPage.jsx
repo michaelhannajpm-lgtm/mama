@@ -756,13 +756,21 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
             {Array.isArray(mom.photos) && mom.photos.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {mom.photos.map((url, i) => (
-                  <img
+                  <button
                     key={`${url}-${i}`}
-                    src={url}
-                    alt=""
-                    className="rounded-lg"
-                    style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}` }}
-                  />
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    aria-label={`Enlarge photo ${i + 1}`}
+                    className="rounded-lg transition-transform hover:scale-[1.04] focus:outline-none"
+                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'block' }}
+                  >
+                    <img
+                      src={url}
+                      alt=""
+                      className="rounded-lg block"
+                      style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}` }}
+                    />
+                  </button>
                 ))}
               </div>
             ) : (
