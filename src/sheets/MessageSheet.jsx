@@ -4,7 +4,7 @@ import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 
 export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPremium }) => {
-  const FREE_LIMIT = 3;
+  const FREE_LIMIT = 10;
   const userMessages = history.filter(m => m.fromUser);
   const used = userMessages.length;
   const remaining = FREE_LIMIT - used;
@@ -33,7 +33,7 @@ export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPre
           <h3 className="mt-1.5" style={{ fontFamily:'Fraunces', fontSize: 22, fontWeight:500, color: C.ink, letterSpacing:'-.02em' }}>
             {isPremium
               ? <>Chat <span style={{ fontStyle:'italic', color: C.terracotta }}>unlimited</span>.</>
-              : <>Your first <span style={{ fontStyle:'italic', color: C.terracotta }}>3 messages</span> are free.</>}
+              : <>Your first <span style={{ fontStyle:'italic', color: C.terracotta }}>10 messages</span> are free.</>}
           </h3>
         </div>
 
@@ -41,9 +41,9 @@ export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPre
         {!isPremium && (
           <div className="mt-3 flex items-center gap-2">
             <div className="flex items-center gap-1">
-              {[0, 1, 2].map(i => (
+              {Array.from({ length: FREE_LIMIT }, (_, i) => i).map(i => (
                 <div key={i} className="rounded-full" style={{
-                  width: 18, height: 6,
+                  width: 10, height: 6,
                   background: i < used ? C.terracotta : C.divider,
                   opacity: i < used ? 1 : .6,
                 }}/>
