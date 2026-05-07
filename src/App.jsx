@@ -140,17 +140,9 @@ function PrototypeApp() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] md:min-h-screen flex items-center justify-center p-0 md:p-8 md:phoneframe-stage">
-      {/* Stage gradient is desktop-only — mobile fills the viewport with the app's own cream background */}
-      <style>{`
-        @media (min-width: 768px) {
-          .phoneframe-stage {
-            background: radial-gradient(ellipse at top left, ${C.rose}33, transparent 50%),
-                        radial-gradient(ellipse at bottom right, ${C.sage}22, transparent 50%),
-                        ${C.creamSoft};
-          }
-        }
-      `}</style>
+    <div className="w-full min-h-screen flex items-center justify-center p-4 md:p-8" style={{
+      background: `radial-gradient(ellipse at top left, ${C.rose}33, transparent 50%), radial-gradient(ellipse at bottom right, ${C.sage}22, transparent 50%), ${C.creamSoft}`,
+    }}>
       <PhoneFrame>
         <div className="w-full h-full relative">
           {!splashShown ? (
