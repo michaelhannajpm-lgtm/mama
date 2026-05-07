@@ -659,24 +659,66 @@
 
 .wl-city-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-top: 34px;
 }
 
 .wl-city {
   display: flex;
-  min-height: 74px;
-  align-items: center;
-  gap: 10px;
-  padding: 18px;
+  flex-direction: column;
+  min-height: 84px;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 18px;
   background: #fffefa;
   border: 1px solid rgba(42, 30, 34, 0.08);
   font-weight: 800;
 }
 
+.wl-city > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .wl-city svg {
   color: #5e7a5a;
+}
+
+.wl-city-tag {
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wl-city.is-live {
+  border-color: #5e7a5a;
+  background: #f4f9f0;
+}
+
+.wl-city.is-live svg {
+  color: #5e7a5a;
+  fill: #5e7a5a;
+}
+
+.wl-city.is-live .wl-city-tag {
+  color: #5e7a5a;
+}
+
+.wl-city.is-soon {
+  background: #faf5ea;
+  opacity: 0.78;
+}
+
+.wl-city.is-soon svg {
+  color: #8c7a7e;
+}
+
+.wl-city.is-soon .wl-city-tag {
+  color: #8c7a7e;
 }
 
 .wl-secondary-cta {
@@ -748,6 +790,12 @@
   .wl-hero::after {
     width: 26%;
     background: rgba(126, 150, 120, 0.16);
+  }
+}
+
+@media (max-width: 1080px) and (min-width: 521px) {
+  .wl-city-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
