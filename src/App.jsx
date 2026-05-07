@@ -25,7 +25,7 @@ import { recordStep, promoteSession, signOut } from './lib/onboarding';
 // ====================================================================
 // ROOT
 // ====================================================================
-function PrototypeApp() {
+function PrototypeApp({ bare = false }) {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -142,13 +142,9 @@ function PrototypeApp() {
     setStep(currentStepIndex + 1);
   };
 
-  return (
-    <div className="w-full min-h-screen flex items-center justify-center p-4 md:p-8" style={{
-      background: `radial-gradient(ellipse at top left, ${C.rose}33, transparent 50%), radial-gradient(ellipse at bottom right, ${C.sage}22, transparent 50%), ${C.creamSoft}`,
-    }}>
-      <PhoneFrame>
-        <div className="w-full h-full relative">
-          {!splashShown && loginOpen ? (
+  const inner = (
+    <div className="w-full h-full relative">
+      {!splashShown && loginOpen ? (
             <Login
               onBack={() => setLoginOpen(false)}
               onSuccess={(acct) => {
@@ -229,9 +225,30 @@ function PrototypeApp() {
             }}/>}
           </>)}
 
-          {toast && <Toast msg={toast}/>}
-        </div>
-      </PhoneFrame>
+      {toast && <Toast msg={toast}/>}
+    </div>
+  );
+
+  if (bare) {
+    return (
+      <div className="w-full relative" style={{
+        height: '100dvh',
+        background: C.cream,
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}>
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center p-4 md:p-8" style={{
+      background: `radial-gradient(ellipse at top left, ${C.rose}33, transparent 50%), radial-gradient(ellipse at bottom right, ${C.sage}22, transparent 50%), ${C.creamSoft}`,
+    }}>
+      <PhoneFrame>{inner}</PhoneFrame>
     </div>
   );
 }
@@ -252,6 +269,7 @@ export default function App() {
   }, []);
 
   if (route === '/prototype') return <PrototypeApp />;
+  if (route === '/live') return <PrototypeApp bare />;
   if (route === '/admin' || route.startsWith('/admin/')) {
     // Lazy import via static reference — kept simple, no Suspense needed.
     return <AdminPage />;
