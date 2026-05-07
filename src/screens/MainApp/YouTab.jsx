@@ -60,9 +60,10 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
           {account?.firstName ? `Hi, ${account.firstName}` : 'You'}
         </h1>
         <button onClick={() => setEditOpen(true)}
-          className="rounded-full flex items-center gap-1.5 px-3 py-1.5"
-          style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600 }}>
-          <Pencil size={12}/> Edit profile
+          aria-label="Edit profile"
+          className="rounded-full flex items-center justify-center"
+          style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}`, color: C.ink }}>
+          <Pencil size={14}/>
         </button>
       </div>
 
