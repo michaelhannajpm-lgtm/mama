@@ -918,6 +918,99 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
   );
 };
 
+// Full-screen photo lightbox over the detail modal. Click thumbnail in the
+// modal's Photos section to open. Loops at both ends; close via X, backdrop, or Esc.
+const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
+  // Defensive clamp in case caller passed an out-of-range initialIndex.
+  const clampedInitial = Math.max(0, Math.min(initialIndex ?? 0, (photos?.length ?? 1) - 1));
+  const [index, setIndex] = useState(clampedInitial);
+
+  // Esc closes the lightbox. The parent modal's own Esc listener
+  // short-circuits while lightboxIndex !== null, so this listener owns Esc.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!photos || photos.length === 0) return null;
+
+  const total = photos.length;
+  const showNav = total > 1;
+  const next = (e) => {
+    e?.stopPropagation();
+    setIndex(i => (i + 1) % total);
+  };
+  const prev = (e) => {
+    e?.stopPropagation();
+    setIndex(i => (i - 1 + total) % total);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: `${C.ink}D9`, animation: 'fadeIn 0.15s ease-out' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Photo ${index + 1} of ${total}`}
+    >
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        autoFocus
+        aria-label="Close enlarged photo"
+        className="absolute top-4 right-4 rounded-full p-2 transition-colors"
+        style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+      >
+        <X size={20}/>
+      </button>
+
+      {showNav && (
+        <button
+          onClick={prev}
+          aria-label="Previous photo"
+          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full p-2 transition-colors"
+          style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+        >
+          <ChevronLeft size={24}/>
+        </button>
+      )}
+
+      <img
+        onClick={(e) => e.stopPropagation()}
+        src={photos[index]}
+        alt=""
+        style={{
+          maxWidth: '90vw',
+          maxHeight: '85vh',
+          objectFit: 'contain',
+          animation: 'fadeInUp 0.2s ease-out',
+        }}
+      />
+
+      {showNav && (
+        <button
+          onClick={next}
+          aria-label="Next photo"
+          className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2 transition-colors"
+          style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+        >
+          <ChevronRight size={24}/>
+        </button>
+      )}
+
+      {showNav && (
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12.5px]"
+          style={{ fontFamily: 'Albert Sans', color: C.cream, fontWeight: 600 }}
+        >
+          {index + 1} / {total}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ============================================================================
 // Mom profiles tab — promoted moms in the discoverable directory.
 // ============================================================================
