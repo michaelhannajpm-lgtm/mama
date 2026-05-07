@@ -38,24 +38,26 @@ export default async function handler(req, res) {
   const id = typeof body.id === 'string' ? body.id : '';
   if (!isUuid(id)) return json(res, 400, { error: 'id must be a uuid' });
 
-  const result = sanitizePatch(body.patch);
-  if (result.error) return json(res, 400, { error: result.error });
+  const sanitized = sanitizePatch(body.patch);
+  if (sanitized.error) return json(res, 400, { error: sanitized.error });
 
   try {
     const url = `${creds.supabaseUrl}/rest/v1/mom_profiles?id=eq.${id}`;
     const r = await fetch(url, {
       method: 'PATCH',
       headers: sbHeaders(creds.serviceRoleKey, { Prefer: 'return=representation' }),
-      body: JSON.stringify(result.patch),
+      body: JSON.stringify(sanitized.patch),
     });
     if (!r.ok) {
       const text = await r.text().catch(() => '');
+      console.error('admin/mom-profiles/update patch failed', r.status, text);
       return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 200)}` });
     }
     const rows = await r.json().catch(() => []);
     if (!rows.length) return json(res, 404, { error: 'No mom_profile with that id' });
     return json(res, 200, { ok: true, row: rows[0] });
   } catch (e) {
+    console.error('admin/mom-profiles/update threw', e);
     return json(res, 502, { error: e?.message || 'Network error' });
   }
 }
