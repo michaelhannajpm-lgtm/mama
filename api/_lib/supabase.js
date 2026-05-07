@@ -1,5 +1,7 @@
 // Shared helpers for Vercel API routes that talk to Supabase via REST + service role.
 
+import { randomBytes } from 'node:crypto';
+
 export const json = (res, status, body) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
@@ -47,7 +49,6 @@ export const usernameBase = (firstName) => {
 };
 
 export const randomHex = (len) => {
-  const bytes = new Uint8Array(Math.ceil(len / 2));
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+  if (!Number.isInteger(len) || len <= 0) return '';
+  return randomBytes(Math.ceil(len / 2)).toString('hex').slice(0, len);
 };

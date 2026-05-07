@@ -10,6 +10,21 @@ Prototype:  https://mama-iota-weld.vercel.app/prototype
 GitHub:     git@github.com:michaelhannajpm-lgtm/mama.git
 ```
 
+## Infrastructure
+
+| Layer | Service | Link |
+|---|---|---|
+| Hosting + serverless functions | Vercel | https://vercel.com |
+| Database (Postgres) | Supabase | https://supabase.com |
+| Auth (email, phone, Google, Facebook, Apple) | Supabase Auth | https://supabase.com/auth |
+| Source control | GitHub | https://github.com/michaelhannajpm-lgtm/mama |
+
+The database is **Postgres**, managed by Supabase. Schema lives in `supabase/*.sql`. Tables in use:
+
+- `public.waitlist_signups` — marketing waitlist captures
+- `public.onboarding_profiles` — prototype onboarding data, one row per mom
+- `auth.users` — Supabase-managed auth records (linked from `onboarding_profiles.auth_user_id`)
+
 ## Current App
 
 - `/` renders the marketing waitlist page.
@@ -29,13 +44,13 @@ GitHub:     git@github.com:michaelhannajpm-lgtm/mama.git
 
 ## Tech Stack
 
-- React 18
-- Vite
-- Tailwind CSS
-- lucide-react
-- Vercel hosting and serverless functions
-- Supabase database and auth
-- Google Fonts: Fraunces and Albert Sans
+- [React 18](https://react.dev)
+- [Vite](https://vitejs.dev)
+- [Tailwind CSS](https://tailwindcss.com)
+- [lucide-react](https://lucide.dev)
+- [Vercel](https://vercel.com) — hosting and serverless functions
+- [Supabase](https://supabase.com) — Postgres database and auth (Google / Facebook / Apple OAuth + email/phone)
+- Google Fonts: [Fraunces](https://fonts.google.com/specimen/Fraunces) and [Albert Sans](https://fonts.google.com/specimen/Albert+Sans)
 
 ## Project Structure
 

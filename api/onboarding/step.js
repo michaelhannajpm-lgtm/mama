@@ -29,6 +29,24 @@ const sanitizePatch = (raw) => {
   return out;
 };
 
+const fetchCurrentStep = async (creds, sessionId) => {
+  let response;
+  try {
+    response = await fetch(
+      `${creds.supabaseUrl}/rest/v1/onboarding_profiles?session_id=eq.${sessionId}&select=current_step&limit=1`,
+      { headers: sbHeaders(creds.serviceRoleKey) },
+    );
+  } catch (e) {
+    console.error('onboarding/step current step lookup failed', e);
+    return null;
+  }
+
+  if (!response.ok) return null;
+  const rows = await response.json().catch(() => []);
+  const current = Number(rows[0]?.current_step);
+  return Number.isInteger(current) ? current : null;
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -51,10 +69,11 @@ export default async function handler(req, res) {
   }
 
   const patch = sanitizePatch(body.patch);
+  const currentStep = await fetchCurrentStep(creds, session_id);
 
   const payload = {
     session_id,
-    current_step: step,
+    current_step: Math.max(currentStep ?? 0, step),
     user_agent: cleanText(req.headers['user-agent'], 300),
     referrer: cleanText(req.headers.referer, 500),
     ...patch,

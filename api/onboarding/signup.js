@@ -7,6 +7,25 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const phoneDigits = (raw) => (typeof raw === 'string' ? raw.replace(/\D/g, '') : '');
 
+const ensureRowExists = async (creds, sessionId) => {
+  const response = await fetch(
+    `${creds.supabaseUrl}/rest/v1/onboarding_profiles?on_conflict=session_id`,
+    {
+      method: 'POST',
+      headers: sbHeaders(creds.serviceRoleKey, {
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      }),
+      body: JSON.stringify({ session_id: sessionId, current_step: 6 }),
+    },
+  );
+
+  if (response.ok) return true;
+
+  const text = await response.text().catch(() => '');
+  console.error('onboarding/signup ensure row failed', response.status, text);
+  return false;
+};
+
 // Try to attach the auth user to the row, retrying username on conflict.
 const attachWithUsernameRetry = async (creds, sessionId, baseRow) => {
   const base = usernameBase(baseRow.first_name);
@@ -74,6 +93,9 @@ export default async function handler(req, res) {
     email = cleanText(body.email, 254)?.toLowerCase();
     if (!email || !EMAIL_RE.test(email)) return json(res, 400, { error: 'Valid email required' });
   }
+
+  const rowReady = await ensureRowExists(creds, session_id);
+  if (!rowReady) return json(res, 502, { error: 'Could not prepare profile' });
 
   // 1. Create the auth user via Supabase Auth REST.
   let authUserId;
