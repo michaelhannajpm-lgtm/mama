@@ -14,7 +14,7 @@ A React prototype for **Mama**, a mom-friendship matching app.
 - Tailwind CSS (via PostCSS)
 - `lucide-react` for icons
 - No test framework yet
-- Single-file prototype: `src/App.jsx` (~4,000 lines)
+- Modular React structure under `src/`: `data/`, `components/`, `screens/`, `sheets/`. `App.jsx` is ~181 lines.
 
 ## Scripts
 

@@ -1,6 +1,6 @@
 # Design tokens
 
-All tokens are defined as the `C` object near the top of `src/App.jsx`. **Always reference `C.tokenName` — never hardcode hex values.**
+All tokens are defined as the `C` object in `src/theme.js` (named export). **Always reference `C.tokenName` — never hardcode hex values.**
 
 ## Color palette
 
@@ -33,14 +33,15 @@ All tokens are defined as the `C` object near the top of `src/App.jsx`. **Always
 | `Fraunces` | Display, serif headlines, sometimes italic for emphasis |
 | `Albert Sans` | UI, body, captions, eyebrows |
 
-Loaded via Google Fonts inside the `App` component's `useEffect`.
+Loaded via Google Fonts `@import` at the top of `src/index.css`.
 
 ## Animations
 
-Defined as CSS keyframes injected once via `useEffect` in `App`:
+Defined as CSS keyframes in `src/index.css`:
 
 - `slideUp`
 - `fadeIn`
 - `fadeInUp`
+- `popBadge`
 
 Used inline as `style={{ animation: '...' }}`.

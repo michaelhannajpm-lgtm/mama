@@ -2,8 +2,8 @@
 
 ## Things NOT to break
 
-- **Animation `useEffect` in `App`** — injects CSS keyframes into `document.head`.
-- **Google Fonts `<link>` injection** — same `useEffect`. If split, keep in App or move to `index.css`.
+- **CSS keyframes (`slideUp`, `fadeIn`, `fadeInUp`, `popBadge`)** live in `src/index.css` — never inline keyframes inside JSX or duplicate them elsewhere.
+- **Google Fonts `@import`** is at the top of `src/index.css` — never re-add a runtime `useEffect` for font loading.
 - **`PhoneFrame` mockup** — wraps the entire app in a centered ~375×740 phone container. Must remain the outermost layout.
 - **3-message free chat limit** — intentional monetization friction.
 - **Partial profile blur on free tier** — converts to Plus; don't simplify away.
