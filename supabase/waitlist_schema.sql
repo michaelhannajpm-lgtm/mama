@@ -19,3 +19,9 @@ create index if not exists waitlist_signups_created_at_idx
 
 comment on table public.waitlist_signups is
   'Marketing waitlist signups collected by the Mama Vercel waitlist API.';
+
+-- 2026-05-07 — additions for the /promo Founding Moms landing page.
+-- Both columns are nullable; existing rows get NULL.
+alter table public.waitlist_signups
+  add column if not exists neighborhood text,
+  add column if not exists mom_type text;
