@@ -1,172 +1,200 @@
 import { useState } from 'react';
-import { Check, Plus, Minus, X } from 'lucide-react';
+import { X, Check, Instagram } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
-import { Pill } from '../components/Pill';
 import {
-  MOM_TYPES, VALUES, VALUE_NO_PREF, INTERESTS, INTEREST_NO_PREF, KID_AGES,
+  MOM_TYPES, VALUES, INTERESTS, KID_AGES,
 } from '../data/taxonomy';
+
+const Section = ({ title, hint, children }) => (
+  <div className="mb-5">
+    <div className="flex items-baseline justify-between mb-2">
+      <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
+        {title}
+      </h3>
+      {hint && (
+        <div className="text-[10.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>{hint}</div>
+      )}
+    </div>
+    <div className="rounded-[18px] p-4" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
+      {children}
+    </div>
+  </div>
+);
+
+const Chip = ({ active, onClick, disabled, children }) => (
+  <button onClick={onClick} disabled={disabled}
+    className="rounded-full px-3 py-1.5 text-[12px] flex items-center gap-1 transition-colors"
+    style={{
+      background: active ? C.terracotta : 'transparent',
+      color: active ? '#fff' : (disabled ? C.inkMuted : C.ink),
+      border: `1px solid ${active ? C.terracotta : C.divider}`,
+      fontFamily: 'Albert Sans', fontWeight: active ? 600 : 500,
+      opacity: disabled && !active ? 0.45 : 1,
+    }}>
+    {children}
+  </button>
+);
 
 export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
   const [draft, setDraft] = useState(() => ({
+    bio: profile.bio || '',
     kidsAges: { ...(profile.kidsAges || {}) },
-    momTypes: [...(profile.momTypes || [])],
-    values:   [...(profile.values   || [])],
-    interests:[...(profile.interests|| [])],
-    bio:      profile.bio || '',
+    primaryType: profile.momTypes?.[0] || null,
+    values: [...(profile.values || [])],
+    interests: [...(profile.interests || [])],
+    socialLinks: { ...(profile.socialLinks || {}) },
   }));
 
-  const incKid = (age) => {
-    const cur = draft.kidsAges[age] || 0;
-    if (cur >= 5) return;
-    setDraft(d => ({ ...d, kidsAges: { ...d.kidsAges, [age]: cur + 1 } }));
-  };
-  const decKid = (age) => {
+  const toggleKidAge = (age) => {
     setDraft(d => {
       const next = { ...d.kidsAges };
-      const c = (next[age] || 0) - 1;
-      if (c <= 0) delete next[age]; else next[age] = c;
+      if (next[age]) delete next[age]; else next[age] = 1;
       return { ...d, kidsAges: next };
     });
   };
 
-  const toggleMomType = (id) =>
-    setDraft(d => ({ ...d, momTypes: d.momTypes.includes(id) ? d.momTypes.filter(x=>x!==id) : [...d.momTypes, id] }));
+  const setPrimaryType = (id) => setDraft(d => ({ ...d, primaryType: d.primaryType === id ? null : id }));
 
   const toggleValue = (v) => setDraft(d => {
-    if (d.values.includes(v)) return { ...d, values: d.values.filter(x=>x!==v) };
-    if (v === VALUE_NO_PREF) return { ...d, values: [VALUE_NO_PREF] };
-    const cleaned = d.values.filter(x => x !== VALUE_NO_PREF);
-    if (cleaned.length >= 3) return d;
-    return { ...d, values: [...cleaned, v] };
+    if (d.values.includes(v)) return { ...d, values: d.values.filter(x => x !== v) };
+    if (d.values.length >= 3) return d;
+    return { ...d, values: [...d.values, v] };
   });
 
-  const toggleInterest = (v) => setDraft(d => {
-    if (d.interests.includes(v)) return { ...d, interests: d.interests.filter(x=>x!==v) };
-    if (v === INTEREST_NO_PREF) return { ...d, interests: [INTEREST_NO_PREF] };
-    const cleaned = d.interests.filter(x => x !== INTEREST_NO_PREF);
-    return { ...d, interests: [...cleaned, v] };
-  });
+  const toggleInterest = (label) => setDraft(d => ({
+    ...d,
+    interests: d.interests.includes(label) ? d.interests.filter(x => x !== label) : [...d.interests, label],
+  }));
+
+  const setSocial = (key, value) => setDraft(d => ({
+    ...d,
+    socialLinks: { ...d.socialLinks, [key]: value },
+  }));
 
   const handleSave = () => {
-    setProfile(p => ({ ...p, ...draft }));
+    setProfile(p => ({
+      ...p,
+      bio: draft.bio.trim(),
+      kidsAges: draft.kidsAges,
+      momTypes: draft.primaryType ? [draft.primaryType] : [],
+      values: draft.values,
+      interests: draft.interests,
+      socialLinks: draft.socialLinks,
+    }));
     onClose();
   };
 
   return (
     <Sheet onClose={onClose} tall>
-      <div className="px-6 pt-2 pb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontFamily:'Fraunces', fontSize: 22, fontWeight:500, color: C.ink, letterSpacing:'-.02em' }}>
-            Edit your profile
-          </h2>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5" style={{ background: C.creamSoft, color: C.inkSoft }}>
-            <X size={16}/>
-          </button>
-        </div>
+      <div className="px-5 pt-2 pb-3 flex items-center justify-between border-b" style={{ borderColor: C.divider, background: C.cream }}>
+        <button onClick={onClose} aria-label="Close" className="rounded-full p-2 -ml-2" style={{ color: C.inkSoft }}>
+          <X size={18}/>
+        </button>
+        <h2 style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
+          Profile
+        </h2>
+        <button onClick={handleSave}
+          className="rounded-full px-3 py-1.5 flex items-center gap-1"
+          style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
+          <Check size={13}/> Save
+        </button>
+      </div>
 
+      <div className="px-5 pt-4 pb-8 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Bio */}
-        <div className="mb-4">
-          <div className="text-[11px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Bio
-          </div>
+        <Section title="About you" hint={`${draft.bio.length}/280`}>
           <textarea
             value={draft.bio}
             onChange={e => setDraft(d => ({ ...d, bio: e.target.value.slice(0, 280) }))}
             placeholder="A line or two about you — moms read this first."
             rows={3}
-            className="w-full rounded-2xl px-3 py-2 text-[13.5px] outline-none resize-none"
-            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily:'Albert Sans' }}
+            className="w-full bg-transparent outline-none text-[14px] resize-none"
+            style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}
           />
-          <div className="text-[10.5px] mt-1" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
-            {draft.bio.length}/280
-          </div>
-        </div>
+        </Section>
 
         {/* Kids */}
-        <div className="mb-4">
-          <div className="text-[11px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Kids · ages
+        <Section title="Your kids" hint="Tap age ranges that apply">
+          <div className="flex flex-wrap gap-2">
+            {KID_AGES.map(age => (
+              <Chip key={age} active={!!draft.kidsAges[age]} onClick={() => toggleKidAge(age)}>
+                {age}
+              </Chip>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {KID_AGES.map(age => {
-              const count = draft.kidsAges[age] || 0;
-              const active = count > 0;
+        </Section>
+
+        {/* Mom type — single select */}
+        <Section title="You are…" hint="Pick one that fits best">
+          <div className="flex flex-wrap gap-2">
+            {MOM_TYPES.filter(t => t.id !== 'prefer_not').map(t => (
+              <Chip key={t.id} active={draft.primaryType === t.id} onClick={() => setPrimaryType(t.id)}>
+                <t.icon size={11}/> {t.label}
+              </Chip>
+            ))}
+          </div>
+        </Section>
+
+        {/* Values — max 3 */}
+        <Section title="What matters to you" hint={`${draft.values.length}/3`}>
+          <div className="flex flex-wrap gap-2">
+            {VALUES.map(v => {
+              const active = draft.values.includes(v);
+              const atMax = draft.values.length >= 3 && !active;
               return (
-                <div key={age} className="flex items-center rounded-full" style={{
-                  background: active ? C.terracotta : C.paper,
-                  color: active ? '#fff' : C.ink,
-                  border: `1px solid ${active ? C.terracotta : C.divider}`,
-                }}>
-                  <button onClick={() => decKid(age)} disabled={!count} className="px-2 py-1.5" aria-label={`Remove one ${age}`}>
-                    <Minus size={11}/>
-                  </button>
-                  <div className="px-1 text-[12px]" style={{ fontFamily:'Albert Sans', fontWeight:500 }}>
-                    {age}{count > 0 ? ` · ${count}` : ''}
-                  </div>
-                  <button onClick={() => incKid(age)} className="px-2 py-1.5" aria-label={`Add one ${age}`}>
-                    <Plus size={11}/>
-                  </button>
-                </div>
+                <Chip key={v} active={active} onClick={() => toggleValue(v)} disabled={atMax}>
+                  {v}
+                </Chip>
               );
             })}
           </div>
-        </div>
-
-        {/* Mom types */}
-        <div className="mb-4">
-          <div className="text-[11px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            You are a…
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {MOM_TYPES.map(t => (
-              <Pill key={t.id} active={draft.momTypes.includes(t.id)} onClick={() => toggleMomType(t.id)}>
-                <t.icon size={11}/> {t.label}
-              </Pill>
-            ))}
-          </div>
-        </div>
-
-        {/* Values */}
-        <div className="mb-4">
-          <div className="text-[11px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Values · pick up to 3
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {VALUES.map(v => (
-              <Pill key={v} active={draft.values.includes(v)} onClick={() => toggleValue(v)}>
-                {v}
-              </Pill>
-            ))}
-            <Pill active={draft.values.includes(VALUE_NO_PREF)} onClick={() => toggleValue(VALUE_NO_PREF)}>
-              {VALUE_NO_PREF}
-            </Pill>
-          </div>
-        </div>
+        </Section>
 
         {/* Interests */}
-        <div className="mb-5">
-          <div className="text-[11px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Interests
-          </div>
-          <div className="flex flex-wrap gap-1.5">
+        <Section title="Things you love">
+          <div className="flex flex-wrap gap-2">
             {INTERESTS.map(it => (
-              <Pill key={it.label} active={draft.interests.includes(it.label)} onClick={() => toggleInterest(it.label)}>
+              <Chip key={it.label} active={draft.interests.includes(it.label)} onClick={() => toggleInterest(it.label)}>
                 <it.icon size={11}/> {it.label}
-              </Pill>
+              </Chip>
             ))}
-            <Pill active={draft.interests.includes(INTEREST_NO_PREF)} onClick={() => toggleInterest(INTEREST_NO_PREF)}>
-              {INTEREST_NO_PREF}
-            </Pill>
           </div>
-        </div>
+        </Section>
 
-        <button onClick={handleSave} className="w-full rounded-2xl flex items-center justify-center gap-2" style={{
-          height: 48, background: C.ink, color: C.cream,
-          fontFamily:'Albert Sans', fontWeight:600, fontSize: 13.5,
-        }}>
-          <Check size={15}/> Save changes
-        </button>
+        {/* Social — optional */}
+        <Section title="Social" hint="Optional · helps moms verify it's really you">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 rounded-xl px-3" style={{
+              background: C.cream, border: `1px solid ${C.divider}`, height: 42,
+            }}>
+              <Instagram size={15} style={{ color: C.inkSoft }}/>
+              <input
+                value={draft.socialLinks.instagram || ''}
+                onChange={e => setSocial('instagram', e.target.value)}
+                placeholder="@yourhandle"
+                className="flex-1 bg-transparent outline-none text-[13px]"
+                style={{ fontFamily: 'Albert Sans', color: C.ink }}
+              />
+            </div>
+            <div className="flex items-center gap-2.5 rounded-xl px-3" style={{
+              background: C.cream, border: `1px solid ${C.divider}`, height: 42,
+            }}>
+              <span className="text-[13px]" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.inkSoft, width: 15, textAlign: 'center' }}>♪</span>
+              <input
+                value={draft.socialLinks.tiktok || ''}
+                onChange={e => setSocial('tiktok', e.target.value)}
+                placeholder="TikTok @handle"
+                className="flex-1 bg-transparent outline-none text-[13px]"
+                style={{ fontFamily: 'Albert Sans', color: C.ink }}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <div className="text-[11px] mt-2 mb-1 text-center" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
+          Changes save when you tap <strong style={{ color: C.ink }}>Save</strong> at the top.
+        </div>
       </div>
     </Sheet>
   );
