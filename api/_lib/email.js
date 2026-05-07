@@ -25,7 +25,7 @@ import {
   WaitlistConfirmation,
   renderWaitlistText,
   WAITLIST_CONFIRMATION_SUBJECT,
-} from '../_emails/WaitlistConfirmation.jsx';
+} from '../_emails/WaitlistConfirmation.tsx';
 
 // Send the waitlist confirmation. Returns { ok, skipped?, error? }.
 export const sendWaitlistConfirmation = async ({ email, firstName, city }) => {
