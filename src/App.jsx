@@ -18,6 +18,7 @@ import { Screen6 } from './screens/Screen6';
 import { SummaryScreen } from './screens/SummaryScreen';
 import { AccountScreen } from './screens/AccountScreen';
 import { MainApp } from './screens/MainApp';
+import { recordStep, promoteSession, signOut } from './lib/onboarding';
 
 // ====================================================================
 // ROOT
@@ -25,7 +26,7 @@ import { MainApp } from './screens/MainApp';
 function PrototypeApp() {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
-  const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[] });
+  const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'' });
   const [location, setLocation] = useState('Tampa, FL');
   const [distance, setDistance] = useState(null);
   const [prefs, setPrefs] = useState({ slots:[], places:[] });
@@ -33,7 +34,7 @@ function PrototypeApp() {
   const [profileMom, setProfileMom] = useState(null);
   const [messageMom, setMessageMom] = useState(null);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const [account, setAccount] = useState(null); // { firstName, method, phone, email } after signup
+  const [account, setAccount] = useState(null); // { firstName, username, auth_user_id, method, phone, email } after signup
   const [pendingAction, setPendingAction] = useState(null); // generic gate: { type, mom?, slot?, event? }
   const [toast, setToast] = useState(null);
   // Lifted state — shared across Screen 7 (1:1) and Screen 8 (groups) for conflict awareness
@@ -44,9 +45,48 @@ function PrototypeApp() {
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
 
-  const restart = () => {
+  // Auto-promote on mount: if Supabase has a session (OAuth return or
+  // returning user), attach it to our onboarding row and hydrate state.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await promoteSession();
+        if (cancelled || !result?.auth_user_id) return;
+        if (result.profile) setProfile(p => ({
+          ...p,
+          kidsAges: result.profile.kidsAges || {},
+          momTypes: result.profile.momTypes || [],
+          values: result.profile.values || [],
+          interests: result.profile.interests || [],
+        }));
+        if (result.prefs) setPrefs({
+          slots: result.prefs.slots || [],
+          places: result.prefs.places || [],
+        });
+        if (result.location) setLocation(result.location);
+        if (result.distance != null) setDistance(result.distance);
+        setAccount({
+          firstName: result.first_name,
+          username: result.username,
+          auth_user_id: result.auth_user_id,
+          method: result.contact_method,
+          phone: result.phone,
+          email: result.email,
+        });
+        setSplashShown(true);
+        setStep(7);
+        flash(`Welcome back, ${result.first_name} ✦`);
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const restart = async () => {
     setStep(0);
-    setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[] });
+    setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'' });
     setLocation('Tampa, FL');
     setDistance(null);
     setPrefs({ slots:[], places:[] });
@@ -56,6 +96,7 @@ function PrototypeApp() {
     setPendingAction(null);
     setMessageHistory({});
     setSplashShown(false);
+    await signOut();
   };
 
   // Generic gate: if no account yet, queue the action and open CreateAccountSheet
@@ -92,6 +133,12 @@ function PrototypeApp() {
     setPendingAction(null);
   };
 
+  // Wraps onNext for an onboarding screen: persist this step's slice, then advance.
+  const advance = (currentStepIndex, patch) => {
+    recordStep(currentStepIndex, patch);
+    setStep(currentStepIndex + 1);
+  };
+
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-4 md:p-8" style={{
       background: `radial-gradient(ellipse at top left, ${C.rose}33, transparent 50%), radial-gradient(ellipse at bottom right, ${C.sage}22, transparent 50%), ${C.creamSoft}`,
@@ -109,7 +156,7 @@ function PrototypeApp() {
           {step===5 && <SummaryScreen onNext={()=>setStep(6)} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
           {step===6 && <AccountScreen onNext={()=>setStep(7)} onBack={()=>setStep(5)} account={account} setAccount={setAccount}/>}
           {step===7 && <MainApp
-            profile={profile} prefs={prefs} setPrefs={setPrefs}
+            profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} distance={distance}
             scheduled1to1={scheduled1to1}
             joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}

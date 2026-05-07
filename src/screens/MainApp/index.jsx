@@ -13,7 +13,7 @@ import { YouTab } from './YouTab';
 // ====================================================================
 // MAIN APP — 5 tabs: Matches · Calendar · Places · Events · Profile
 // ====================================================================
-export const MainApp = ({ profile, prefs, setPrefs, location, distance, scheduled1to1, joinedEvents, setJoinedEvents, openSchedule, openProfile, openMessage, openPremium, account, requestAccount, restart, flash }) => {
+export const MainApp = ({ profile, setProfile, prefs, setPrefs, location, distance, scheduled1to1, joinedEvents, setJoinedEvents, openSchedule, openProfile, openMessage, openPremium, account, requestAccount, restart, flash }) => {
   const [tab, setTab] = useState('matches');
 
   return (
@@ -33,7 +33,7 @@ export const MainApp = ({ profile, prefs, setPrefs, location, distance, schedule
         flash={flash}/>}
       {tab==='places'   && <PlacesTab prefs={prefs} setPrefs={setPrefs} location={location} goToMatches={()=>setTab('matches')} flash={flash}/>}
       {tab==='events'   && <EventsTab joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents} account={account} requestAccount={requestAccount} openPremium={openPremium} flash={flash}/>}
-      {tab==='profile'  && <YouTab profile={profile} prefs={prefs} location={location} distance={distance} restart={restart}/>}
+      {tab==='profile'  && <YouTab profile={profile} setProfile={setProfile} account={account} prefs={prefs} location={location} distance={distance} restart={restart}/>}
 
       {/* Tab Bar — 5 buttons, Matches first */}
       <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.divider, background: C.creamSoft }}>
