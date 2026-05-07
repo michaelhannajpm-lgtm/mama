@@ -771,7 +771,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
             <KV
               label="Pref. events"
               value={mom.preferred_event_ids?.length
-                ? `${mom.preferred_event_ids.length} event${mom.preferred_event_ids.length === 1 ? '' : 's'}: ${mom.preferred_event_ids.slice(0, 3).map(id => id.slice(0, 8)).join(', ')}${mom.preferred_event_ids.length > 3 ? '…' : ''}`
+                ? `${mom.preferred_event_ids.length} event${mom.preferred_event_ids.length === 1 ? '' : 's'}: ${mom.preferred_event_ids.slice(0, 3).map(id => id?.slice(0, 8) ?? id).join(', ')}${mom.preferred_event_ids.length > 3 ? '…' : ''}`
                 : null}
             />
           </Section>
