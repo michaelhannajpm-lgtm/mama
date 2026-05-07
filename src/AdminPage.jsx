@@ -922,7 +922,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
 // modal's Photos section to open. Loops at both ends; close via X, backdrop, or Esc.
 const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
   // Defensive clamp in case caller passed an out-of-range initialIndex.
-  const clampedInitial = Math.max(0, Math.min(initialIndex ?? 0, (photos?.length ?? 1) - 1));
+  const clampedInitial = Math.max(0, Math.min(initialIndex ?? 0, (photos?.length ?? 0) - 1));
   const [index, setIndex] = useState(clampedInitial);
 
   // Esc closes the lightbox. The parent modal's own Esc listener
@@ -1001,6 +1001,7 @@ const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
 
       {showNav && (
         <div
+          aria-live="polite"
           className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12.5px]"
           style={{ fontFamily: 'Albert Sans', color: C.cream, fontWeight: 600 }}
         >
