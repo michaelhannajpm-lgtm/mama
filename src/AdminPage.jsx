@@ -551,12 +551,16 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
   const [pendingFlag, setPendingFlag] = useState(null); // 'verified' | 'visible' | 'blocked_global' | null
   const [actionError, setActionError] = useState(null);
 
-  // Esc closes the modal. Scoped via useEffect so we don't leak listeners.
+  // Esc closes the modal — but only when no lightbox is open. The lightbox
+  // registers its own Esc handler, so when both listeners fire, this one
+  // short-circuits and the lightbox handles the keystroke.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape' && lightboxIndex === null) onClose();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, lightboxIndex]);
 
   const photo0 = Array.isArray(mom.photos) && mom.photos[0];
   const initial = ((mom.display_name || '').trim() || (mom.username || '').trim() || '?').charAt(0).toUpperCase();
