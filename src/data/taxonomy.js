@@ -74,6 +74,7 @@ export const DISTANCES = [
   { val: 5,   label: '5 mi' },
   { val: 10,  label: '10 mi' },
   { val: 20,  label: '20 mi' },
+  { val: 30,  label: '30 mi' },
   { val: 50,  label: '50 mi' },
   { val: 100, label: '100 mi' },
   { val: 150, label: '150+ mi' },

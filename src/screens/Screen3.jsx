@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight, MapPin, Search, Compass, ShieldCheck, Plus,
 } from 'lucide-react';
@@ -7,7 +7,6 @@ import { NEIGHBORHOODS, DISTANCES } from '../data/taxonomy';
 import { StatusBar } from '../components/StatusBar';
 import { StepHeader } from '../components/StepHeader';
 import { PrimaryBtn } from '../components/PrimaryBtn';
-import { Pill } from '../components/Pill';
 
 export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDistance }) => {
   const [query, setQuery] = useState('');
@@ -156,19 +155,8 @@ export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDi
           )}
         </div>
 
-        {/* Distance preference */}
-        <div className="mt-5">
-          <div className="text-[11.5px] mb-2" style={{ fontFamily:'Albert Sans', color: C.inkSoft, fontWeight:600, letterSpacing:'.04em' }}>
-            HOW FAR WILL YOU GO?
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {DISTANCES.map(d => (
-              <Pill key={d.val} active={distance === d.val} onClick={()=>setDistance(d.val)}>
-                {d.label}
-              </Pill>
-            ))}
-          </div>
-        </div>
+        {/* Distance preference — sliding bar */}
+        <DistanceSlider distance={distance} setDistance={setDistance}/>
 
         {/* Safety note */}
         <div className="mt-5 mb-4 rounded-[16px] p-3.5 flex items-center gap-3" style={{ background: C.ink, color: C.cream }}>
@@ -191,6 +179,78 @@ export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDi
           </div>
         )}
         <PrimaryBtn onClick={onNext} disabled={!canContinue}>Continue <ArrowRight size={18}/></PrimaryBtn>
+      </div>
+    </div>
+  );
+};
+
+const DistanceSlider = ({ distance, setDistance }) => {
+  const idx = DISTANCES.findIndex(d => d.val === distance);
+  const effectiveIdx = idx === -1 ? 2 : idx; // default 20 mi
+  const current = DISTANCES[effectiveIdx];
+
+  // Auto-set distance to default on mount if it's still null so the user can
+  // continue without explicitly tapping the slider.
+  useEffect(() => {
+    if (distance == null) setDistance(DISTANCES[2].val);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isMax = current.val === 150;
+
+  return (
+    <div className="mt-5">
+      <div className="text-[11.5px] mb-2" style={{ fontFamily:'Albert Sans', color: C.inkSoft, fontWeight:600, letterSpacing:'.04em' }}>
+        HOW FAR WILL YOU GO?
+      </div>
+      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: C.paper, border:`1px solid ${C.divider}` }}>
+        <div className="flex items-baseline gap-2 mb-3">
+          <div style={{ fontFamily:'Fraunces', fontSize: 36, fontWeight:500, color: C.terracotta, letterSpacing:'-.02em', lineHeight: 1 }}>
+            {isMax ? '150+' : current.val}
+          </div>
+          <div className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, fontWeight:500 }}>
+            {isMax ? 'mi or more' : `mile${current.val === 1 ? '' : 's'}`}
+          </div>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={DISTANCES.length - 1}
+          step={1}
+          value={effectiveIdx}
+          onChange={e => setDistance(DISTANCES[parseInt(e.target.value, 10)].val)}
+          aria-label="Distance in miles"
+          className="w-full"
+          style={{ accentColor: C.terracotta }}
+        />
+
+        <div className="mt-1 flex justify-between" style={{ fontFamily:'Albert Sans', fontSize: 10, fontWeight:600 }}>
+          {DISTANCES.map((d, i) => {
+            const active = i === effectiveIdx;
+            return (
+              <button key={d.val} type="button"
+                onClick={() => setDistance(d.val)}
+                className="flex flex-col items-center"
+                style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', padding: '2px 0', cursor: 'pointer' }}>
+                <div style={{
+                  width: active ? 6 : 4, height: active ? 6 : 4,
+                  borderRadius: 999,
+                  background: active ? C.terracotta : C.inkMuted,
+                  opacity: active ? 1 : 0.45,
+                  marginBottom: 4,
+                  transition: 'all .15s ease',
+                }}/>
+                <span style={{
+                  color: active ? C.ink : C.inkMuted,
+                  fontWeight: active ? 700 : 500,
+                }}>
+                  {d.val === 150 ? '150+' : d.val}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
