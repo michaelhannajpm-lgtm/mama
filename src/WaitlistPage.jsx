@@ -36,7 +36,7 @@ const featureCards = [
   },
 ];
 
-const launchCities = ['San Francisco', 'Los Angeles', 'New York', 'Austin'];
+const launchCities = ['Tampa, FL', 'San Francisco', 'Los Angeles', 'New York', 'Austin'];
 
 const audienceOptions = [
   'Expecting',
