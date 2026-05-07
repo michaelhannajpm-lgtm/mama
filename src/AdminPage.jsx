@@ -878,11 +878,12 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
             ].map(b => {
               const on = !!mom[b.key];
               const isPending = pendingFlag === b.key;
+              const anyPending = !!pendingFlag;
               return (
                 <button
                   key={b.key}
                   onClick={() => togglePatch(b.key)}
-                  disabled={isPending}
+                  disabled={anyPending}
                   aria-pressed={on}
                   className="rounded-full px-3 py-1.5 transition-colors"
                   style={{
@@ -892,8 +893,8 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
                     fontFamily: 'Albert Sans',
                     fontWeight: 600,
                     fontSize: 12.5,
-                    opacity: isPending ? 0.6 : 1,
-                    cursor: isPending ? 'wait' : 'pointer',
+                    opacity: anyPending ? 0.6 : 1,
+                    cursor: anyPending ? 'wait' : 'pointer',
                   }}
                 >
                   {isPending ? '…' : (on ? b.onLabel : b.offLabel)}
