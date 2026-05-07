@@ -10,14 +10,13 @@ import { MessageSheet } from './sheets/MessageSheet';
 import { CreateAccountSheet } from './sheets/CreateAccountSheet';
 import { PremiumSheet } from './sheets/PremiumSheet';
 import { Splash } from './screens/Splash';
-import { Screen1 } from './screens/Screen1';
 import { Screen2 } from './screens/Screen2';
 import { Screen3 } from './screens/Screen3';
 import { Screen4 } from './screens/Screen4';
 import { Screen5 } from './screens/Screen5';
 import { Screen6 } from './screens/Screen6';
-import { Screen7 } from './screens/Screen7';
-import { Screen8 } from './screens/Screen8';
+import { SummaryScreen } from './screens/SummaryScreen';
+import { AccountScreen } from './screens/AccountScreen';
 import { MainApp } from './screens/MainApp';
 
 // ====================================================================
@@ -102,25 +101,14 @@ function PrototypeApp() {
           {!splashShown ? (
             <Splash onBegin={()=>setSplashShown(true)}/>
           ) : (<>
-          {step===0 && <Screen1 onNext={()=>setStep(1)}/>}
-          {step===1 && <Screen2 onNext={()=>setStep(2)} onBack={()=>setStep(0)}/>}
-          {step===2 && <Screen3 onNext={()=>setStep(3)} onBack={()=>setStep(1)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
-          {step===3 && <Screen4 onNext={()=>setStep(4)} onBack={()=>setStep(2)} profile={profile} setProfile={setProfile}/>}
-          {step===4 && <Screen5 onNext={()=>setStep(5)} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs}/>}
-          {step===5 && <Screen6 onNext={()=>setStep(6)} onBack={()=>setStep(4)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
-          {step===6 && <Screen7 onNext={()=>setStep(7)} onBack={()=>setStep(5)}
-            profile={profile} prefs={prefs} location={location}
-            openProfile={setProfileMom}
-            scheduled1to1={scheduled1to1} setScheduled1to1={setScheduled1to1}
-            account={account} requestAccount={requestAccount}
-            flash={flash}/>}
-          {step===7 && <Screen8 onNext={()=>setStep(8)} onBack={()=>setStep(6)}
-            prefs={prefs}
-            scheduled1to1={scheduled1to1}
-            joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
-            account={account} requestAccount={requestAccount}
-            flash={flash}/>}
-          {step===8 && <MainApp
+          {step===0 && <Screen2 onNext={()=>setStep(1)} onBack={()=>setStep(0)}/>}
+          {step===1 && <Screen3 onNext={()=>setStep(2)} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
+          {step===2 && <Screen4 onNext={()=>setStep(3)} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
+          {step===3 && <Screen5 onNext={()=>setStep(4)} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
+          {step===4 && <Screen6 onNext={()=>setStep(5)} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
+          {step===5 && <SummaryScreen onNext={()=>setStep(6)} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
+          {step===6 && <AccountScreen onNext={()=>setStep(7)} onBack={()=>setStep(5)} account={account} setAccount={setAccount}/>}
+          {step===7 && <MainApp
             profile={profile} prefs={prefs} setPrefs={setPrefs}
             location={location} distance={distance}
             scheduled1to1={scheduled1to1}

@@ -109,7 +109,7 @@ export const Screen6 = ({ onNext, onBack, prefs, setPrefs, location }) => {
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
       <StatusBar/>
-      <StepHeader step={5} total={8} onBack={onBack} onSkip={onNext}/>
+      <StepHeader step={4} total={7} onBack={onBack} onSkip={onNext}/>
 
       <div className="flex-1 overflow-y-auto px-7" style={{ scrollbarWidth:'none' }}>
         <div className="mt-1">

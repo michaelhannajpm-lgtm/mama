@@ -9,7 +9,7 @@ import { PrimaryBtn } from '../components/PrimaryBtn';
 export const Screen2 = ({ onNext, onBack }) => (
   <div className="h-full flex flex-col" style={{ background: C.cream }}>
     <StatusBar/>
-    <StepHeader step={1} total={8} onBack={onBack} onSkip={onNext}/>
+    <StepHeader step={0} total={7} onBack={onBack} onSkip={onNext}/>
 
     <div className="flex-1 px-7 flex flex-col">
       <div className="mt-1">

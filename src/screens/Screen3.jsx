@@ -24,7 +24,7 @@ export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDi
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
       <StatusBar/>
-      <StepHeader step={2} total={8} onBack={onBack} onSkip={onNext}/>
+      <StepHeader step={1} total={7} onBack={onBack} onSkip={onNext}/>
 
       <div className="flex-1 overflow-y-auto px-7" style={{ scrollbarWidth:'none' }}>
         <div className="mt-1">
