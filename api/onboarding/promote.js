@@ -2,6 +2,7 @@ import {
   json, isUuid, readJsonBody, supabaseCreds, sbHeaders,
   usernameBase, randomHex, cleanText,
 } from '../_lib/supabase.js';
+import { ensureMomProfile } from '../_lib/mom-profile-helpers.js';
 
 const ALLOWED_PROVIDERS = new Set(['email', 'phone', 'google', 'facebook', 'apple']);
 
@@ -169,6 +170,9 @@ export default async function handler(req, res) {
     creds, session_id, baseRow, existing.username,
   );
   if (!row) return json(res, 500, { error: error || 'Could not save profile' });
+
+  // Side effect: ensure the mom is in the discoverable directory.
+  await ensureMomProfile(creds, row, username);
 
   return json(res, 200, { ok: true, ...hydratedShape({ ...row, username }) });
 }

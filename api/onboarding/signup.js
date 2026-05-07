@@ -2,6 +2,7 @@ import {
   json, cleanText, isUuid, readJsonBody, supabaseCreds, sbHeaders,
   usernameBase, randomHex,
 } from '../_lib/supabase.js';
+import { ensureMomProfile } from '../_lib/mom-profile-helpers.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -134,6 +135,10 @@ export default async function handler(req, res) {
 
   const { row, username, error } = await attachWithUsernameRetry(creds, session_id, baseRow);
   if (!row) return json(res, 500, { error: error || 'Could not save profile' });
+
+  // Side effect: create the mom_profiles row so the mom appears in the directory.
+  // Failure here is logged but does not break signup — the row can be backfilled.
+  await ensureMomProfile(creds, row, username);
 
   return json(res, 200, {
     ok: true,
