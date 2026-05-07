@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Check, Instagram } from 'lucide-react';
+import { X, Check, Instagram, Minus, Plus } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 import {
@@ -46,10 +46,21 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
     socialLinks: { ...(profile.socialLinks || {}) },
   }));
 
-  const toggleKidAge = (age) => {
+  const incrementKidAge = (age) => {
     setDraft(d => {
       const next = { ...d.kidsAges };
-      if (next[age]) delete next[age]; else next[age] = 1;
+      const current = next[age] || 0;
+      if (current >= 5) return d;
+      next[age] = current + 1;
+      return { ...d, kidsAges: next };
+    });
+  };
+
+  const decrementKidAge = (age) => {
+    setDraft(d => {
+      const next = { ...d.kidsAges };
+      const nextCount = (next[age] || 0) - 1;
+      if (nextCount <= 0) delete next[age]; else next[age] = nextCount;
       return { ...d, kidsAges: next };
     });
   };
@@ -86,7 +97,7 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
   };
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall hideClose>
       <div className="px-5 pt-2 pb-3 flex items-center justify-between border-b" style={{ borderColor: C.divider, background: C.cream }}>
         <button onClick={onClose} aria-label="Close" className="rounded-full p-2 -ml-2" style={{ color: C.inkSoft }}>
           <X size={18}/>
@@ -115,13 +126,51 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
         </Section>
 
         {/* Kids */}
-        <Section title="Your kids" hint="Tap age ranges that apply">
+        <Section title="Your kids" hint="Use +/- to set counts">
           <div className="flex flex-wrap gap-2">
-            {KID_AGES.map(age => (
-              <Chip key={age} active={!!draft.kidsAges[age]} onClick={() => toggleKidAge(age)}>
-                {age}
-              </Chip>
-            ))}
+            {KID_AGES.map(age => {
+              const count = draft.kidsAges[age] || 0;
+              const active = count > 0;
+              return (
+                <div key={age} className="rounded-full flex items-center overflow-hidden" style={{
+                  background: active ? C.terracotta : C.paper,
+                  color: active ? '#fff' : C.ink,
+                  border: `1px solid ${active ? C.terracotta : C.divider}`,
+                  fontFamily: 'Albert Sans',
+                }}>
+                  <button
+                    onClick={() => decrementKidAge(age)}
+                    disabled={!active}
+                    aria-label={`Remove one kid age ${age}`}
+                    className="w-8 h-8 flex items-center justify-center"
+                    style={{ opacity: active ? 1 : 0.35 }}
+                  >
+                    <Minus size={12}/>
+                  </button>
+                  <button
+                    onClick={() => incrementKidAge(age)}
+                    className="h-8 px-1.5 flex items-center gap-1"
+                    aria-label={`Add kid age ${age}`}
+                  >
+                    <span className="text-[12px]" style={{ fontWeight: 600 }}>{age}</span>
+                    {active && (
+                      <span className="text-[11px] px-1.5 rounded-full" style={{ background: 'rgba(255,255,255,.22)', fontWeight: 700 }}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => incrementKidAge(age)}
+                    disabled={count >= 5}
+                    aria-label={`Add one kid age ${age}`}
+                    className="w-8 h-8 flex items-center justify-center"
+                    style={{ opacity: count >= 5 ? 0.35 : 1 }}
+                  >
+                    <Plus size={12}/>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </Section>
 
