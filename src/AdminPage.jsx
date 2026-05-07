@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff, ExternalLink,
+  BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
+  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -530,6 +531,147 @@ const MomsTable = ({ rows }) => {
 };
 
 // ============================================================================
+// Quick Actions tab — destructive operations live here, gated by typed confirm.
+// ============================================================================
+const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'arming' | 'confirming' | 'running' | 'done' | 'error'
+  const [confirmText, setConfirmText] = useState('');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const ARM_TOKEN = 'DELETE';
+  const armed = confirmText.trim().toUpperCase() === ARM_TOKEN;
+
+  const cancel = () => {
+    setPhase('idle');
+    setConfirmText('');
+    setError(null);
+  };
+
+  const fire = async () => {
+    if (!armed) return;
+    setPhase('running');
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/reset', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPhase('error');
+        setError(body?.error || `Reset failed (${res.status})`);
+        return;
+      }
+      setResult(body.result || {});
+      setPhase('done');
+      setConfirmText('');
+      onReset?.();
+    } catch (e) {
+      setPhase('error');
+      setError(e?.message || 'Network error');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em' }}>
+          Quick Actions
+        </h2>
+        <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+          One-click maintenance utilities. Destructive actions require typed confirmation.
+        </p>
+      </div>
+
+      {/* Danger zone card */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: `2px solid ${C.terracotta}`, background: `${C.terracotta}08` }}>
+        <div className="px-4 py-3 flex items-center gap-2" style={{ background: `${C.terracotta}15`, borderBottom: `1px solid ${C.terracotta}30` }}>
+          <ShieldAlert size={16} style={{ color: C.terracotta }}/>
+          <div className="text-[12px] tracking-[.16em] uppercase" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.terracotta }}>
+            Danger zone
+          </div>
+        </div>
+
+        <div className="px-4 py-4">
+          <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
+            Reset database
+          </h3>
+          <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.5 }}>
+            Truncates every row in <strong>onboarding_profiles</strong> ({fmt(momsCount)} mom{momsCount === 1 ? '' : 's'}) and <strong>waitlist_signups</strong> ({fmt(waitlistCount)} signup{waitlistCount === 1 ? '' : 's'}).
+            <br/>
+            <strong style={{ color: C.terracotta }}>This cannot be undone.</strong> Auth users in Supabase Auth are NOT deleted.
+          </p>
+
+          {phase === 'idle' && (
+            <button onClick={() => setPhase('arming')}
+              className="mt-3 rounded-xl px-3 py-2 flex items-center gap-1.5"
+              style={{ background: C.terracotta, color: '#fff', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12.5 }}>
+              <Trash2 size={14}/> Reset database
+            </button>
+          )}
+
+          {(phase === 'arming' || phase === 'running') && (
+            <div className="mt-3 rounded-xl p-3" style={{ background: C.cream, border: `1px solid ${C.terracotta}` }}>
+              <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                Type <code style={{ background: C.creamSoft, padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace', color: C.terracotta, fontWeight: 700 }}>{ARM_TOKEN}</code> below to confirm. Cannot be undone.
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder={`Type ${ARM_TOKEN}`}
+                  disabled={phase === 'running'}
+                  autoFocus
+                  className="flex-1 rounded-xl px-3 py-2 outline-none text-[13px]"
+                  style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'monospace', letterSpacing: '.04em' }}
+                />
+                <button onClick={fire} disabled={!armed || phase === 'running'}
+                  className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+                  style={{
+                    background: armed ? C.terracotta : C.creamSoft,
+                    color: armed ? '#fff' : C.inkMuted,
+                    fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
+                    cursor: armed ? 'pointer' : 'not-allowed',
+                  }}>
+                  <Trash2 size={13}/> {phase === 'running' ? 'Resetting…' : 'Confirm reset'}
+                </button>
+                <button onClick={cancel} disabled={phase === 'running'}
+                  className="rounded-xl px-3 py-2"
+                  style={{ background: 'transparent', border: `1px solid ${C.divider}`, color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12.5 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {phase === 'done' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.sageDark}15`, border: `1px solid ${C.sageDark}` }}>
+              <CheckIcon size={16} style={{ color: C.sageDark, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Database reset.</strong> Deleted {fmt(result?.onboarding_profiles?.deleted ?? 0)} mom profile{result?.onboarding_profiles?.deleted === 1 ? '' : 's'} and {fmt(result?.waitlist_signups?.deleted ?? 0)} waitlist signup{result?.waitlist_signups?.deleted === 1 ? '' : 's'}. Dashboard reloaded.
+                <button onClick={cancel} className="ml-2 underline" style={{ color: C.sageDark, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {phase === 'error' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
+              <AlertTriangle size={16} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Reset failed.</strong> {error}
+                <button onClick={() => setPhase('arming')} className="ml-2 underline" style={{ color: C.terracotta, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Try again
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // Root
 // ============================================================================
 export const AdminPage = () => {
@@ -572,10 +714,15 @@ export const AdminPage = () => {
               Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} profiles · ${waitlist?.length || 0} waitlist` : ''}
             </div>
           </div>
-          <a href="/prototype" target="_blank" rel="noopener noreferrer"
+          <a href="/preview" target="_blank" rel="noopener noreferrer"
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-            <ExternalLink size={13}/> View preview
+            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+            <Monitor size={13}/> Show desktop version
+          </a>
+          <a href="/live" target="_blank" rel="noopener noreferrer"
+            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+            <Smartphone size={13}/> Show mobile version
           </a>
           <button onClick={load} disabled={loading}
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"
@@ -588,6 +735,7 @@ export const AdminPage = () => {
             { id: 'overview', icon: BarChart3, label: 'Overview' },
             { id: 'moms',     icon: Users,     label: 'Moms report' },
             { id: 'waitlist', icon: ListChecks,label: 'Waitlist' },
+            { id: 'actions',  icon: Zap,       label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
             return (
@@ -640,6 +788,7 @@ export const AdminPage = () => {
             {tab === 'overview' && <Overview moms={moms} waitlist={waitlist}/>}
             {tab === 'moms'     && <MomsReport rows={moms}/>}
             {tab === 'waitlist' && <WaitlistTable rows={waitlist}/>}
+            {tab === 'actions'  && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>
         )}
       </div>
