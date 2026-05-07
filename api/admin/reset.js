@@ -1,4 +1,4 @@
-// POST /api/admin/reset — truncates the two admin-visible tables.
+// POST /api/admin/reset — truncates all five admin-visible tables.
 // SECURITY: NO authentication. Anyone with the URL + a network can wipe
 // the database. Add auth before exposing publicly.
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';

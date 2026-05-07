@@ -121,10 +121,14 @@ const buildEventsPayload = async () => {
     const base = LOCAL_EVENTS[i % LOCAL_EVENTS.length];
     const dow = dows[i % dows.length];
     const bk  = buckets[i % buckets.length];
+    // Cycle through real places so variants always FK to a real place.
+    // (placeBySlug is keyed by *place* slug; base.id is an *event* slug, so
+    // looking up placeBySlug[base.id] always missed.)
+    const variantPlace = places[i % places.length];
     out.push({
       slug: `${base.id}-v${i}`,
       name: `${base.name} (extra)`,
-      place_id: placeBySlug[base.id]?.id || null,
+      place_id: variantPlace?.id || null,
       city: 'Tampa, FL',
       day_of_week: dow,
       bucket: bk,
