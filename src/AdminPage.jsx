@@ -678,12 +678,12 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: `${C.ink}8C`, animation: 'fadeIn 0.15s ease-out' }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Profile detail for ${mom.display_name || 'mom'}`}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Profile detail for ${mom.display_name || 'mom'}`}
         className="rounded-2xl overflow-hidden flex flex-col"
         style={{
           background: C.paper,
@@ -859,8 +859,8 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
 
           <Section title="Audit">
             <KV label="Source"      value={mom.source}/>
-            <KV label="Created"     value={fmtAbsolute(mom.created_at)} />
-            <KV label="Updated"     value={fmtAbsolute(mom.updated_at)} />
+            <KV label="Created"     value={mom.created_at ? `${fmtAbsolute(mom.created_at)} (${fmtRelative(mom.created_at)})` : null}/>
+            <KV label="Updated"     value={mom.updated_at ? `${fmtAbsolute(mom.updated_at)} (${fmtRelative(mom.updated_at)})` : null}/>
             <KV label="Last active" value={mom.last_active_at ? `${fmtAbsolute(mom.last_active_at)} (${fmtRelative(mom.last_active_at)})` : null}/>
           </Section>
 
