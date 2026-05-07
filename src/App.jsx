@@ -20,7 +20,7 @@ import { Summary }       from './screens/onboarding/Summary';
 import { Account }       from './screens/onboarding/Account';
 import { Login }         from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
-import { recordStep, promoteSession, signOut } from './lib/onboarding';
+import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 
 // ====================================================================
 // ROOT
@@ -52,10 +52,14 @@ function PrototypeApp({ bare = false }) {
   // returning user), attach it to our onboarding row and hydrate state.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let alreadyHydrated = false;
+
+    const hydrate = async () => {
+      if (alreadyHydrated) return;
       try {
         const result = await promoteSession();
         if (cancelled || !result?.auth_user_id) return;
+        alreadyHydrated = true;
         if (result.profile) setProfile(p => ({
           ...p,
           kidsAges: result.profile.kidsAges || {},
@@ -83,8 +87,21 @@ function PrototypeApp({ bare = false }) {
       } catch {
         /* silent */
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    // Try once immediately — handles the "already signed in" case.
+    hydrate();
+
+    // Subscribe to auth changes so we catch the OAuth-callback hash detection,
+    // which fires async after the supabase client initialises.
+    const unsub = onAuthChange((event, session) => {
+      if (cancelled) return;
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.access_token) {
+        hydrate();
+      }
+    });
+
+    return () => { cancelled = true; unsub(); };
   }, []);
 
   const restart = async () => {

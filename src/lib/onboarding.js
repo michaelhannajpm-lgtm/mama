@@ -185,6 +185,18 @@ export const updateMomProfile = async (patch) => {
   return body.profile || null;
 };
 
+// Subscribe to Supabase auth state changes (SIGNED_IN, SIGNED_OUT, …).
+// Returns an unsubscribe function. No-op (returns () => {}) when supabase
+// isn't configured. The hash-token detection on a fresh OAuth callback
+// fires SIGNED_IN here AFTER the createClient race has settled.
+export const onAuthChange = (handler) => {
+  if (!isSupabaseReady()) return () => {};
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    handler(event, session);
+  });
+  return () => data?.subscription?.unsubscribe?.();
+};
+
 export const signOut = async () => {
   if (isSupabaseReady()) {
     try { await supabase.auth.signOut(); } catch { /* ignore */ }
