@@ -553,6 +553,17 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const photo0 = Array.isArray(mom.photos) && mom.photos[0];
+  const initial = (mom.display_name || mom.username || '?').trim().charAt(0).toUpperCase();
+  const sourcePill = (() => {
+    const isSeed = mom.source === 'seed';
+    return {
+      bg: isSeed ? `${C.saffron}25` : `${C.sageDark}20`,
+      color: isSeed ? C.ink : C.sageDark,
+      label: mom.source || 'unknown',
+    };
+  })();
+
   return (
     <div
       onClick={onClose}
@@ -574,16 +585,49 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
           animation: 'slideUp 0.2s ease-out',
         }}
       >
-        {/* Sticky header — full content lands in Task 4 */}
+        {/* Sticky header */}
         <div className="px-5 py-4 flex items-start gap-3" style={{ borderBottom: `1px solid ${C.divider}`, background: C.cream }}>
-          <div className="flex-1 min-w-0">
-            <div style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1.1 }}>
-              {mom.display_name || '—'}
+          {photo0 ? (
+            <img
+              src={photo0}
+              alt=""
+              className="rounded-full"
+              style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}`, flexShrink: 0 }}
+            />
+          ) : (
+            <div
+              className="rounded-full flex items-center justify-center"
+              style={{ width: 44, height: 44, background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 20, fontWeight: 600, flexShrink: 0 }}
+            >
+              {initial}
             </div>
-            <div className="mt-0.5 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
-              @{mom.username || '—'}
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <div style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1.1 }}>
+                {mom.display_name || '—'}
+              </div>
+              {mom.verified && (
+                <span title="Verified" style={{ color: C.sageDark, fontSize: 14, fontWeight: 700 }}>✓</span>
+              )}
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 flex-wrap text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+              <span>@{mom.username || '—'}</span>
+              <span style={{ color: C.inkMuted }}>·</span>
+              <span>{mom.city || '—'}{mom.neighborhood ? ` · ${mom.neighborhood}` : ''}</span>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px]"
+                style={{
+                  background: sourcePill.bg, color: sourcePill.color,
+                  fontFamily: 'Albert Sans', fontWeight: 700, letterSpacing: '.04em',
+                }}
+              >
+                {sourcePill.label}
+              </span>
             </div>
           </div>
+
           <button
             onClick={onClose}
             autoFocus
