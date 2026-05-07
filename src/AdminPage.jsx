@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
-  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon,
+  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -542,9 +543,504 @@ const MomsTable = ({ rows, momProfiles }) => {
 };
 
 // ============================================================================
+// Detail modal for a single mom_profiles row. Read-only view of every field
+// plus three flag toggles in the footer (Tasks 5–6).
+// ============================================================================
+const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
+  const [lightboxIndex, setLightboxIndex] = useState(null); // null | number — index into mom.photos
+  const [pendingFlag, setPendingFlag] = useState(null); // 'verified' | 'visible' | 'blocked_global' | null
+  const [actionError, setActionError] = useState(null);
+
+  // Esc closes the modal — but only when no lightbox is open. The lightbox
+  // registers its own Esc handler, so when both listeners fire, this one
+  // short-circuits and the lightbox handles the keystroke.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && lightboxIndex === null) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose, lightboxIndex]);
+
+  const photo0 = Array.isArray(mom.photos) && mom.photos[0];
+  const initial = ((mom.display_name || '').trim() || (mom.username || '').trim() || '?').charAt(0).toUpperCase();
+  const sourcePill = (() => {
+    const isSeed = mom.source === 'seed';
+    return {
+      bg: isSeed ? `${C.saffron}25` : `${C.sageDark}20`,
+      color: isSeed ? C.ink : C.sageDark,
+      label: mom.source || 'unknown',
+    };
+  })();
+
+  const fmtKidsAges = (jsonb) => {
+    if (!jsonb || typeof jsonb !== 'object') return null;
+    const parts = Object.entries(jsonb).map(([age, n]) => `${n}× ${age}`);
+    return parts.length ? parts.join(', ') : null;
+  };
+
+  const fmtRelative = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const ms = Date.now() - d.getTime();
+    const m = Math.floor(ms / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const days = Math.floor(h / 24);
+    if (days < 30) return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
+
+  const fmtAbsolute = (iso) => iso ? new Date(iso).toLocaleString() : null;
+
+  const placeName = (uuid) => {
+    const p = placesById?.get(uuid);
+    if (p?.name) return p.name;
+    return uuid?.slice(0, 8) ?? '—';
+  };
+
+  const togglePatch = async (key) => {
+    if (pendingFlag) return; // serialize requests
+    const next = !mom[key];
+    const previous = mom; // captured for rollback
+    // Optimistic flip: update local view immediately.
+    onPatched({ ...mom, [key]: next });
+    setPendingFlag(key);
+    setActionError(null);
+    try {
+      const r = await fetch('/api/admin/mom-profiles/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: mom.id, patch: { [key]: next } }),
+      });
+      const ct = r.headers.get('content-type') || '';
+      const text = await r.text();
+      if (!ct.includes('application/json')) {
+        if (text.trimStart().startsWith('//') || text.includes('export default async function')) {
+          throw new Error("API routes don't run under `npm run dev`. Use `vercel dev` or a deployed preview.");
+        }
+        throw new Error(`Unexpected ${r.status} response`);
+      }
+      const body = JSON.parse(text);
+      if (!r.ok) throw new Error(body?.error || `Server returned ${r.status}`);
+      // Replace the optimistic shape with the server's authoritative row
+      // (which also has fresh updated_at, etc).
+      onPatched(body.row);
+    } catch (e) {
+      // Roll back to the pre-click state.
+      onPatched(previous);
+      setActionError(e?.message || 'Network error');
+    } finally {
+      setPendingFlag(null);
+    }
+  };
+
+  const Section = ({ title, children }) => (
+    <div className="py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+      <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+
+  const KV = ({ label, value, mono = false }) => (
+    <div className="flex items-baseline gap-3 py-0.5">
+      <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>
+        {label}
+      </div>
+      <div
+        className="text-[12.5px] flex-1 break-words"
+        style={{ fontFamily: mono ? 'monospace' : 'Albert Sans', color: value == null || value === '' ? C.inkMuted : C.ink }}
+      >
+        {value == null || value === '' ? '—' : value}
+      </div>
+    </div>
+  );
+
+  const Chips = ({ items, color = C.ink, bg = C.creamSoft }) => {
+    if (!items || items.length === 0) {
+      return <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>—</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((it, i) => (
+          <span
+            key={`${it}-${i}`}
+            className="rounded-full px-2 py-0.5 text-[11.5px]"
+            style={{ background: bg, color, fontFamily: 'Albert Sans' }}
+          >
+            {it}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: `${C.ink}8C`, animation: 'fadeIn 0.15s ease-out' }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Profile detail for ${mom.display_name || 'mom'}`}
+        className="rounded-2xl overflow-hidden flex flex-col"
+        style={{
+          background: C.paper,
+          border: `1px solid ${C.divider}`,
+          width: '100%',
+          maxWidth: 560,
+          maxHeight: '90vh',
+          animation: 'slideUp 0.2s ease-out',
+        }}
+      >
+        {/* Sticky header */}
+        <div className="px-5 py-4 flex items-start gap-3" style={{ borderBottom: `1px solid ${C.divider}`, background: C.cream }}>
+          {photo0 ? (
+            <img
+              src={photo0}
+              alt=""
+              className="rounded-full"
+              style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}`, flexShrink: 0 }}
+            />
+          ) : (
+            <div
+              className="rounded-full flex items-center justify-center"
+              style={{ width: 44, height: 44, background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 20, fontWeight: 600, flexShrink: 0 }}
+            >
+              {initial}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <div style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1.1 }}>
+                {mom.display_name || '—'}
+              </div>
+              {mom.verified && (
+                <span title="Verified" style={{ color: C.sageDark, fontSize: 14, fontWeight: 700 }}>✓</span>
+              )}
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 flex-wrap text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+              <span>@{mom.username || '—'}</span>
+              <span style={{ color: C.inkMuted }}>·</span>
+              <span>{mom.city || '—'}{mom.neighborhood ? ` · ${mom.neighborhood}` : ''}</span>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px]"
+                style={{
+                  background: sourcePill.bg, color: sourcePill.color,
+                  fontFamily: 'Albert Sans', fontWeight: 700, letterSpacing: '.04em',
+                }}
+              >
+                {sourcePill.label}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            autoFocus
+            aria-label="Close profile"
+            className="rounded-full p-1.5 transition-colors"
+            style={{ background: 'transparent', color: C.inkSoft, border: `1px solid ${C.divider}` }}
+          >
+            <X size={16}/>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5">
+          <Section title="Photos">
+            {Array.isArray(mom.photos) && mom.photos.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {mom.photos.map((url, i) => (
+                  <button
+                    key={`${url}-${i}`}
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    aria-label={`Enlarge photo ${i + 1}`}
+                    className="rounded-lg transition-transform hover:scale-[1.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'block', ['--tw-ring-color']: C.ink }}
+                  >
+                    <img
+                      src={url}
+                      alt=""
+                      className="rounded-lg block"
+                      style={{ width: 44, height: 44, objectFit: 'cover', border: `1px solid ${C.divider}` }}
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>No photos</span>
+            )}
+          </Section>
+
+          <Section title="Bio">
+            <div className="text-[13px] leading-snug" style={{ fontFamily: 'Albert Sans', color: mom.bio ? C.ink : C.inkMuted }}>
+              {mom.bio || '—'}
+            </div>
+          </Section>
+
+          <Section title="Identity">
+            <KV label="Display name" value={mom.display_name}/>
+            <KV label="Username"     value={mom.username ? `@${mom.username}` : null}/>
+            <KV label="Age"          value={mom.age}/>
+            <KV label="Profile id"   value={mom.id} mono/>
+            <KV label="Auth user id" value={mom.auth_user_id} mono/>
+          </Section>
+
+          <Section title="Family">
+            <KV label="Kids ages" value={fmtKidsAges(mom.kids_ages)}/>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Mom types</div>
+              <div className="flex-1"><Chips items={mom.mom_types}/></div>
+            </div>
+          </Section>
+
+          <Section title="Preferences">
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Values</div>
+              <div className="flex-1"><Chips items={mom.values} bg={`${C.saffron}25`}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Interests</div>
+              <div className="flex-1"><Chips items={mom.interests} bg={`${C.sageDark}20`} color={C.sageDark}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Free slots</div>
+              <div className="flex-1"><Chips items={mom.free_slots}/></div>
+            </div>
+            <div className="flex items-baseline gap-3 py-0.5">
+              <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted, width: 110, flexShrink: 0 }}>Places</div>
+              <div className="flex-1"><Chips items={(mom.places || []).map(placeName)}/></div>
+            </div>
+            <KV
+              label="Pref. events"
+              value={mom.preferred_event_ids?.length
+                ? `${mom.preferred_event_ids.length} event${mom.preferred_event_ids.length === 1 ? '' : 's'}: ${mom.preferred_event_ids.slice(0, 3).map(id => id?.slice(0, 8) ?? id).join(', ')}${mom.preferred_event_ids.length > 3 ? '…' : ''}`
+                : null}
+            />
+          </Section>
+
+          <Section title="Geo">
+            <KV label="City"         value={mom.city}/>
+            <KV label="Neighborhood" value={mom.neighborhood}/>
+            <KV label="Lat / Lng"    value={mom.home_lat != null && mom.home_lng != null ? `${Number(mom.home_lat).toFixed(6)}, ${Number(mom.home_lng).toFixed(6)}` : null} mono/>
+            <KV label="Distance"     value={mom.distance_miles != null ? `${mom.distance_miles} mi` : null}/>
+          </Section>
+
+          <Section title="Flags">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: 'visible',        label: 'Visible',   on: !!mom.visible,        onColor: C.sageDark },
+                { key: 'verified',       label: 'Verified',  on: !!mom.verified,       onColor: C.sageDark },
+                { key: 'blocked_global', label: 'Blocked',   on: !!mom.blocked_global, onColor: C.terracotta },
+              ].map(f => (
+                <span
+                  key={f.key}
+                  className="rounded-full px-2.5 py-1 text-[11px]"
+                  style={{
+                    background: f.on ? `${f.onColor}20` : C.creamSoft,
+                    color: f.on ? f.onColor : C.inkMuted,
+                    fontFamily: 'Albert Sans', fontWeight: 700, letterSpacing: '.04em',
+                  }}
+                >
+                  {f.label} · {f.on ? 'on' : 'off'}
+                </span>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Social">
+            {mom.social_links && typeof mom.social_links === 'object' && Object.keys(mom.social_links).length ? (
+              <pre
+                className="text-[11.5px] rounded-lg p-2 overflow-x-auto"
+                style={{ background: C.creamSoft, color: C.ink, fontFamily: 'monospace' }}
+              >
+                {JSON.stringify(mom.social_links, null, 2)}
+              </pre>
+            ) : (
+              <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>—</span>
+            )}
+          </Section>
+
+          <Section title="Audit">
+            <KV label="Source"      value={mom.source}/>
+            <KV label="Created"     value={mom.created_at ? `${fmtAbsolute(mom.created_at)} (${fmtRelative(mom.created_at)})` : null}/>
+            <KV label="Updated"     value={mom.updated_at ? `${fmtAbsolute(mom.updated_at)} (${fmtRelative(mom.updated_at)})` : null}/>
+            <KV label="Last active" value={mom.last_active_at ? `${fmtAbsolute(mom.last_active_at)} (${fmtRelative(mom.last_active_at)})` : null}/>
+          </Section>
+
+          {/* Bottom spacer so the last section isn't flush against the footer */}
+          <div style={{ height: 12 }}/>
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: `1px solid ${C.divider}`, background: C.cream }}>
+          <div className="px-5 py-3 flex items-center gap-2 flex-wrap">
+            {[
+              { key: 'verified',       label: 'Verified', onColor: C.terracotta, offLabel: 'Mark verified',   onLabel: 'Verified ✓' },
+              { key: 'visible',        label: 'Visible',  onColor: C.sageDark,   offLabel: 'Mark visible',    onLabel: 'Visible ✓'  },
+              { key: 'blocked_global', label: 'Block',    onColor: C.terracotta, offLabel: 'Block globally',  onLabel: 'Blocked'    },
+            ].map(b => {
+              const on = !!mom[b.key];
+              const isPending = pendingFlag === b.key;
+              const anyPending = !!pendingFlag;
+              return (
+                <button
+                  key={b.key}
+                  onClick={() => togglePatch(b.key)}
+                  disabled={anyPending}
+                  aria-pressed={on}
+                  className="rounded-full px-3 py-1.5 transition-colors"
+                  style={{
+                    background: on ? b.onColor : C.paper,
+                    color: on ? '#fff' : C.ink,
+                    border: `1px solid ${on ? b.onColor : C.divider}`,
+                    fontFamily: 'Albert Sans',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    opacity: anyPending ? 0.6 : 1,
+                    cursor: anyPending ? 'wait' : 'pointer',
+                  }}
+                >
+                  {isPending ? '…' : (on ? b.onLabel : b.offLabel)}
+                </button>
+              );
+            })}
+          </div>
+          {actionError && (
+            <div
+              className="px-5 pb-3 text-[11.5px]"
+              style={{ fontFamily: 'Albert Sans', color: C.terracotta }}
+              role="alert"
+            >
+              {actionError}
+            </div>
+          )}
+        </div>
+      </div>
+      {lightboxIndex !== null && (
+        <MomPhotoLightbox
+          photos={mom.photos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Full-screen photo lightbox over the detail modal. Click thumbnail in the
+// modal's Photos section to open. Loops at both ends; close via X, backdrop, or Esc.
+const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
+  // Defensive clamp in case caller passed an out-of-range initialIndex.
+  const clampedInitial = Math.max(0, Math.min(initialIndex ?? 0, (photos?.length ?? 0) - 1));
+  const [index, setIndex] = useState(clampedInitial);
+
+  // Esc closes the lightbox. The parent modal's own Esc listener
+  // short-circuits while lightboxIndex !== null, so this listener owns Esc.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!photos || photos.length === 0) return null;
+
+  const total = photos.length;
+  const showNav = total > 1;
+  const next = (e) => {
+    e?.stopPropagation();
+    setIndex(i => (i + 1) % total);
+  };
+  const prev = (e) => {
+    e?.stopPropagation();
+    setIndex(i => (i - 1 + total) % total);
+  };
+
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: `${C.ink}D9`, animation: 'fadeIn 0.15s ease-out' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Photo ${index + 1} of ${total}`}
+    >
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        autoFocus
+        aria-label="Close enlarged photo"
+        className="absolute top-4 right-4 rounded-full p-2 transition-colors"
+        style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+      >
+        <X size={20}/>
+      </button>
+
+      {showNav && (
+        <button
+          onClick={prev}
+          aria-label="Previous photo"
+          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full p-2 transition-colors"
+          style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+        >
+          <ChevronLeft size={24}/>
+        </button>
+      )}
+
+      <img
+        onClick={(e) => e.stopPropagation()}
+        src={photos[index]}
+        alt=""
+        style={{
+          maxWidth: '90vw',
+          maxHeight: '85vh',
+          objectFit: 'contain',
+          animation: 'fadeInUp 0.2s ease-out',
+        }}
+      />
+
+      {showNav && (
+        <button
+          onClick={next}
+          aria-label="Next photo"
+          className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2 transition-colors"
+          style={{ background: C.paper, color: C.ink, border: `1px solid ${C.divider}` }}
+        >
+          <ChevronRight size={24}/>
+        </button>
+      )}
+
+      {showNav && (
+        <div
+          aria-live="polite"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12.5px]"
+          style={{ fontFamily: 'Albert Sans', color: C.cream, fontWeight: 600 }}
+        >
+          {index + 1} / {total}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
 // Mom profiles tab — promoted moms in the discoverable directory.
 // ============================================================================
-const MomProfilesTab = ({ rows }) => {
+const MomProfilesTab = ({ rows, places, onPatch }) => {
+  const placesById = useMemo(
+    () => new Map((places || []).map(p => [p.id, p])),
+    [places]
+  );
+  const [selectedMom, setSelectedMom] = useState(null);
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -624,7 +1120,21 @@ const MomProfilesTab = ({ rows }) => {
             </thead>
             <tbody>
               {filtered.slice(0, 500).map(r => (
-                <tr key={r.id} style={{ borderTop: `1px solid ${C.divider}` }}>
+                <tr
+                  key={r.id}
+                  onClick={() => setSelectedMom(r)}
+                  className="cursor-pointer transition-colors hover:bg-[var(--mp-row-hover)]"
+                  style={{ borderTop: `1px solid ${C.divider}`, ['--mp-row-hover']: C.creamSoft }}
+                  aria-label={`Open profile for ${r.display_name || r.username || 'mom'}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedMom(r);
+                    }
+                  }}
+                >
                   <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap', fontWeight: 600 }}>
                     {r.display_name || '—'}
                     {r.verified && (
@@ -664,6 +1174,18 @@ const MomProfilesTab = ({ rows }) => {
           </div>
         )}
       </Card>
+
+      {selectedMom && (
+        <MomProfileDetailModal
+          mom={selectedMom}
+          placesById={placesById}
+          onClose={() => setSelectedMom(null)}
+          onPatched={(updated) => {
+            setSelectedMom(updated);
+            onPatch?.(updated);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -708,6 +1230,43 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
     }
   };
 
+  // Seed card state — separate from the reset flow.
+  const [seedPhase, setSeedPhase] = useState('idle'); // 'idle' | 'running' | 'done' | 'error'
+  const [seedOpts, setSeedOpts] = useState({ places: 50, events: 30, moms: 200, reset: true });
+  const [seedResult, setSeedResult] = useState(null);
+  const [seedError, setSeedError] = useState(null);
+
+  const setSeedField = (key) => (e) => {
+    const raw = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
+    setSeedOpts(o => ({ ...o, [key]: raw }));
+  };
+
+  const fireSeed = async () => {
+    setSeedPhase('running');
+    setSeedError(null);
+    try {
+      const res = await fetch('/api/admin/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seedOpts),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSeedPhase('error');
+        setSeedError(body?.error || `Seed failed (${res.status})`);
+        return;
+      }
+      setSeedResult(body.result || {});
+      setSeedPhase('done');
+      onReset?.();
+    } catch (e) {
+      setSeedPhase('error');
+      setSeedError(e?.message || 'Network error');
+    }
+  };
+
+  const dismissSeed = () => { setSeedPhase('idle'); setSeedError(null); };
+
   return (
     <div className="space-y-4">
       <div>
@@ -717,6 +1276,85 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
         <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
           One-click maintenance utilities. Destructive actions require typed confirmation.
         </p>
+      </div>
+
+      {/* Run seed card */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: `2px solid ${C.sageDark}`, background: `${C.sageDark}08` }}>
+        <div className="px-4 py-3 flex items-center gap-2" style={{ background: `${C.sageDark}15`, borderBottom: `1px solid ${C.sageDark}30` }}>
+          <Sprout size={16} style={{ color: C.sageDark }}/>
+          <div className="text-[12px] tracking-[.16em] uppercase" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.sageDark }}>
+            Seed data
+          </div>
+        </div>
+
+        <div className="px-4 py-4">
+          <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
+            Run seed
+          </h3>
+          <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.5 }}>
+            Populates <strong>places</strong>, <strong>events</strong>, and <strong>mom_profiles</strong> with synthetic data so you can test search and matching at scale. Idempotent — places/events upsert by slug, moms by username. With <em>reset</em> on, mom_profiles where <code>source='seed'</code> are wiped first; real signups are <strong>not</strong> affected.
+          </p>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {['places', 'events', 'moms'].map(field => (
+              <label key={field} className="flex flex-col gap-1">
+                <span className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 600 }}>
+                  {field}
+                </span>
+                <input type="number" min={0} step={1}
+                  value={seedOpts[field]}
+                  onChange={setSeedField(field)}
+                  disabled={seedPhase === 'running'}
+                  className="rounded-lg px-2 py-1.5 outline-none text-[13px]"
+                  style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
+              </label>
+            ))}
+          </div>
+
+          <label className="mt-3 flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+            <input type="checkbox" checked={seedOpts.reset} onChange={setSeedField('reset')} disabled={seedPhase === 'running'}/>
+            <span className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink }}>
+              Reset (delete <code>source='seed'</code> mom_profiles first)
+            </span>
+          </label>
+
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={fireSeed} disabled={seedPhase === 'running'}
+              className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+              style={{
+                background: C.sageDark, color: '#fff',
+                fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12.5,
+                opacity: seedPhase === 'running' ? 0.7 : 1,
+              }}>
+              <Sprout size={14}/> {seedPhase === 'running' ? 'Seeding…' : 'Run seed'}
+            </button>
+          </div>
+
+          {seedPhase === 'done' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.sageDark}15`, border: `1px solid ${C.sageDark}` }}>
+              <CheckIcon size={16} style={{ color: C.sageDark, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Seeded.</strong> {fmt(seedResult?.places ?? 0)} places · {fmt(seedResult?.events ?? 0)} events · {fmt(seedResult?.moms ?? 0)} mom profiles
+                {seedResult?.reset?.deleted ? <> (reset deleted {fmt(seedResult.reset.deleted)})</> : null}.
+                <button onClick={dismissSeed} className="ml-2 underline" style={{ color: C.sageDark, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {seedPhase === 'error' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
+              <AlertTriangle size={16} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Seed failed.</strong> {seedError}
+                <button onClick={dismissSeed} className="ml-2 underline" style={{ color: C.terracotta, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Danger zone card */}
@@ -817,23 +1455,57 @@ export const AdminPage = () => {
   const [moms, setMoms] = useState(null);
   const [waitlist, setWaitlist] = useState(null);
   const [momProfiles, setMomProfiles] = useState(null);
+  const [places, setPlaces] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
+  // Vite serves the raw .js source file (which starts with a `//` comment)
+  // instead of running the Vercel function — surfaces a clear hint instead
+  // of "Unexpected token '/'…" JSON-parse noise.
+  const fetchEndpoint = async (path, label) => {
+    let res;
+    try {
+      res = await fetch(path);
+    } catch (e) {
+      throw new Error(`${label}: network error — ${e?.message || 'unreachable'}`);
+    }
+    const ct = res.headers.get('content-type') || '';
+    const text = await res.text();
+    if (ct.includes('application/json')) {
+      try {
+        const j = JSON.parse(text);
+        if (res.status >= 400) {
+          throw new Error(`${label} ${res.status}: ${j?.error || 'unknown'}`);
+        }
+        return j;
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(`${label}: response was not valid JSON`);
+        }
+        throw e;
+      }
+    }
+    // Not JSON — almost always Vite serving the source file in dev mode.
+    if (text.trimStart().startsWith('//') || text.includes('export default async function')) {
+      throw new Error('API routes don\'t run under `npm run dev`. Use `vercel dev` to serve them locally, or visit the deployed URL.');
+    }
+    throw new Error(`${label} ${res.status}: unexpected response (${ct || 'no content-type'})`);
+  };
 
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const [a, b, c] = await Promise.all([
-        fetch('/api/admin/onboarding').then(r => r.json().then(j => ({ status: r.status, j }))),
-        fetch('/api/admin/waitlist').then(r => r.json().then(j => ({ status: r.status, j }))),
-        fetch('/api/admin/mom-profiles').then(r => r.json().then(j => ({ status: r.status, j }))),
+      const [a, b, c, d] = await Promise.all([
+        fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
+        fetchEndpoint('/api/admin/waitlist',     'Waitlist'),
+        fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
+        fetchEndpoint('/api/admin/places',       'Places'),
       ]);
-      if (a.status >= 400) throw new Error(`Onboarding ${a.status}: ${a.j?.error || 'unknown'}`);
-      if (b.status >= 400) throw new Error(`Waitlist ${b.status}: ${b.j?.error || 'unknown'}`);
-      if (c.status >= 400) throw new Error(`Mom profiles ${c.status}: ${c.j?.error || 'unknown'}`);
-      setMoms(a.j.rows || []);
-      setWaitlist(b.j.rows || []);
-      setMomProfiles(c.j.rows || []);
+      setMoms(a.rows || []);
+      setWaitlist(b.rows || []);
+      setMomProfiles(c.rows || []);
+      setPlaces(d.rows || []);
     } catch (e) {
       setError(e?.message || 'Could not load data');
     } finally {
@@ -919,7 +1591,7 @@ export const AdminPage = () => {
           </div>
         )}
 
-        {!moms || !waitlist || !momProfiles ? (
+        {!moms || !waitlist || !momProfiles || !places ? (
           <div className="rounded-2xl p-8 text-center" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
             <RefreshCw size={20} className="mx-auto mb-2" style={{ color: C.inkSoft, animation: loading ? 'spin 1s linear infinite' : 'none' }}/>
             <div className="text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
@@ -930,7 +1602,7 @@ export const AdminPage = () => {
           <>
             {tab === 'overview'     && <Overview moms={moms} waitlist={waitlist}/>}
             {tab === 'onboarding'   && <MomsReport rows={moms} momProfiles={momProfiles}/>}
-            {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles}/>}
+            {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
             {tab === 'waitlist'     && <WaitlistTable rows={waitlist}/>}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>

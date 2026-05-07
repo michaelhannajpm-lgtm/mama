@@ -16,6 +16,20 @@ const fetchRowBySession = async (creds, sessionId) => {
   return rows[0] || null;
 };
 
+// Look up by auth_user_id — used when the same user comes back with a new
+// localStorage session_id (cleared cookies, new device, etc). Without this,
+// we'd try to PATCH a different row to set auth_user_id and hit a unique
+// constraint violation, which surfaced as "Could not pick a unique username".
+const fetchRowByAuthUser = async (creds, authUserId) => {
+  const r = await fetch(
+    `${creds.supabaseUrl}/rest/v1/onboarding_profiles?auth_user_id=eq.${authUserId}&select=*`,
+    { headers: sbHeaders(creds.serviceRoleKey) },
+  );
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => []);
+  return rows[0] || null;
+};
+
 // Patch with username retry on conflict.
 const patchWithUsernameRetry = async (creds, sessionId, baseRow, existingUsername) => {
   if (existingUsername) {
@@ -142,9 +156,17 @@ export default async function handler(req, res) {
     ? user.app_metadata.provider
     : 'email';
 
-  // 2. Make sure the onboarding row exists (OAuth users may have skipped step writes).
-  const existing = await ensureRowExists(creds, session_id);
+  // 2. Find the onboarding row this user owns. Prefer the row already keyed by
+  //    auth_user_id (returning user); otherwise fall back to the session_id
+  //    row (first-time signup). Without the auth_user_id lookup, a returning
+  //    user with a fresh localStorage session_id would try to PATCH a NEW
+  //    row to set auth_user_id and hit a unique-constraint conflict.
+  let existing = await fetchRowByAuthUser(creds, user.id);
+  if (!existing) existing = await ensureRowExists(creds, session_id);
   if (!existing) return json(res, 500, { error: 'Could not load profile' });
+
+  // From here on, all writes target the existing row's session_id.
+  const targetSessionId = existing.session_id;
 
   // 3. Decide first_name and username.
   const oauthName = cleanText(
@@ -167,7 +189,7 @@ export default async function handler(req, res) {
   };
 
   const { row, username, error } = await patchWithUsernameRetry(
-    creds, session_id, baseRow, existing.username,
+    creds, targetSessionId, baseRow, existing.username,
   );
   if (!row) return json(res, 500, { error: error || 'Could not save profile' });
 

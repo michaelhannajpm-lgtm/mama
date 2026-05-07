@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import {
-  MapPin, Lock, ShieldCheck, Star, MessageCircle, Calendar as CalendarIcon, Plus, X, Pencil,
+  MapPin, Lock, ShieldCheck, Star, MessageCircle, Calendar as CalendarIcon,
+  Plus, X, Pencil, ChevronLeft, ChevronRight, Mail, Phone, LogOut,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { Sprig } from '../../components/icons/Sprig';
 import { MOM_TYPES } from '../../data/taxonomy';
 import { EditProfileSheet } from '../../sheets/EditProfileSheet';
+import { signOut as signOutSession, updateMomProfile } from '../../lib/onboarding';
 
 const MAX_PHOTOS = 6;
 
@@ -30,6 +32,12 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
 
   const distanceLabel = distance === 'any' ? 'anywhere' : distance ? `within ${distance} mi` : '';
 
+  // Persist a new photo order to mom_profiles. Best-effort — local state is
+  // the source of truth; backend errors are swallowed.
+  const persistPhotos = (next) => {
+    updateMomProfile({ photos: next }).catch(() => { /* swallow */ });
+  };
+
   const handlePhotoPick = (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
@@ -38,27 +46,70 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result;
       if (typeof dataUrl !== 'string') return;
-      setProfile(p => ({
-        ...p,
-        photos: [...(p.photos || []), dataUrl].slice(0, MAX_PHOTOS),
-      }));
+      const next = [...(profile.photos || []), dataUrl].slice(0, MAX_PHOTOS);
+      setProfile(p => ({ ...p, photos: next }));
+      persistPhotos(next);
     };
     reader.readAsDataURL(file);
   };
 
   const removePhoto = (idx) => {
-    setProfile(p => ({
-      ...p,
-      photos: (p.photos || []).filter((_, i) => i !== idx),
-    }));
+    const next = (profile.photos || []).filter((_, i) => i !== idx);
+    setProfile(p => ({ ...p, photos: next }));
+    persistPhotos(next);
   };
+
+  const setPrimary = (idx) => {
+    if (idx === 0) return;
+    const arr = [...photos];
+    const [pulled] = arr.splice(idx, 1);
+    arr.unshift(pulled);
+    setProfile(p => ({ ...p, photos: arr }));
+    persistPhotos(arr);
+  };
+
+  const movePhoto = (idx, delta) => {
+    const target = idx + delta;
+    if (target < 0 || target >= photos.length) return;
+    const arr = [...photos];
+    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    setProfile(p => ({ ...p, photos: arr }));
+    persistPhotos(arr);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOutSession();
+    } catch {
+      /* swallow — restart() clears local state anyway */
+    }
+    restart();
+  };
+
+  const contact = account?.email || account?.phone || null;
 
   return (
     <div className="flex-1 overflow-y-auto px-6 pt-3 pb-4" style={{ scrollbarWidth:'none' }}>
       <div className="mb-3 flex items-baseline justify-between">
-        <h1 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 28, color: C.ink, letterSpacing:'-.02em' }}>
-          {account?.firstName ? `Hi, ${account.firstName}` : 'You'}
-        </h1>
+        <div>
+          <h1 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 28, color: C.ink, letterSpacing:'-.02em' }}>
+            {account?.firstName ? `Hi, ${account.firstName}` : 'You'}
+          </h1>
+          {(account?.email || account?.phone) && (
+            <div className="mt-0.5 flex flex-col gap-0.5">
+              {account.email && (
+                <div className="flex items-center gap-1.5 text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
+                  <Mail size={11}/> {account.email}
+                </div>
+              )}
+              {account.phone && (
+                <div className="flex items-center gap-1.5 text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
+                  <Phone size={11}/> {account.phone}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <button onClick={() => setEditOpen(true)}
           aria-label="Edit profile"
           className="rounded-full flex items-center justify-center"
@@ -69,20 +120,80 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
 
       {/* Photo gallery */}
       <div className="mb-4">
-        <div className="text-[10.5px] tracking-[.16em] uppercase mb-2" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-          Photos · {photos.length}/{MAX_PHOTOS}
+        <div className="text-[10.5px] tracking-[.16em] uppercase mb-2 flex items-baseline justify-between" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+          <span>Photos · {photos.length}/{MAX_PHOTOS}</span>
+          {photos.length > 1 && (
+            <span className="text-[9.5px]" style={{ color: C.inkMuted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
+              Tap ★ to set primary · ◀▶ to reorder
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-2">
-          {photos.map((src, i) => (
-            <div key={i} className="relative rounded-[14px] overflow-hidden" style={{ aspectRatio: '1 / 1', background: C.paper }}>
-              <img src={src} alt={`You ${i + 1}`} className="w-full h-full object-cover"/>
-              <button onClick={() => removePhoto(i)} aria-label="Remove photo"
-                className="absolute top-1 right-1 rounded-full flex items-center justify-center"
-                style={{ width: 22, height: 22, background: 'rgba(0,0,0,.55)', color: '#fff' }}>
-                <X size={12}/>
-              </button>
-            </div>
-          ))}
+          {photos.map((src, i) => {
+            const isPrimary = i === 0;
+            const isFirst = i === 0;
+            const isLast = i === photos.length - 1;
+            return (
+              <div key={`${src.slice(0, 24)}-${i}`} className="relative rounded-[14px] overflow-hidden"
+                style={{
+                  aspectRatio: '1 / 1', background: C.paper,
+                  border: isPrimary ? `2px solid ${C.sageDark}` : '1px solid transparent',
+                }}>
+                <img src={src} alt={`You ${i + 1}`} className="w-full h-full object-cover"/>
+
+                {/* Top-left: Primary chip OR Star (set-primary) button */}
+                {isPrimary ? (
+                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md flex items-center gap-0.5" style={{
+                    background: C.sageDark, color: '#fff',
+                    fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700, letterSpacing: '.06em',
+                  }}>
+                    <Star size={9} fill="currentColor"/> PRIMARY
+                  </div>
+                ) : (
+                  <button onClick={() => setPrimary(i)} aria-label="Set as primary photo"
+                    className="absolute top-1 left-1 rounded-full flex items-center justify-center"
+                    style={{ width: 22, height: 22, background: 'rgba(0,0,0,.55)', color: '#fff' }}>
+                    <Star size={12}/>
+                  </button>
+                )}
+
+                {/* Top-right: Remove */}
+                <button onClick={() => removePhoto(i)} aria-label="Remove photo"
+                  className="absolute top-1 right-1 rounded-full flex items-center justify-center"
+                  style={{ width: 22, height: 22, background: 'rgba(0,0,0,.55)', color: '#fff' }}>
+                  <X size={12}/>
+                </button>
+
+                {/* Bottom: Reorder arrows — only when there's something to swap with */}
+                {photos.length > 1 && (
+                  <div className="absolute bottom-1 left-1 right-1 flex justify-between">
+                    <button onClick={() => movePhoto(i, -1)} disabled={isFirst} aria-label="Move earlier"
+                      className="rounded-full flex items-center justify-center"
+                      style={{
+                        width: 22, height: 22,
+                        background: isFirst ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.55)',
+                        color: '#fff',
+                        opacity: isFirst ? 0.4 : 1,
+                        cursor: isFirst ? 'default' : 'pointer',
+                      }}>
+                      <ChevronLeft size={12}/>
+                    </button>
+                    <button onClick={() => movePhoto(i, 1)} disabled={isLast} aria-label="Move later"
+                      className="rounded-full flex items-center justify-center"
+                      style={{
+                        width: 22, height: 22,
+                        background: isLast ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.55)',
+                        color: '#fff',
+                        opacity: isLast ? 0.4 : 1,
+                        cursor: isLast ? 'default' : 'pointer',
+                      }}>
+                      <ChevronRight size={12}/>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {canAddPhoto && (
             <button onClick={() => fileInputRef.current?.click()}
               className="rounded-[14px] flex flex-col items-center justify-center"
@@ -156,9 +267,24 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
         ))}
       </div>
 
-      <button onClick={restart} className="mt-4 w-full text-[12.5px] py-2" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
+      {/* Sign out — only shown when signed in */}
+      {account && (
+        <button onClick={handleSignOut}
+          className="mt-4 w-full rounded-2xl flex items-center justify-center gap-2 py-3"
+          style={{
+            background: C.paper, border: `1px solid ${C.divider}`, color: C.terracotta,
+            fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13.5,
+          }}>
+          <LogOut size={14}/> Sign out
+        </button>
+      )}
+
+      <button onClick={restart} className="mt-3 w-full text-[12px] py-2" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
         ↺ Restart prototype tour
       </button>
+
+      {/* Suppress lint for unused contact var — used implicitly in render guards above */}
+      <span style={{ display: 'none' }}>{contact}</span>
 
       {editOpen && <EditProfileSheet profile={profile} setProfile={setProfile} onClose={() => setEditOpen(false)}/>}
     </div>

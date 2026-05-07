@@ -5,12 +5,7 @@ import { StatusBar } from '../../components/StatusBar';
 import { StepHeader } from '../../components/StepHeader';
 import { PrimaryBtn } from '../../components/PrimaryBtn';
 import { completeSignup, signInWithProvider } from '../../lib/onboarding';
-
-const PROVIDERS = [
-  { id: 'google',   label: 'Continue with Google',   bg: '#FFFFFF', fg: '#1F1F1F', border: '#DADCE0' },
-  { id: 'facebook', label: 'Continue with Facebook', bg: '#1877F2', fg: '#FFFFFF', border: '#1877F2' },
-  { id: 'apple',    label: 'Continue with Apple',    bg: '#000000', fg: '#FFFFFF', border: '#000000' },
-];
+import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
 
 const ProviderGlyph = ({ id }) => {
   const size = 14;
@@ -121,32 +116,35 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
           </p>
         </div>
 
-        {/* OAuth buttons */}
-        <div className="mt-5 space-y-2">
-          {PROVIDERS.map(p => (
-            <button key={p.id} onClick={()=>handleOAuth(p.id)}
-              disabled={!!oauthLoading || submitting}
-              className="w-full rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[.99]"
-              style={{
-                height: 46, background: p.bg, color: p.fg,
-                border: `1px solid ${p.border}`,
-                fontFamily:'Albert Sans', fontWeight:600, fontSize: 13.5,
-                opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
-              }}>
-              <ProviderGlyph id={p.id}/>
-              {oauthLoading === p.id ? 'Redirecting…' : p.label}
-            </button>
-          ))}
-        </div>
+        {/* OAuth buttons + divider — only render when at least one provider is enabled. */}
+        {PROVIDERS.length > 0 && (
+          <>
+            <div className="mt-5 space-y-2">
+              {PROVIDERS.map(p => (
+                <button key={p.id} onClick={()=>handleOAuth(p.id)}
+                  disabled={!!oauthLoading || submitting}
+                  className="w-full rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[.99]"
+                  style={{
+                    height: 46, background: p.bg, color: p.fg,
+                    border: `1px solid ${p.border}`,
+                    fontFamily:'Albert Sans', fontWeight:600, fontSize: 13.5,
+                    opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
+                  }}>
+                  <ProviderGlyph id={p.id}/>
+                  {oauthLoading === p.id ? 'Redirecting…' : p.label}
+                </button>
+              ))}
+            </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 mt-4 mb-3">
-          <div className="flex-1 h-px" style={{ background: C.divider }}/>
-          <div className="text-[10.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
-            or sign up with
-          </div>
-          <div className="flex-1 h-px" style={{ background: C.divider }}/>
-        </div>
+            <div className="flex items-center gap-3 mt-4 mb-3">
+              <div className="flex-1 h-px" style={{ background: C.divider }}/>
+              <div className="text-[10.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
+                or sign up with
+              </div>
+              <div className="flex-1 h-px" style={{ background: C.divider }}/>
+            </div>
+          </>
+        )}
 
         {/* First name */}
         <div className="mt-2">
