@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
-  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon,
+  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -708,6 +708,43 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
     }
   };
 
+  // Seed card state — separate from the reset flow.
+  const [seedPhase, setSeedPhase] = useState('idle'); // 'idle' | 'running' | 'done' | 'error'
+  const [seedOpts, setSeedOpts] = useState({ places: 50, events: 30, moms: 200, reset: true });
+  const [seedResult, setSeedResult] = useState(null);
+  const [seedError, setSeedError] = useState(null);
+
+  const setSeedField = (key) => (e) => {
+    const raw = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
+    setSeedOpts(o => ({ ...o, [key]: raw }));
+  };
+
+  const fireSeed = async () => {
+    setSeedPhase('running');
+    setSeedError(null);
+    try {
+      const res = await fetch('/api/admin/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seedOpts),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSeedPhase('error');
+        setSeedError(body?.error || `Seed failed (${res.status})`);
+        return;
+      }
+      setSeedResult(body.result || {});
+      setSeedPhase('done');
+      onReset?.();
+    } catch (e) {
+      setSeedPhase('error');
+      setSeedError(e?.message || 'Network error');
+    }
+  };
+
+  const dismissSeed = () => { setSeedPhase('idle'); setSeedError(null); };
+
   return (
     <div className="space-y-4">
       <div>
@@ -717,6 +754,85 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
         <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
           One-click maintenance utilities. Destructive actions require typed confirmation.
         </p>
+      </div>
+
+      {/* Run seed card */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: `2px solid ${C.sageDark}`, background: `${C.sageDark}08` }}>
+        <div className="px-4 py-3 flex items-center gap-2" style={{ background: `${C.sageDark}15`, borderBottom: `1px solid ${C.sageDark}30` }}>
+          <Sprout size={16} style={{ color: C.sageDark }}/>
+          <div className="text-[12px] tracking-[.16em] uppercase" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.sageDark }}>
+            Seed data
+          </div>
+        </div>
+
+        <div className="px-4 py-4">
+          <h3 style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
+            Run seed
+          </h3>
+          <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.5 }}>
+            Populates <strong>places</strong>, <strong>events</strong>, and <strong>mom_profiles</strong> with synthetic data so you can test search and matching at scale. Idempotent — places/events upsert by slug, moms by username. With <em>reset</em> on, mom_profiles where <code>source='seed'</code> are wiped first; real signups are <strong>not</strong> affected.
+          </p>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {['places', 'events', 'moms'].map(field => (
+              <label key={field} className="flex flex-col gap-1">
+                <span className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 600 }}>
+                  {field}
+                </span>
+                <input type="number" min={0} step={1}
+                  value={seedOpts[field]}
+                  onChange={setSeedField(field)}
+                  disabled={seedPhase === 'running'}
+                  className="rounded-lg px-2 py-1.5 outline-none text-[13px]"
+                  style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
+              </label>
+            ))}
+          </div>
+
+          <label className="mt-3 flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+            <input type="checkbox" checked={seedOpts.reset} onChange={setSeedField('reset')} disabled={seedPhase === 'running'}/>
+            <span className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink }}>
+              Reset (delete <code>source='seed'</code> mom_profiles first)
+            </span>
+          </label>
+
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={fireSeed} disabled={seedPhase === 'running'}
+              className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+              style={{
+                background: C.sageDark, color: '#fff',
+                fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12.5,
+                opacity: seedPhase === 'running' ? 0.7 : 1,
+              }}>
+              <Sprout size={14}/> {seedPhase === 'running' ? 'Seeding…' : 'Run seed'}
+            </button>
+          </div>
+
+          {seedPhase === 'done' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.sageDark}15`, border: `1px solid ${C.sageDark}` }}>
+              <CheckIcon size={16} style={{ color: C.sageDark, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Seeded.</strong> {fmt(seedResult?.places ?? 0)} places · {fmt(seedResult?.events ?? 0)} events · {fmt(seedResult?.moms ?? 0)} mom profiles
+                {seedResult?.reset?.deleted ? <> (reset deleted {fmt(seedResult.reset.deleted)})</> : null}.
+                <button onClick={dismissSeed} className="ml-2 underline" style={{ color: C.sageDark, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {seedPhase === 'error' && (
+            <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
+              <AlertTriangle size={16} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
+              <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
+                <strong>Seed failed.</strong> {seedError}
+                <button onClick={dismissSeed} className="ml-2 underline" style={{ color: C.terracotta, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Danger zone card */}
