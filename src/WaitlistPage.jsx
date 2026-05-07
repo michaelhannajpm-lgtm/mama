@@ -103,6 +103,7 @@ export const WaitlistPage = ({ onNavigate }) => {
 
     try {
       const endpoint = import.meta.env.VITE_WAITLIST_ENDPOINT;
+      let isDuplicate = false;
 
       if (endpoint) {
         const response = await fetch(endpoint, {
@@ -110,14 +111,19 @@ export const WaitlistPage = ({ onNavigate }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-
         if (!response.ok) throw new Error('Waitlist endpoint rejected the request.');
+        const body = await response.json().catch(() => ({}));
+        isDuplicate = !!body?.duplicate;
       } else {
         const entries = readSavedEntries();
-        localStorage.setItem(WAITLIST_KEY, JSON.stringify([...entries, payload]));
+        // Match backend behavior locally: same email already saved = duplicate.
+        isDuplicate = entries.some(e => e.email === payload.email);
+        if (!isDuplicate) {
+          localStorage.setItem(WAITLIST_KEY, JSON.stringify([...entries, payload]));
+        }
       }
 
-      setStatus('success');
+      setStatus(isDuplicate ? 'duplicate' : 'success');
       setForm({
         firstName: '',
         email: '',
@@ -288,7 +294,9 @@ export const WaitlistPage = ({ onNavigate }) => {
 
             <div className="wl-form-note" role="status">
               {status === 'success' ? (
-                <span className="wl-success"><Check size={15} /> You are on the list. We will email you before launch.</span>
+                <span className="wl-success"><Check size={15} /> You are on the list. Check your inbox for our welcome email.</span>
+              ) : status === 'duplicate' ? (
+                <span className="wl-success"><Check size={15} /> You are already on the list — we have you. We will email when Go Mama is live in your area.</span>
               ) : error ? (
                 <span className="wl-error">{error}</span>
               ) : (
