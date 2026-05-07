@@ -544,7 +544,11 @@ const MomsTable = ({ rows, momProfiles }) => {
 // ============================================================================
 // Mom profiles tab — promoted moms in the discoverable directory.
 // ============================================================================
-const MomProfilesTab = ({ rows }) => {
+const MomProfilesTab = ({ rows, places, onPatch }) => {
+  const placesById = useMemo(
+    () => new Map((places || []).map(p => [p.id, p])),
+    [places]
+  );
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -933,6 +937,7 @@ export const AdminPage = () => {
   const [moms, setMoms] = useState(null);
   const [waitlist, setWaitlist] = useState(null);
   const [momProfiles, setMomProfiles] = useState(null);
+  const [places, setPlaces] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -973,14 +978,16 @@ export const AdminPage = () => {
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const [a, b, c] = await Promise.all([
+      const [a, b, c, d] = await Promise.all([
         fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
         fetchEndpoint('/api/admin/waitlist',     'Waitlist'),
         fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
+        fetchEndpoint('/api/admin/places',       'Places'),
       ]);
       setMoms(a.rows || []);
       setWaitlist(b.rows || []);
       setMomProfiles(c.rows || []);
+      setPlaces(d.rows || []);
     } catch (e) {
       setError(e?.message || 'Could not load data');
     } finally {
@@ -1066,7 +1073,7 @@ export const AdminPage = () => {
           </div>
         )}
 
-        {!moms || !waitlist || !momProfiles ? (
+        {!moms || !waitlist || !momProfiles || !places ? (
           <div className="rounded-2xl p-8 text-center" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
             <RefreshCw size={20} className="mx-auto mb-2" style={{ color: C.inkSoft, animation: loading ? 'spin 1s linear infinite' : 'none' }}/>
             <div className="text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
@@ -1077,7 +1084,7 @@ export const AdminPage = () => {
           <>
             {tab === 'overview'     && <Overview moms={moms} waitlist={waitlist}/>}
             {tab === 'onboarding'   && <MomsReport rows={moms} momProfiles={momProfiles}/>}
-            {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles}/>}
+            {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
             {tab === 'waitlist'     && <WaitlistTable rows={waitlist}/>}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>
