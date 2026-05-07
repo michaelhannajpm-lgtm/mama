@@ -129,7 +129,7 @@ export const signInWithProvider = async (provider) => {
   }
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: `${window.location.origin}/prototype` },
+    options: { redirectTo: `${window.location.origin}/live` },
   });
   if (error) throw error;
 };
