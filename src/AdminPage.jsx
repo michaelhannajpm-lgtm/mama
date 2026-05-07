@@ -820,20 +820,51 @@ export const AdminPage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
+  // Vite serves the raw .js source file (which starts with a `//` comment)
+  // instead of running the Vercel function — surfaces a clear hint instead
+  // of "Unexpected token '/'…" JSON-parse noise.
+  const fetchEndpoint = async (path, label) => {
+    let res;
+    try {
+      res = await fetch(path);
+    } catch (e) {
+      throw new Error(`${label}: network error — ${e?.message || 'unreachable'}`);
+    }
+    const ct = res.headers.get('content-type') || '';
+    const text = await res.text();
+    if (ct.includes('application/json')) {
+      try {
+        const j = JSON.parse(text);
+        if (res.status >= 400) {
+          throw new Error(`${label} ${res.status}: ${j?.error || 'unknown'}`);
+        }
+        return j;
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(`${label}: response was not valid JSON`);
+        }
+        throw e;
+      }
+    }
+    // Not JSON — almost always Vite serving the source file in dev mode.
+    if (text.trimStart().startsWith('//') || text.includes('export default async function')) {
+      throw new Error('API routes don\'t run under `npm run dev`. Use `vercel dev` to serve them locally, or visit the deployed URL.');
+    }
+    throw new Error(`${label} ${res.status}: unexpected response (${ct || 'no content-type'})`);
+  };
+
   const load = async () => {
     setLoading(true); setError(null);
     try {
       const [a, b, c] = await Promise.all([
-        fetch('/api/admin/onboarding').then(r => r.json().then(j => ({ status: r.status, j }))),
-        fetch('/api/admin/waitlist').then(r => r.json().then(j => ({ status: r.status, j }))),
-        fetch('/api/admin/mom-profiles').then(r => r.json().then(j => ({ status: r.status, j }))),
+        fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
+        fetchEndpoint('/api/admin/waitlist',     'Waitlist'),
+        fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
       ]);
-      if (a.status >= 400) throw new Error(`Onboarding ${a.status}: ${a.j?.error || 'unknown'}`);
-      if (b.status >= 400) throw new Error(`Waitlist ${b.status}: ${b.j?.error || 'unknown'}`);
-      if (c.status >= 400) throw new Error(`Mom profiles ${c.status}: ${c.j?.error || 'unknown'}`);
-      setMoms(a.j.rows || []);
-      setWaitlist(b.j.rows || []);
-      setMomProfiles(c.j.rows || []);
+      setMoms(a.rows || []);
+      setWaitlist(b.rows || []);
+      setMomProfiles(c.rows || []);
     } catch (e) {
       setError(e?.message || 'Could not load data');
     } finally {
