@@ -554,7 +554,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
   }, [onClose]);
 
   const photo0 = Array.isArray(mom.photos) && mom.photos[0];
-  const initial = (mom.display_name || mom.username || '?').trim().charAt(0).toUpperCase();
+  const initial = ((mom.display_name || '').trim() || (mom.username || '').trim() || '?').charAt(0).toUpperCase();
   const sourcePill = (() => {
     const isSeed = mom.source === 'seed';
     return {
