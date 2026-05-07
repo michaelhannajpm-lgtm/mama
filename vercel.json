@@ -15,6 +15,14 @@
     {
       "source": "/admin/:path*",
       "destination": "/"
+    },
+    {
+      "source": "/live",
+      "destination": "/"
+    },
+    {
+      "source": "/live/:path*",
+      "destination": "/"
     }
   ]
 }
