@@ -1324,6 +1324,16 @@ const FeedbackTab = ({ rows }) => {
                   <Fragment key={r.id}>
                     <tr
                       onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} feedback from ${r.name || 'unknown'}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedId(isExpanded ? null : r.id);
+                        }
+                      }}
                       className="cursor-pointer transition-colors hover:bg-[var(--fb-row-hover)]"
                       style={{ borderTop: `1px solid ${C.divider}`, ['--fb-row-hover']: C.creamSoft }}
                     >
