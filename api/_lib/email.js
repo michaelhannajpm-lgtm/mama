@@ -1,10 +1,8 @@
 // Email-sending helpers built on Resend.
 //
-// Email content + subject lines live in the api/_emails/ folder as React
-// Email components. This file just:
-//   - reads env config
-//   - renders the component to HTML + plain-text
-//   - hands it to Resend
+// Email content + subject lines live in api/_emails/ as plain JS modules
+// that export render functions returning { html, text } and SUBJECT
+// constants. This file just reads env config and hands off to Resend.
 //
 // Required env vars (set in Vercel project settings + locally for `vercel dev`):
 //   RESEND_API_KEY   — from https://resend.com → API Keys
@@ -12,20 +10,17 @@
 //                      (the domain must be verified in Resend's dashboard)
 //
 // Optional:
-//   EMAIL_REPLY_TO   — defaults to EMAIL_FROM. Set to a monitored inbox if you
-//                      want users to be able to reply.
+//   EMAIL_REPLY_TO   — defaults to EMAIL_FROM. Set to a monitored inbox if
+//                      you want users to be able to reply.
 //
 // All helpers are fire-and-forget: they never throw. Missing RESEND_API_KEY
 // isn't an error — we just skip the send.
 
-import * as React from 'react';
 import { Resend } from 'resend';
-import { render } from '@react-email/render';
 import {
-  WaitlistConfirmation,
-  renderWaitlistText,
+  renderWaitlist,
   WAITLIST_CONFIRMATION_SUBJECT,
-} from '../_emails/WaitlistConfirmation.tsx';
+} from '../_emails/WaitlistConfirmation.js';
 
 // Send the waitlist confirmation. Returns { ok, skipped?, error? }.
 export const sendWaitlistConfirmation = async ({ email, firstName, city }) => {
@@ -41,9 +36,7 @@ export const sendWaitlistConfirmation = async ({ email, firstName, city }) => {
 
   try {
     const resend = new Resend(apiKey);
-    const element = React.createElement(WaitlistConfirmation, { firstName, city });
-    const html = await render(element);
-    const text = renderWaitlistText({ firstName, city });
+    const { html, text } = renderWaitlist({ firstName, city });
 
     const result = await resend.emails.send({
       from,
