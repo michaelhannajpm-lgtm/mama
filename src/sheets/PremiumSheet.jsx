@@ -11,7 +11,7 @@ export const PremiumSheet = ({ onClose, onActivate }) => (
         </div>
       </div>
       <h3 className="text-center" style={{ fontFamily:'Fraunces', fontSize: 28, fontWeight:500, letterSpacing:'-.02em' }}>
-        Mama <span style={{ fontStyle:'italic', color: C.saffron }}>Plus</span>
+        Go Mama <span style={{ fontStyle:'italic', color: C.saffron }}>Plus</span>
       </h3>
       <div className="mt-1 text-center text-[13px]" style={{ fontFamily:'Albert Sans', opacity:.75 }}>
         Stay close to the moms you click with.

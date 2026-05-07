@@ -225,7 +225,7 @@ function PrototypeApp() {
             onClose={()=>setPremiumOpen(false)}
             onActivate={()=>{
               setAccount(a => ({ ...(a || { firstName: 'Mama' }), isPremium: true, trialEndsAt: Date.now() + 7*24*3600*1000 }));
-              flash('✦ Welcome to Mama Plus · 7-day trial started');
+              flash('✦ Welcome to Go Mama Plus · 7-day trial started');
             }}/>}
           </>)}
 

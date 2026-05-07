@@ -245,7 +245,7 @@ export const Screen4 = ({ onNext, onBack, profile, setProfile }) => {
       <div className="px-7 pb-8 pt-3" style={{ background: C.cream }}>
         {canContinue ? (
           <div className="flex items-center justify-center gap-1.5 mb-3 text-[11.5px]" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
-            <Lock size={11}/> No account needed yet — try Mama first.
+            <Lock size={11}/> No account needed yet — try Go Mama first.
           </div>
         ) : (
           <div className="flex items-center justify-center gap-1.5 mb-3 text-[11.5px]" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:500 }}>

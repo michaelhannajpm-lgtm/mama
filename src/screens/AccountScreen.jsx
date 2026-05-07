@@ -247,7 +247,7 @@ export const AccountScreen = ({ onBack, account, onComplete, flash }) => {
             {agreed && <Check size={12} color="#fff" strokeWidth={3}/>}
           </div>
           <div className="text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
-            I agree to Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
+            I agree to Go Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
           </div>
         </button>
 

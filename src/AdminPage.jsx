@@ -5,7 +5,7 @@ import {
 import { C } from './theme';
 
 // ============================================================================
-// Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
+// Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
 // SECURITY: this dashboard has NO authentication. Anyone with the URL can read
 // PII. Add auth before publishing the URL anywhere.
 // ============================================================================
@@ -446,7 +446,7 @@ export const AdminPage = () => {
           <div className="rounded-lg w-9 h-9 flex items-center justify-center" style={{ background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 18, fontWeight: 600 }}>M</div>
           <div className="flex-1">
             <h1 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1 }}>
-              Mama · Admin
+              Go Mama · Admin
             </h1>
             <div className="text-[11px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
               Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} profiles · ${waitlist?.length || 0} waitlist` : ''}

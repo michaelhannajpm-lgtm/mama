@@ -39,9 +39,9 @@
           stroke="#FAF5EA" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </g>
 
-  <!-- Wordmark "Mama" — last 'a' italic terracotta -->
+  <!-- Wordmark "Go Mama" — "Go" italic terracotta, "Mama" black ink -->
   <text x="240" y="200" font-family="Fraunces, Georgia, serif" font-size="124" font-weight="500"
-        letter-spacing="-2" fill="#2A1E22">Mam<tspan font-style="italic" fill="#C8553D" dx="2">a</tspan></text>
+        letter-spacing="-2" fill="#2A1E22"><tspan font-style="italic" fill="#C8553D">Go</tspan><tspan dx="14"> Mama</tspan></text>
 
   <!-- Tagline -->
   <text x="96" y="310" font-family="Fraunces, Georgia, serif" font-size="58" font-weight="400"

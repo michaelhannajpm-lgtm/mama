@@ -1,5 +1,5 @@
 // src/theme.js
-// Design tokens — single source of truth for the Mama palette.
+// Design tokens — single source of truth for the Go Mama palette.
 // Imported by every component that styles anything.
 export const C = {
   cream: '#F6EFE2',

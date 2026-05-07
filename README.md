@@ -1,12 +1,12 @@
-# Mama
+# Go Mama
 
-Mama is a React/Vite app for a mom-friendship product. The public entry point is a waitlist landing page, and the interactive mobile prototype lives at a clean `/prototype` route.
+Go Mama is a React/Vite app for a mom-friendship product. The public entry point is a waitlist landing page, and the interactive mobile prototype lives at a clean `/prototype` route.
 
-The product is scheduling-first: Mama helps moms find nearby people who overlap on real availability, shared kid stages, values, interests, and preferred meetup places.
+The product is scheduling-first: Go Mama helps moms find nearby people who overlap on real availability, shared kid stages, values, interests, and preferred meetup places.
 
 ```txt
-Live site:  https://mama-iota-weld.vercel.app
-Prototype:  https://mama-iota-weld.vercel.app/prototype
+Live site:  https://gomama.app
+Prototype:  https://gomama.app/prototype
 GitHub:     git@github.com:michaelhannajpm-lgtm/mama.git
 ```
 

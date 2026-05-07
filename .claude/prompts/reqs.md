@@ -131,16 +131,7 @@ Used to highlight one key word in a sentence (`Your matches`, `tailored`, `actua
 
 ## 4. Layout primitives
 
-### 4.1 `PhoneFrame`
-Wraps the entire app. ~375×740 rounded phone-shaped container, centered on the desktop viewport with a soft drop-shadow. Passes children through.
-
-### 4.2 `StatusBar`
-- Fake iOS status bar at the top of every screen
-- Time `9:41`, signal/wifi/battery icons on the right, dynamic-island pill in the center
-- Two variants: `light` (transparent) and default (subtle bg)
-- Always rendered first inside any screen container
-
-### 4.3 `StepHeader`
+### 4.1 `StepHeader`
 - Used on all onboarding screens (Screen2 through AccountScreen)
 - Three regions: back button (left), progress dots (center), skip (right)
 - Props: `step` (0-indexed), `total`, `onBack`, `onSkip`
@@ -148,29 +139,29 @@ Wraps the entire app. ~375×740 rounded phone-shaped container, centered on the 
 - Progress dots: array of `total` `Dot` components, the one at `index === step` is filled
 - Skip text: `"Skip"` for all steps except the last; `""` when `step === total - 1`
 
-### 4.4 `Dot`
+### 4.2 `Dot`
 Tiny round indicator used by StepHeader. Filled when `on={true}` (terracotta), hollow otherwise (divider color).
 
-### 4.5 `Pill`
+### 4.3 `Pill`
 Generic touchable pill button:
 - Active state: terracotta bg + white text + shadow lift
 - Inactive state: paper bg + ink text + divider border
 - Sizes: `sm` (~28px tall) and `md` (~36px tall)
 
-### 4.6 `PrimaryBtn`
+### 4.4 `PrimaryBtn`
 Bottom CTA button — full-width, 56px tall, rounded-2xl.
 - Two variants: `dark` (default — ink bg, cream text) and `terracotta` (terracotta bg, white text)
 - Disabled state: dimmed background `#D8CCB6`, muted text
 - Active scale `.98` for press feedback
 
-### 4.7 `Sheet` (base)
+### 4.5 `Sheet` (base)
 Bottom-sheet modal:
 - Slides up from the bottom with `slideUp` animation
 - Backdrop: ink at 35% opacity, click to close
 - Two prop variants: `tall` (90vh max-height) and `dark` (premium dark bg)
 - Children render inside a paper-bg card with rounded-top corners and tab indicator at top
 
-### 4.8 `Toast`
+### 4.6 `Toast`
 Bottom-floating notification:
 - Auto-dismisses after ~2.5s (managed by `flash()` helper in App)
 - Ink-dark bg, cream text, rounded-2xl

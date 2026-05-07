@@ -48,7 +48,7 @@ export const ScheduleSheet = ({ mom, onClose, onContinue, hasAccount }) => {
         </button>
         <div className="mt-2.5 text-center text-[11.5px] flex items-center justify-center gap-1" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
           {!hasAccount && <ShieldCheck size={11}/>}
-          {hasAccount ? 'Adds to your calendar when she accepts.' : 'Quick verify next — keeps Mama trustworthy.'}
+          {hasAccount ? 'Adds to your calendar when she accepts.' : 'Quick verify next — keeps Go Mama trustworthy.'}
         </div>
       </div>
     </Sheet>

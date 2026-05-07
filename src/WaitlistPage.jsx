@@ -13,7 +13,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { MamaLogo } from './components/icons/MamaLogo';
+import { GoMamaLogo } from './components/icons/GoMamaLogo';
 import './waitlist.css';
 
 const WAITLIST_KEY = 'mama_waitlist_entries';
@@ -21,7 +21,7 @@ const WAITLIST_KEY = 'mama_waitlist_entries';
 const featureCards = [
   {
     title: 'Calendar-first matches',
-    body: 'Mama starts with the hours you can actually meet, then looks for moms nearby.',
+    body: 'Go Mama starts with the hours you can actually meet, then looks for moms nearby.',
     icon: CalendarDays,
   },
   {
@@ -152,7 +152,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <div className="wl-phone-notch" />
             <div className="wl-phone-screen">
               <div className="wl-app-top">
-                <span>Mama</span>
+                <span>Go Mama</span>
                 <ShieldCheck size={14} />
               </div>
               <div className="wl-match-card">
@@ -191,8 +191,8 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
 
         <nav className="wl-nav" aria-label="Primary">
           <a className="wl-brand" href="#top" onClick={closeNav}>
-            <MamaLogo size={42} />
-            <span>Mama</span>
+            <GoMamaLogo size={42} />
+            <span>Go Mama</span>
           </a>
 
           <button
@@ -205,7 +205,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
           </button>
 
           <div className={`wl-nav-links ${navOpen ? 'is-open' : ''}`}>
-            <a href="#why" onClick={closeNav}>Why Mama</a>
+            <a href="#why" onClick={closeNav}>Why Go Mama</a>
             <a href="#launch" onClick={closeNav}>Launch cities</a>
             <a href="/prototype" onClick={handlePrototypeLink}>
               View prototype
@@ -219,7 +219,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <Sparkles size={16} />
             Private beta waitlist
           </div>
-          <h1>Mama</h1>
+          <h1>Go Mama</h1>
           <p className="wl-lede">
             Meet nearby moms around real free time, shared values, kid-stage fit,
             and places you would actually go.
@@ -323,7 +323,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             </div>
             <div>
               <Check size={18} />
-              <p>Pick a suggested place or let Mama find a neutral spot.</p>
+              <p>Pick a suggested place or let Go Mama find a neutral spot.</p>
             </div>
             <div>
               <Check size={18} />
@@ -357,8 +357,8 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
       <footer className="wl-footer">
         <div className="wl-footer-inner">
           <div>
-            <MamaLogo size={34} />
-            <span>Mama</span>
+            <GoMamaLogo size={34} />
+            <span>Go Mama</span>
           </div>
           <a href="/prototype" onClick={handlePrototypeLink}>
             View prototype

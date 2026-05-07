@@ -1,7 +1,7 @@
 import { C } from '../../theme';
 
-// MamaLogo — round seal mark · two leaves form a heart, terracotta + sage
-export const MamaLogo = ({ size = 84, className = '', style = {} }) => (
+// GoMamaLogo — round seal mark · two leaves form a heart, terracotta + sage
+export const GoMamaLogo = ({ size = 84, className = '', style = {} }) => (
   <svg viewBox="0 0 100 100" width={size} height={size} className={className} style={style}>
     {/* Outer dotted ring — wax-seal feel */}
     <circle cx="50" cy="50" r="48" fill="none" stroke={C.ink} strokeWidth="0.5"

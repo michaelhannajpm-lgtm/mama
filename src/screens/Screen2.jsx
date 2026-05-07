@@ -14,7 +14,7 @@ export const Screen2 = ({ onNext, onBack }) => (
     <div className="flex-1 px-7 flex flex-col">
       <div className="mt-1">
         <div className="text-[11px] tracking-[.2em] uppercase mb-3" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
-          How Mama works
+          How Go Mama works
         </div>
         <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 30, lineHeight:1.1, color: C.ink, letterSpacing:'-.02em' }}>
           You. Time. Place. <span style={{ fontStyle:'italic', color: C.sageDark }}>Match.</span>

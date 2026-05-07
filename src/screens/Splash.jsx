@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { C } from '../theme';
-import { MamaLogo } from '../components/icons/MamaLogo';
+import { GoMamaLogo } from '../components/icons/GoMamaLogo';
 import { StatusBar } from '../components/StatusBar';
 import { PrimaryBtn } from '../components/PrimaryBtn';
 
@@ -33,7 +33,7 @@ export const Splash = ({ onBegin, onSignIn }) => (
     <div className="flex-1 flex flex-col items-center justify-center px-7" style={{ position:'relative', zIndex: 1 }}>
       {/* Logo mark */}
       <div style={{ animation: 'fadeInUp .8s .1s ease both' }}>
-        <MamaLogo size={88}/>
+        <GoMamaLogo size={88}/>
       </div>
 
       {/* Wordmark — smaller than before, sits under the logo */}
@@ -70,7 +70,7 @@ export const Splash = ({ onBegin, onSignIn }) => (
           fontFamily:'Fraunces', fontSize: 14, fontWeight: 400,
           color: C.inkSoft, letterSpacing:'-.005em', lineHeight: 1.4,
         }}>
-          <span style={{ fontStyle:'italic', color: C.terracotta, fontWeight: 500 }}>Mama</span> will make it happen.
+          <span style={{ fontStyle:'italic', color: C.terracotta, fontWeight: 500 }}>Go Mama</span> will make it happen.
         </div>
       </div>
     </div>
@@ -93,7 +93,7 @@ export const Splash = ({ onBegin, onSignIn }) => (
       <PrimaryBtn onClick={onBegin}>Begin <ArrowRight size={18}/></PrimaryBtn>
 
       <div className="mt-3 text-center text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft }}>
-        Already a Mama?{' '}
+        Already on Go Mama?{' '}
         <button onClick={onSignIn} style={{
           color: C.terracotta, fontWeight: 600, textDecoration: 'underline',
           background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit',
