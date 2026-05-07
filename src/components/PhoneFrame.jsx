@@ -15,13 +15,7 @@ export const PhoneFrame = ({ children }) => (
   >
     <div
       className="relative w-full h-full overflow-hidden md:rounded-[42px]"
-      style={{
-        background: C.cream,
-        // Respect iOS / Android safe-area insets on real devices so the
-        // system status bar doesn't overlap content. Desktop ignores these.
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
+      style={{ background: C.cream }}
     >
       {/* Notch — desktop only */}
       <div
