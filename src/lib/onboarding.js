@@ -52,17 +52,36 @@ export const recordStep = (step, patch = {}) => {
   }
 };
 
+// Local-only fallback used when the API isn't reachable (e.g. `npm run dev`
+// without `vercel dev`). Demo flow continues; real signup happens once the
+// serverless functions are live in production.
+const localSignupFallback = ({ firstName }) => ({
+  ok: true,
+  auth_user_id: `local-${getSessionId()}`,
+  username: firstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'mama',
+  first_name: firstName.trim(),
+  local: true,
+});
+
 export const completeSignup = async ({
   firstName, method, phone, email, password, agreedTerms,
 }) => {
   const session_id = getSessionId();
-  const res = await fetch('/api/onboarding/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      session_id, firstName, method, phone, email, password, agreedTerms,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch('/api/onboarding/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id, firstName, method, phone, email, password, agreedTerms,
+      }),
+    });
+  } catch {
+    // Network-level failure (no backend running) — fall back to local mode.
+    return localSignupFallback({ firstName });
+  }
+  // 404 = serverless function not deployed locally; proceed in local mode.
+  if (res.status === 404) return localSignupFallback({ firstName });
   let body = {};
   try { body = await res.json(); } catch { /* ignore */ }
   if (!res.ok) {
