@@ -1,3 +1,5 @@
+import { sendWaitlistConfirmation } from './_lib/email.js';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const json = (res, status, body) => {
@@ -71,12 +73,23 @@ export default async function handler(req, res) {
     });
 
     if (response.status === 409) {
+      // Duplicate email — they're already on the list. Don't re-send the
+      // confirmation; saying "you're on the list" twice would feel spammy.
       return json(res, 200, { ok: true, duplicate: true });
     }
 
     if (!response.ok) {
       return json(res, 502, { error: 'Could not save waitlist signup' });
     }
+
+    // Fire-and-forget the confirmation email. We don't await — the user
+    // shouldn't wait on Resend, and a failure here doesn't make the signup
+    // worse. The helper logs its own errors.
+    sendWaitlistConfirmation({
+      email,
+      firstName: payload.first_name,
+      city: payload.city,
+    }).catch((e) => console.error('[waitlist] email send threw', e));
 
     return json(res, 200, { ok: true });
   } catch {
