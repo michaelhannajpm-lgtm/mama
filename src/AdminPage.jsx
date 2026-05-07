@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -1186,6 +1186,225 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
           }}
         />
       )}
+    </div>
+  );
+};
+
+// ============================================================================
+// Feedback tab — qualitative responses from the /promo Founding Moms page.
+// Read-only. Renders an NPS-style stat strip + charts + a searchable,
+// expandable, exportable raw table.
+// ============================================================================
+
+// Friendly labels for the useful[] enum values stored in the DB.
+const USEFUL_LABELS = {
+  schedule:  'Free at the same times',
+  kid_age:   'Kids same age',
+  match_pct: 'Match percentage',
+  places:    'Suggested places',
+  groups:    'Group meet-ups',
+  verified:  'Verified profiles',
+};
+
+const FeedbackTab = ({ rows }) => {
+  const [query, setQuery] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r =>
+      [r.name, r.describe, r.confusing, r.use_when, r.missing]
+        .some(v => (v || '').toString().toLowerCase().includes(q))
+    );
+  }, [rows, query]);
+
+  // NPS-style buckets (industry: NPS uses 0-10; we use 1-10, same bands).
+  const promoters  = rows.filter(r => r.rating >= 9).length;
+  const passives   = rows.filter(r => r.rating >= 7 && r.rating <= 8).length;
+  const detractors = rows.filter(r => r.rating <= 6).length;
+
+  const avgRating = rows.length
+    ? (rows.reduce((sum, r) => sum + (r.rating || 0), 0) / rows.length)
+    : 0;
+
+  // Rating distribution split into 3 bands so each renders with its own color.
+  const ratingItems = (lo, hi) => {
+    const out = [];
+    for (let i = lo; i <= hi; i++) {
+      out.push([String(i), rows.filter(r => r.rating === i).length]);
+    }
+    return out;
+  };
+  const detractorBars = ratingItems(1, 6);
+  const passiveBars   = ratingItems(7, 8);
+  const promoterBars  = ratingItems(9, 10);
+
+  // Useful-features tally — friendly labels, fallback to raw key if unknown.
+  const usefulRaw = tally(rows, r => r.useful || []);
+  const usefulItems = usefulRaw.map(([k, n]) => [USEFUL_LABELS[k] || k, n]);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Total feedback" value={fmt(rows.length)}/>
+        <Stat label="Average rating" value={rows.length ? avgRating.toFixed(1) : '—'} hint="out of 10"/>
+        <Stat label="Promoters" value={fmt(promoters)} hint={`${pct(promoters, rows.length)} rated 9–10`}/>
+        <Stat label="Detractors" value={fmt(detractors)} hint={`${pct(detractors, rows.length)} rated 1–6`}/>
+      </div>
+
+      <SectionTitle hint="last 30 days">Daily submissions</SectionTitle>
+      <DailyTrend rows={rows} color={C.terracotta}/>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+        <Card>
+          <SectionTitle hint="1–10 split into NPS bands">Rating distribution</SectionTitle>
+          <div className="space-y-3">
+            <div>
+              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+                Detractors · {fmt(detractors)} ({pct(detractors, rows.length)})
+              </div>
+              <BarList items={detractorBars} total={rows.length} color={C.terracotta}/>
+            </div>
+            <div>
+              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+                Passives · {fmt(passives)} ({pct(passives, rows.length)})
+              </div>
+              <BarList items={passiveBars} total={rows.length} color={C.ink}/>
+            </div>
+            <div>
+              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.sageDark, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+                Promoters · {fmt(promoters)} ({pct(promoters, rows.length)})
+              </div>
+              <BarList items={promoterBars} total={rows.length} color={C.sageDark}/>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionTitle hint="up to 2 picks per response">Most useful features</SectionTitle>
+          <BarList items={usefulItems} total={rows.length} color={C.saffron}/>
+        </Card>
+      </div>
+
+      <div className="flex items-center gap-2 mt-2">
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name / describe / confusing / use when / missing…"
+          className="flex-1 rounded-xl px-3 py-2 outline-none text-[13px]"
+          style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
+        <button onClick={() => downloadCsv(`gomama-feedback-${new Date().toISOString().slice(0, 10)}.csv`, filtered)}
+          className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+          style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
+          <Download size={14}/> Export CSV ({filtered.length})
+        </button>
+      </div>
+
+      <Card padding={0}>
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
+            <thead style={{ background: C.creamSoft }}>
+              <tr>
+                {['Name', 'Rating', 'Describe', 'Useful', 'Confusing', 'Use when', 'Missing', 'Submitted'].map(h => (
+                  <th key={h} className="text-left px-3 py-2" style={{
+                    color: C.inkSoft, fontWeight: 700, letterSpacing: '.04em',
+                    textTransform: 'uppercase', fontSize: 10.5, whiteSpace: 'nowrap',
+                    position: 'sticky', top: 0, background: C.creamSoft,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, 500).map(r => {
+                const isExpanded = expandedId === r.id;
+                const ratingColor = r.rating >= 9 ? C.sageDark : (r.rating <= 6 ? C.terracotta : C.ink);
+                const truncate = (s, n = 60) => {
+                  if (!s) return '—';
+                  return s.length > n ? `${s.slice(0, n)}…` : s;
+                };
+                return (
+                  <Fragment key={r.id}>
+                    <tr
+                      onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                      className="cursor-pointer transition-colors hover:bg-[var(--fb-row-hover)]"
+                      style={{ borderTop: `1px solid ${C.divider}`, ['--fb-row-hover']: C.creamSoft }}
+                    >
+                      <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        {r.name || '—'}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: ratingColor, fontWeight: 700 }}>
+                        {r.rating}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: C.ink, maxWidth: 260 }} title={r.describe || ''}>
+                        {truncate(r.describe)}
+                      </td>
+                      <td className="px-3 py-2" style={{ whiteSpace: 'nowrap' }}>
+                        {(r.useful || []).length === 0 ? (
+                          <span style={{ color: C.inkMuted }}>—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {r.useful.map((k, i) => (
+                              <span key={`${k}-${i}`}
+                                className="rounded-full px-2 py-0.5 text-[10.5px]"
+                                style={{ background: C.creamSoft, color: C.ink, fontFamily: 'Albert Sans' }}
+                              >
+                                {USEFUL_LABELS[k] || k}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.confusing || ''}>
+                        {truncate(r.confusing)}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.use_when || ''}>
+                        {truncate(r.use_when)}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.missing || ''}>
+                        {truncate(r.missing)}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: C.inkMuted, whiteSpace: 'nowrap' }}>
+                        {rel(r.created_at)}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr style={{ background: C.creamSoft }}>
+                        <td colSpan={8} className="px-3 py-3" style={{ borderTop: `1px solid ${C.divider}` }}>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12.5px]" style={{ fontFamily: 'Albert Sans' }}>
+                            {[
+                              { label: 'Describe',  value: r.describe },
+                              { label: 'Confusing', value: r.confusing },
+                              { label: 'Use when',  value: r.use_when },
+                              { label: 'Missing',   value: r.missing },
+                            ].map(f => (
+                              <div key={f.label}>
+                                <div className="text-[10.5px] tracking-[.16em] uppercase mb-1" style={{ color: C.inkSoft, fontWeight: 700 }}>
+                                  {f.label}
+                                </div>
+                                <div style={{ color: f.value ? C.ink : C.inkMuted, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+                                  {f.value || '—'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
+                  {rows.length === 0 ? 'No feedback yet. Submissions from /promo will appear here.' : 'No feedback matches that search.'}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length > 500 && (
+          <div className="px-3 py-2 border-t text-[11.5px]" style={{ borderColor: C.divider, color: C.inkMuted, fontFamily: 'Albert Sans' }}>
+            Showing 500 of {fmt(filtered.length)}. Use Export CSV for the full set.
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
