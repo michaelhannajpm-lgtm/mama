@@ -170,20 +170,27 @@ function PrototypeApp() {
 }
 
 export default function App() {
-  const [route, setRoute] = useState(() => window.location.hash || '#waitlist');
+  const getRoute = () => window.location.pathname.replace(/\/+$/, '') || '/';
+  const [route, setRoute] = useState(getRoute);
 
   useEffect(() => {
-    const onHashChange = () => setRoute(window.location.hash || '#waitlist');
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    if (window.location.hash === '#prototype') {
+      window.history.replaceState({}, '', '/prototype');
+      setRoute('/prototype');
+    }
+
+    const onRouteChange = () => setRoute(getRoute());
+    window.addEventListener('popstate', onRouteChange);
+    return () => window.removeEventListener('popstate', onRouteChange);
   }, []);
 
-  if (route === '#prototype') return <PrototypeApp />;
+  if (route === '/prototype') return <PrototypeApp />;
 
   return (
     <WaitlistPage
       onOpenPrototype={() => {
-        window.location.hash = 'prototype';
+        window.history.pushState({}, '', '/prototype');
+        window.dispatchEvent(new Event('popstate'));
       }}
     />
   );

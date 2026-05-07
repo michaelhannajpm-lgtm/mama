@@ -286,7 +286,6 @@
 .wl-brand,
 .wl-nav-links,
 .wl-nav-links a,
-.wl-nav-links button,
 .wl-nav-cta,
 .wl-menu-button {
   display: flex;
@@ -310,7 +309,7 @@
 }
 
 .wl-nav-links a,
-.wl-nav-links button {
+.wl-nav-links a {
   border: 0;
   background: transparent;
   color: #2a1e22;
@@ -322,7 +321,7 @@
 }
 
 .wl-nav-links a:hover,
-.wl-nav-links button:hover {
+.wl-nav-links a:hover {
   color: #c8553d;
 }
 
@@ -441,9 +440,8 @@
 .wl-submit:focus-visible,
 .wl-secondary-cta:focus-visible,
 .wl-nav-links a:focus-visible,
-.wl-nav-links button:focus-visible,
 .wl-menu-button:focus-visible,
-.wl-footer button:focus-visible {
+.wl-footer a:focus-visible {
   box-shadow: 0 0 0 3px rgba(200, 85, 61, 0.24);
 }
 
@@ -664,7 +662,7 @@
 }
 
 .wl-footer-inner > div,
-.wl-footer button {
+.wl-footer a {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -675,7 +673,7 @@
   font-size: 22px;
 }
 
-.wl-footer button {
+.wl-footer a {
   border: 1px solid rgba(246, 239, 226, 0.16);
   border-radius: 8px;
   background: transparent;
@@ -684,6 +682,7 @@
   font: inherit;
   font-weight: 750;
   padding: 11px 14px;
+  text-decoration: none;
 }
 
 @media (max-width: 1080px) {
@@ -749,7 +748,7 @@
   }
 
   .wl-nav-links a,
-  .wl-nav-links button {
+  .wl-nav-links a {
     justify-content: space-between;
     width: 100%;
     min-height: 44px;

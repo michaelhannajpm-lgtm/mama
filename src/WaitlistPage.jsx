@@ -124,6 +124,11 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
   };
 
   const closeNav = () => setNavOpen(false);
+  const handlePrototypeLink = (event) => {
+    event.preventDefault();
+    closeNav();
+    onOpenPrototype();
+  };
 
   return (
     <main className="waitlist-page">
@@ -202,9 +207,9 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
           <div className={`wl-nav-links ${navOpen ? 'is-open' : ''}`}>
             <a href="#why" onClick={closeNav}>Why Mama</a>
             <a href="#launch" onClick={closeNav}>Launch cities</a>
-            <button type="button" onClick={() => { closeNav(); onOpenPrototype(); }}>
+            <a href="/prototype" onClick={handlePrototypeLink}>
               View prototype
-            </button>
+            </a>
             <a className="wl-nav-cta" href="#join" onClick={closeNav}>Join waitlist</a>
           </div>
         </nav>
@@ -349,10 +354,10 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <MamaLogo size={34} />
             <span>Mama</span>
           </div>
-          <button type="button" onClick={onOpenPrototype}>
+          <a href="/prototype" onClick={handlePrototypeLink}>
             View prototype
             <MessageCircle size={16} />
-          </button>
+          </a>
         </div>
       </footer>
     </main>

@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/prototype",
+      "destination": "/"
+    },
+    {
+      "source": "/prototype/:path*",
+      "destination": "/"
+    }
+  ]
+}
