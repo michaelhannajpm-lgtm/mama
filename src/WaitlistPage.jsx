@@ -7,8 +7,9 @@ import {
   Mail,
   MapPin,
   Menu,
-  MessageCircle,
+  Monitor,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Users,
   X,
@@ -54,7 +55,7 @@ const readSavedEntries = () => {
   }
 };
 
-export const WaitlistPage = ({ onOpenPrototype }) => {
+export const WaitlistPage = ({ onNavigate }) => {
   const [navOpen, setNavOpen] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
@@ -124,10 +125,10 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
   };
 
   const closeNav = () => setNavOpen(false);
-  const handlePrototypeLink = (event) => {
+  const handleNavTo = (path) => (event) => {
     event.preventDefault();
     closeNav();
-    onOpenPrototype();
+    onNavigate(path);
   };
 
   return (
@@ -207,8 +208,11 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
           <div className={`wl-nav-links ${navOpen ? 'is-open' : ''}`}>
             <a href="#why" onClick={closeNav}>Why Go Mama</a>
             <a href="#launch" onClick={closeNav}>Launch cities</a>
-            <a href="/prototype" onClick={handlePrototypeLink}>
-              View preview
+            <a href="/preview" onClick={handleNavTo('/preview')}>
+              Desktop view
+            </a>
+            <a href="/live" onClick={handleNavTo('/live')}>
+              Mobile view
             </a>
             <a className="wl-nav-cta" href="#join" onClick={closeNav}>Join waitlist</a>
           </div>
@@ -273,11 +277,18 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
               {status !== 'loading' && <ArrowRight size={18} />}
             </button>
 
-            <a className="wl-prototype-cta" href="/prototype" onClick={handlePrototypeLink}>
-              <MessageCircle size={16} />
-              View preview
-              <ArrowRight size={16} />
-            </a>
+            <div className="wl-preview-row">
+              <a className="wl-prototype-cta" href="/preview" onClick={handleNavTo('/preview')}>
+                <Monitor size={16} />
+                Desktop view
+                <ArrowRight size={16} />
+              </a>
+              <a className="wl-prototype-cta" href="/live" onClick={handleNavTo('/live')}>
+                <Smartphone size={16} />
+                Mobile view
+                <ArrowRight size={16} />
+              </a>
+            </div>
 
             <div className="wl-form-note" role="status">
               {status === 'success' ? (
@@ -360,10 +371,16 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <GoMamaLogo size={34} />
             <span>Go Mama</span>
           </div>
-          <a href="/prototype" onClick={handlePrototypeLink}>
-            View preview
-            <MessageCircle size={16} />
-          </a>
+          <div className="wl-footer-links">
+            <a href="/preview" onClick={handleNavTo('/preview')}>
+              Desktop view
+              <Monitor size={16} />
+            </a>
+            <a href="/live" onClick={handleNavTo('/live')}>
+              Mobile view
+              <Smartphone size={16} />
+            </a>
+          </div>
         </div>
       </footer>
     </main>

@@ -9,6 +9,14 @@
       "destination": "/"
     },
     {
+      "source": "/preview",
+      "destination": "/"
+    },
+    {
+      "source": "/preview/:path*",
+      "destination": "/"
+    },
+    {
       "source": "/admin",
       "destination": "/"
     },

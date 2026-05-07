@@ -268,7 +268,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onRouteChange);
   }, []);
 
-  if (route === '/prototype') return <PrototypeApp />;
+  if (route === '/prototype' || route === '/preview') return <PrototypeApp />;
   if (route === '/live') return <PrototypeApp bare />;
   if (route === '/admin' || route.startsWith('/admin/')) {
     // Lazy import via static reference — kept simple, no Suspense needed.
@@ -277,8 +277,8 @@ export default function App() {
 
   return (
     <WaitlistPage
-      onOpenPrototype={() => {
-        window.history.pushState({}, '', '/prototype');
+      onNavigate={(path) => {
+        window.history.pushState({}, '', path);
         window.dispatchEvent(new Event('popstate'));
       }}
     />
