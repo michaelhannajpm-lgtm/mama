@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
 import { WaitlistPage } from './WaitlistPage';
+import { AdminPage } from './AdminPage';
 import { PhoneFrame } from './components/PhoneFrame';
 import { Toast } from './components/Toast';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
@@ -237,6 +238,10 @@ export default function App() {
   }, []);
 
   if (route === '/prototype') return <PrototypeApp />;
+  if (route === '/admin' || route.startsWith('/admin/')) {
+    // Lazy import via static reference — kept simple, no Suspense needed.
+    return <AdminPage />;
+  }
 
   return (
     <WaitlistPage
