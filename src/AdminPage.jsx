@@ -557,7 +557,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
     <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(42,30,34,0.55)', animation: 'fadeIn 0.15s ease-out' }}
+      style={{ background: `${C.ink}8C`, animation: 'fadeIn 0.15s ease-out' }}
       role="dialog"
       aria-modal="true"
       aria-label={`Profile detail for ${mom.display_name || 'mom'}`}
@@ -586,6 +586,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
           </div>
           <button
             onClick={onClose}
+            autoFocus
             aria-label="Close profile"
             className="rounded-full p-1.5 transition-colors"
             style={{ background: 'transparent', color: C.inkSoft, border: `1px solid ${C.divider}` }}
@@ -708,7 +709,12 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
                   aria-label={`Open profile for ${r.display_name || r.username || 'mom'}`}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter') setSelectedMom(r); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedMom(r);
+                    }
+                  }}
                 >
                   <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap', fontWeight: 600 }}>
                     {r.display_name || '—'}
