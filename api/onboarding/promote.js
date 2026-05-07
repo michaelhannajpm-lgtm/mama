@@ -93,28 +93,53 @@ const ensureRowExists = async (creds, sessionId) => {
   return rows[0] || null;
 };
 
-const hydratedShape = (row) => ({
-  session_id: row.session_id,
-  auth_user_id: row.auth_user_id,
-  first_name: row.first_name,
-  username: row.username,
-  contact_method: row.contact_method,
-  phone: row.phone,
-  email: row.email,
-  location: row.location,
-  distance: row.distance_miles,
-  profile: {
-    kidsAges: row.kids_ages || {},
-    momTypes: row.mom_types || [],
-    values: row.values || [],
-    interests: row.interests || [],
-  },
-  prefs: {
-    slots: row.slots || [],
-    places: row.places || [],
-  },
-  social_links: row.social_links || {},
-});
+// Load the mom_profiles row for an auth user (the editable directory copy).
+// Returns null when the user has no row yet (older signup pre-linkage).
+const fetchMomProfileByAuthUser = async (creds, authUserId) => {
+  const r = await fetch(
+    `${creds.supabaseUrl}/rest/v1/mom_profiles?auth_user_id=eq.${authUserId}&select=*`,
+    { headers: sbHeaders(creds.serviceRoleKey) },
+  );
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => []);
+  return rows[0] || null;
+};
+
+// Build the response payload. Prefer mom_profiles values for any field the
+// user can edit (bio, photos, kids_ages, mom_types, values, interests,
+// social_links, distance_miles). Fall back to the onboarding row for fields
+// only it carries (first_name, contact_method, phone, email, slots, places
+// as text slugs, location).
+const hydratedShape = (row, momProfile) => {
+  const mp = momProfile || {};
+  return {
+    session_id: row.session_id,
+    auth_user_id: row.auth_user_id,
+    first_name: row.first_name,
+    username: row.username,
+    contact_method: row.contact_method,
+    phone: row.phone,
+    email: row.email,
+    location: row.location,
+    distance: mp.distance_miles ?? row.distance_miles ?? null,
+    profile: {
+      kidsAges:  mp.kids_ages || row.kids_ages || {},
+      momTypes:  mp.mom_types || row.mom_types || [],
+      values:    mp.values    || row.values    || [],
+      interests: mp.interests || row.interests || [],
+      photos:    mp.photos    || [],
+      bio:       mp.bio       || '',
+    },
+    prefs: {
+      // Onboarding stores text slot strings ('Tue-morning') and place slugs.
+      // mom_profiles stores free_slots (same shape) but places as uuid[] —
+      // we keep the prototype's text-slot pipeline for now.
+      slots:  row.slots  || [],
+      places: row.places || [],
+    },
+    social_links: mp.social_links || row.social_links || {},
+  };
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -196,5 +221,10 @@ export default async function handler(req, res) {
   // Side effect: ensure the mom is in the discoverable directory.
   await ensureMomProfile(creds, row, username);
 
-  return json(res, 200, { ok: true, ...hydratedShape({ ...row, username }) });
+  // Now read the (possibly edited) mom_profiles row so the response carries
+  // the latest user-edited fields (bio, photos, etc.) — not just the
+  // onboarding snapshot.
+  const momProfile = await fetchMomProfileByAuthUser(creds, user.id);
+
+  return json(res, 200, { ok: true, ...hydratedShape({ ...row, username }, momProfile) });
 }

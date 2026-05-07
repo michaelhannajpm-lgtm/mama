@@ -6,7 +6,7 @@ export const FIRST_NAMES = [
   'Maria', 'Jessica', 'Ashley', 'Kayla', 'Samantha', 'Brittany',
   'Stephanie', 'Nicole', 'Megan', 'Lauren', 'Rachel', 'Emily',
   'Hannah', 'Lakshmi', 'Yuki', 'Fatima', 'Olivia', 'Sophia',
-  'Isabella', 'Amara', 'Camila', 'Zara', 'Daniela',
+  'Isabella', 'Amara', 'Camila', 'Zara', 'Daniela', 'Sana'
 ];
 
 export const LAST_INITIALS = [

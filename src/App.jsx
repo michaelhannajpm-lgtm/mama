@@ -66,6 +66,8 @@ function PrototypeApp({ bare = false }) {
           momTypes: result.profile.momTypes || [],
           values: result.profile.values || [],
           interests: result.profile.interests || [],
+          photos: result.profile.photos || [],
+          bio: result.profile.bio || '',
         }));
         if (result.prefs) setPrefs({
           slots: result.prefs.slots || [],
