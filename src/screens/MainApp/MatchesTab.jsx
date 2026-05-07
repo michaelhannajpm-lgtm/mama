@@ -66,7 +66,7 @@ export const MatchesTab = ({
         {view === 'moms' && SAMPLE_MOMS.map(mom => (
           <div key={`mom-${mom.id}`} className="px-4 pb-3" style={{
             scrollSnapAlign: 'start',
-            minHeight: '100%',
+            height: '100%',
           }}>
             <MatchCardFull
               mom={mom}
@@ -81,7 +81,7 @@ export const MatchesTab = ({
         {view === 'groups' && SUGGESTED_EVENTS.map(event => (
           <div key={`event-${event.id}`} className="px-4 pb-3" style={{
             scrollSnapAlign: 'start',
-            minHeight: '100%',
+            height: '100%',
           }}>
             <GroupCardFull
               event={event}

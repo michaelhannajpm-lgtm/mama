@@ -29,17 +29,31 @@ export const ProfileSheet = ({ mom, profile, isPremium, onClose, openPremium }) 
   return (
     <Sheet onClose={onClose} tall>
       <div className="px-6 pt-2 pb-6">
-        {/* Hero card */}
-        <div className="rounded-[20px] p-5" style={{ background: mom.hue, color:'#fff' }}>
-          <div className="text-[10.5px] tracking-[.18em] uppercase opacity-80" style={{ fontFamily:'Albert Sans', fontWeight:600 }}>
-            {isPremium ? 'Profile · full' : 'Profile · partial'}
-          </div>
-          <div className="mt-2 flex items-baseline gap-3">
-            <div style={{ fontFamily:'Fraunces', fontSize: 32, fontWeight:500, letterSpacing:'-.02em' }}>{displayName}</div>
-            {mom.verified && <ShieldCheck size={16} style={{ opacity:.95 }}/>}
-          </div>
-          <div className="text-[12.5px] mt-0.5 opacity-90" style={{ fontFamily:'Albert Sans' }}>
-            {mom.type} · Kids {isPremium ? mom.kids : broadKids} · {mom.distance}
+        {/* Hero card with photo */}
+        <div className="rounded-[20px] overflow-hidden relative" style={{
+          backgroundImage: mom.photo ? `url('${mom.photo}')` : undefined,
+          background: mom.photo ? undefined : mom.hue,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          color:'#fff',
+          minHeight: 220,
+        }}>
+          {/* Legibility overlay */}
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.55) 65%, rgba(0,0,0,.7) 100%)',
+          }}/>
+          {/* Content */}
+          <div className="relative p-5 flex flex-col justify-end" style={{ minHeight: 220 }}>
+            <div className="text-[10.5px] tracking-[.18em] uppercase opacity-90" style={{ fontFamily:'Albert Sans', fontWeight:600 }}>
+              {isPremium ? 'Profile · full' : 'Profile · partial'}
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <div style={{ fontFamily:'Fraunces', fontSize: 32, fontWeight:500, letterSpacing:'-.02em' }}>{displayName}</div>
+              {mom.verified && <ShieldCheck size={16} style={{ opacity:.95 }}/>}
+            </div>
+            <div className="text-[12.5px] mt-0.5 opacity-90" style={{ fontFamily:'Albert Sans' }}>
+              {mom.type} · Kids {isPremium ? mom.kids : broadKids} · {mom.distance}
+            </div>
           </div>
         </div>
 
