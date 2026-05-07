@@ -19,11 +19,11 @@ export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails }) => {
 
   // Overlap: SAMPLE_MOMS whose freeSlots contain `${event.day}-${event.bucket}`
   const slotKey = `${event.day}-${event.bucket}`;
-  const matchedGoing = SAMPLE_MOMS.filter(m => (m.freeSlots || []).includes(slotKey));
+  const matchedGoing = SAMPLE_MOMS.filter(m => m.freeSlots.includes(slotKey));
 
   let overlapLabel;
   if (matchedGoing.length === 0) {
-    overlapLabel = `${event.going} going`;
+    overlapLabel = 'No matches going yet';
   } else if (matchedGoing.length <= 2) {
     overlapLabel = `${matchedGoing.map(m => m.name.split(' ')[0]).join(', ')} going`;
   } else {
