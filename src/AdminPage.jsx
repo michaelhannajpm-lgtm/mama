@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
+  BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff, ExternalLink,
 } from 'lucide-react';
 import { C } from './theme';
 
@@ -452,6 +452,11 @@ export const AdminPage = () => {
               Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} profiles · ${waitlist?.length || 0} waitlist` : ''}
             </div>
           </div>
+          <a href="/prototype" target="_blank" rel="noopener noreferrer"
+            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+            style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+            <ExternalLink size={13}/> View preview
+          </a>
           <button onClick={load} disabled={loading}
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"
             style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, opacity: loading ? 0.6 : 1 }}>

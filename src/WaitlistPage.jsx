@@ -208,7 +208,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <a href="#why" onClick={closeNav}>Why Go Mama</a>
             <a href="#launch" onClick={closeNav}>Launch cities</a>
             <a href="/prototype" onClick={handlePrototypeLink}>
-              View prototype
+              View preview
             </a>
             <a className="wl-nav-cta" href="#join" onClick={closeNav}>Join waitlist</a>
           </div>
@@ -275,7 +275,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
 
             <a className="wl-prototype-cta" href="/prototype" onClick={handlePrototypeLink}>
               <MessageCircle size={16} />
-              View the prototype
+              View preview
               <ArrowRight size={16} />
             </a>
 
@@ -361,7 +361,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
             <span>Go Mama</span>
           </div>
           <a href="/prototype" onClick={handlePrototypeLink}>
-            View prototype
+            View preview
             <MessageCircle size={16} />
           </a>
         </div>
