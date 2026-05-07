@@ -8,3 +8,4 @@ dist/
 
 # Claude Code — personal/local overrides only; keep .claude/ checked in
 .claude/settings.local.json
+.vercel
