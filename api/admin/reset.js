@@ -3,7 +3,9 @@
 // the database. Add auth before exposing publicly.
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
 
-const TABLES = ['onboarding_profiles', 'waitlist_signups'];
+// Order matters: events FK references places, so wipe events first.
+// mom_profiles is independent at this stage.
+const TABLES = ['events', 'mom_profiles', 'onboarding_profiles', 'waitlist_signups', 'places'];
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
