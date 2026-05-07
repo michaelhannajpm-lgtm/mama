@@ -1,0 +1,53 @@
+// Shared helpers for Vercel API routes that talk to Supabase via REST + service role.
+
+export const json = (res, status, body) => {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(body));
+};
+
+export const cleanText = (value, maxLength) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+};
+
+export const isUuid = (v) =>
+  typeof v === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+export const readJsonBody = (req) => {
+  if (!req.body) return {};
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch { return null; }
+  }
+  return req.body;
+};
+
+export const supabaseCreds = () => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) return null;
+  return { supabaseUrl, serviceRoleKey };
+};
+
+export const sbHeaders = (serviceRoleKey, extra = {}) => ({
+  apikey: serviceRoleKey,
+  Authorization: `Bearer ${serviceRoleKey}`,
+  'Content-Type': 'application/json',
+  ...extra,
+});
+
+// Build a username base from a first name. Lowercased, alpha-num only, capped.
+export const usernameBase = (firstName) => {
+  const cleaned = (firstName || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+  return cleaned || 'mama';
+};
+
+export const randomHex = (len) => {
+  const bytes = new Uint8Array(Math.ceil(len / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+};

@@ -148,13 +148,18 @@ function PrototypeApp() {
           {!splashShown ? (
             <Splash onBegin={()=>setSplashShown(true)}/>
           ) : (<>
-          {step===0 && <Screen2 onNext={()=>setStep(1)} onBack={()=>setStep(0)}/>}
-          {step===1 && <Screen3 onNext={()=>setStep(2)} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
-          {step===2 && <Screen4 onNext={()=>setStep(3)} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
-          {step===3 && <Screen5 onNext={()=>setStep(4)} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
-          {step===4 && <Screen6 onNext={()=>setStep(5)} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
-          {step===5 && <SummaryScreen onNext={()=>setStep(6)} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
-          {step===6 && <AccountScreen onNext={()=>setStep(7)} onBack={()=>setStep(5)} account={account} setAccount={setAccount}/>}
+          {step===0 && <Screen2 onNext={()=>advance(0, {})} onBack={()=>setStep(0)}/>}
+          {step===1 && <Screen3 onNext={()=>advance(1, { location, distance_miles: distance })} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
+          {step===2 && <Screen4 onNext={()=>advance(2, { kids_ages: profile.kidsAges, mom_types: profile.momTypes, values: profile.values, interests: profile.interests })} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
+          {step===3 && <Screen5 onNext={()=>advance(3, { slots: prefs.slots })} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
+          {step===4 && <Screen6 onNext={()=>advance(4, { places: prefs.places })} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
+          {step===5 && <SummaryScreen onNext={()=>advance(5, {})} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
+          {step===6 && <AccountScreen
+            onBack={()=>setStep(5)}
+            account={account}
+            onComplete={(acct) => { setAccount(acct); setStep(7); }}
+            flash={flash}
+          />}
           {step===7 && <MainApp
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} distance={distance}
