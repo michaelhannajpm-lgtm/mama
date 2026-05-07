@@ -79,25 +79,22 @@ export const DISTANCES = [
   { val: 150, label: '150+ mi' },
 ];
 
-// Map TIME_WINDOWS → coarse bucket for matching events
+// Map TIME_WINDOWS → coarse bucket for matching events. With 4 windows
+// the mapping is identity — kept for legacy callers that look up via this map.
 export const WINDOW_TO_BUCKET = {
-  'early':     'morning',   // 6–9 AM
-  'morning':   'morning',   // 9 AM–12 PM
-  'lunch':     'midday',    // 12–2 PM
-  'afternoon': 'midday',    // 2–5 PM
-  'evening':   'evening',   // 5–8 PM
-  'night':     'evening',   // 8 PM+
+  'morning':   'morning',
+  'noon':      'noon',
+  'afternoon': 'afternoon',
+  'night-owl': 'night-owl',
 };
 
 export const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 export const DAY_LABELS = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
 export const TIME_WINDOWS = [
-  { id: 'early',     label: '6–9 AM' },
-  { id: 'morning',   label: '9 AM–12 PM' },
-  { id: 'lunch',     label: '12–2 PM' },
-  { id: 'afternoon', label: '2–5 PM' },
-  { id: 'evening',   label: '5–8 PM' },
-  { id: 'night',     label: '8 PM+' },
+  { id: 'morning',   label: '6 AM–12 PM', emoji: '☀️' },
+  { id: 'noon',      label: '12–2 PM',    emoji: '🌞' },
+  { id: 'afternoon', label: '2–5 PM',     emoji: '🌤️' },
+  { id: 'night-owl', label: '5 PM+',      emoji: '🦉' },
 ];
 
 export const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];

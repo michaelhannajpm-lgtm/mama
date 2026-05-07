@@ -94,13 +94,14 @@ export const Screen5 = ({ onNext, onBack, prefs, setPrefs }) => {
                     const on = prefs.slots.includes(`${day}-${win.id}`);
                     return (
                       <button key={win.id} onClick={()=>toggleSlot(day, win.id)}
-                        className="rounded-full px-2.5 py-1 transition-all"
+                        className="rounded-full px-3 py-1.5 transition-all flex items-center gap-1.5"
                         style={{
                           background: on ? C.terracotta : C.creamSoft,
                           color: on ? '#fff' : C.ink,
                           border: `1px solid ${on ? C.terracotta : C.divider}`,
-                          fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
+                          fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 500,
                         }}>
+                        <span aria-hidden style={{ fontSize: 13 }}>{win.emoji}</span>
                         {win.label}
                       </button>
                     );

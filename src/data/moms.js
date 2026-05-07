@@ -10,7 +10,7 @@ export const SAMPLE_MOMS = [
     bio: 'Lawyer turned half-time. Toddler tantrum survivor. Always down for an iced oat latte and a stroller loop.',
     values: ['Gentle parenting','Honest & open','Slow living'],
     interests: ['Coffee dates','Park hangs','Book club'],
-    freeSlots: ['Tue-morning','Thu-morning','Sat-morning','Sat-afternoon','Sun-afternoon'],
+    freeSlots: ['Tue-morning','Thu-morning','Sat-morning','Sat-noon','Sat-afternoon','Sun-afternoon'],
     verified: true,
   },
   {
@@ -38,7 +38,7 @@ export const SAMPLE_MOMS = [
     bio: 'Two boys, one ridiculous dog. We live at the park. Bring snacks and we are friends.',
     values: ['Outdoorsy','Playful','Adventurous'],
     interests: ['Park hangs','Art & craft','Music time'],
-    freeSlots: ['Mon-early','Tue-early','Wed-early','Sat-morning','Sat-afternoon','Sun-morning','Sun-afternoon'],
+    freeSlots: ['Mon-morning','Tue-morning','Wed-morning','Sat-morning','Sat-afternoon','Sun-morning','Sun-noon','Sun-afternoon'],
     verified: false,
   },
   {
@@ -52,7 +52,7 @@ export const SAMPLE_MOMS = [
     bio: 'WFH PM by day, toddler-chasing yogi by everything else. Looking for someone to actually finish a sentence with.',
     values: ['Bookworm','Slow living','Multilingual home'],
     interests: ['Yoga / fitness','Coffee dates','Book club'],
-    freeSlots: ['Mon-morning','Tue-morning','Wed-morning','Thu-morning','Fri-morning','Sat-morning'],
+    freeSlots: ['Mon-morning','Tue-morning','Wed-morning','Thu-morning','Fri-morning','Sat-morning','Mon-night-owl'],
     verified: true,
   },
 ];
@@ -65,15 +65,15 @@ export const MOM_POOL = [
   { id:'p2',  init:'JL', hue:'linear-gradient(135deg,#D9A441,#C8553D)', freeSlots:['Tue-morning','Thu-morning','Sat-morning'] },
   { id:'p3',  init:'NK', hue:'linear-gradient(135deg,#7E9678,#5E7A5A)', freeSlots:['Mon-afternoon','Wed-afternoon','Fri-afternoon'] },
   { id:'p4',  init:'AM', hue:'linear-gradient(135deg,#B98EB6,#C8553D)', freeSlots:['Sat-morning','Sat-afternoon','Sun-morning'] },
-  { id:'p5',  init:'TR', hue:'linear-gradient(135deg,#E8B4A0,#D9A441)', freeSlots:['Tue-evening','Wed-evening','Thu-evening'] },
+  { id:'p5',  init:'TR', hue:'linear-gradient(135deg,#E8B4A0,#D9A441)', freeSlots:['Tue-night-owl','Wed-night-owl','Thu-night-owl'] },
   { id:'p6',  init:'CH', hue:'linear-gradient(135deg,#D7997D,#D9A441)', freeSlots:['Mon-morning','Wed-morning','Fri-morning','Sat-morning'] },
-  { id:'p7',  init:'JR', hue:'linear-gradient(135deg,#5A7E55,#7E9678)', freeSlots:['Wed-afternoon','Fri-afternoon','Sat-lunch'] },
+  { id:'p7',  init:'JR', hue:'linear-gradient(135deg,#5A7E55,#7E9678)', freeSlots:['Wed-afternoon','Fri-afternoon','Sat-noon'] },
   { id:'p8',  init:'MK', hue:'linear-gradient(135deg,#C8553D,#B98EB6)', freeSlots:['Tue-morning','Thu-morning','Sat-morning','Sun-morning'] },
-  { id:'p9',  init:'SR', hue:'linear-gradient(135deg,#7E9678,#D9A441)', freeSlots:['Mon-evening','Wed-evening','Sun-afternoon'] },
+  { id:'p9',  init:'SR', hue:'linear-gradient(135deg,#7E9678,#D9A441)', freeSlots:['Mon-night-owl','Wed-night-owl','Sun-afternoon'] },
   { id:'p10', init:'BL', hue:'linear-gradient(135deg,#E8B4A0,#D9A441)', freeSlots:['Tue-afternoon','Thu-afternoon','Sat-afternoon'] },
   { id:'p11', init:'KP', hue:'linear-gradient(135deg,#9CB397,#7E9678)', freeSlots:['Mon-morning','Tue-morning','Wed-morning','Thu-morning','Fri-morning'] },
-  { id:'p12', init:'OW', hue:'linear-gradient(135deg,#D9A441,#7E9678)', freeSlots:['Sat-early','Sun-early','Sat-morning'] },
-  { id:'p13', init:'AC', hue:'linear-gradient(135deg,#E8B4A0,#B98EB6)', freeSlots:['Mon-lunch','Wed-lunch','Fri-lunch'] },
+  { id:'p12', init:'OW', hue:'linear-gradient(135deg,#D9A441,#7E9678)', freeSlots:['Sat-morning','Sun-morning'] },
+  { id:'p13', init:'AC', hue:'linear-gradient(135deg,#E8B4A0,#B98EB6)', freeSlots:['Mon-noon','Wed-noon','Fri-noon'] },
   { id:'p14', init:'IK', hue:'linear-gradient(135deg,#C8553D,#7E9678)', freeSlots:['Tue-morning','Tue-afternoon','Thu-morning'] },
 ];
 
