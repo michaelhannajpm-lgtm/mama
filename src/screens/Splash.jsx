@@ -29,17 +29,6 @@ export const Splash = ({ onBegin }) => (
       <StatusBar/>
     </div>
 
-    {/* Masthead — top */}
-    <div className="px-7 pt-4" style={{ position:'relative', zIndex: 1, animation: 'fadeInUp .7s ease both' }}>
-      <div className="flex items-center gap-2.5">
-        <div className="h-px flex-1" style={{ background: C.ink, opacity:.3 }}/>
-        <div className="text-[9.5px] tracking-[.34em] uppercase" style={{ color: C.ink, fontFamily:'Albert Sans', fontWeight:700 }}>
-          The Mama Report · Issue 01
-        </div>
-        <div className="h-px flex-1" style={{ background: C.ink, opacity:.3 }}/>
-      </div>
-    </div>
-
     {/* Hero — logo + wordmark + moto, vertically centered */}
     <div className="flex-1 flex flex-col items-center justify-center px-7" style={{ position:'relative', zIndex: 1 }}>
       {/* Logo mark */}

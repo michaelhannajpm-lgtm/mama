@@ -255,7 +255,7 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
                   onChange={updateField('city')}
                   type="text"
                   autoComplete="address-level2"
-                  placeholder="Mission, SF"
+                  placeholder="Tampa, FL"
                 />
               </label>
               <label>
@@ -272,6 +272,12 @@ export const WaitlistPage = ({ onOpenPrototype }) => {
               {status === 'loading' ? 'Joining...' : 'Join the waitlist'}
               {status !== 'loading' && <ArrowRight size={18} />}
             </button>
+
+            <a className="wl-prototype-cta" href="/prototype" onClick={handlePrototypeLink}>
+              <MessageCircle size={16} />
+              View the prototype
+              <ArrowRight size={16} />
+            </a>
 
             <div className="wl-form-note" role="status">
               {status === 'success' ? (
