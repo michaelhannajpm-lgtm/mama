@@ -546,6 +546,9 @@ const MomsTable = ({ rows, momProfiles }) => {
 // plus three flag toggles in the footer (Tasks 5–6).
 // ============================================================================
 const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
+  const [pendingFlag, setPendingFlag] = useState(null); // 'verified' | 'visible' | 'blocked_global' | null
+  const [actionError, setActionError] = useState(null);
+
   // Esc closes the modal. Scoped via useEffect so we don't leak listeners.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -590,6 +593,42 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
     const p = placesById?.get(uuid);
     if (p?.name) return p.name;
     return uuid?.slice(0, 8) ?? '—';
+  };
+
+  const togglePatch = async (key) => {
+    if (pendingFlag) return; // serialize requests
+    const next = !mom[key];
+    const previous = mom; // captured for rollback
+    // Optimistic flip: update local view immediately.
+    onPatched({ ...mom, [key]: next });
+    setPendingFlag(key);
+    setActionError(null);
+    try {
+      const r = await fetch('/api/admin/mom-profiles/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: mom.id, patch: { [key]: next } }),
+      });
+      const ct = r.headers.get('content-type') || '';
+      const text = await r.text();
+      if (!ct.includes('application/json')) {
+        if (text.trimStart().startsWith('//') || text.includes('export default async function')) {
+          throw new Error("API routes don't run under `npm run dev`. Use `vercel dev` or a deployed preview.");
+        }
+        throw new Error(`Unexpected ${r.status} response`);
+      }
+      const body = JSON.parse(text);
+      if (!r.ok) throw new Error(body?.error || `Server returned ${r.status}`);
+      // Replace the optimistic shape with the server's authoritative row
+      // (which also has fresh updated_at, etc).
+      onPatched(body.row);
+    } catch (e) {
+      // Roll back to the pre-click state.
+      onPatched(previous);
+      setActionError(e?.message || 'Network error');
+    } finally {
+      setPendingFlag(null);
+    }
   };
 
   const Section = ({ title, children }) => (
@@ -829,11 +868,48 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
           <div style={{ height: 12 }}/>
         </div>
 
-        {/* Footer — Task 6 */}
-        <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${C.divider}`, background: C.cream }}>
-          <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
-            (footer — Task 6)
+        {/* Footer */}
+        <div style={{ borderTop: `1px solid ${C.divider}`, background: C.cream }}>
+          <div className="px-5 py-3 flex items-center gap-2 flex-wrap">
+            {[
+              { key: 'verified',       label: 'Verified', onColor: C.terracotta, offLabel: 'Mark verified',   onLabel: 'Verified ✓' },
+              { key: 'visible',        label: 'Visible',  onColor: C.sageDark,   offLabel: 'Mark visible',    onLabel: 'Visible ✓'  },
+              { key: 'blocked_global', label: 'Block',    onColor: C.terracotta, offLabel: 'Block globally',  onLabel: 'Blocked'    },
+            ].map(b => {
+              const on = !!mom[b.key];
+              const isPending = pendingFlag === b.key;
+              return (
+                <button
+                  key={b.key}
+                  onClick={() => togglePatch(b.key)}
+                  disabled={isPending}
+                  aria-pressed={on}
+                  className="rounded-full px-3 py-1.5 transition-colors"
+                  style={{
+                    background: on ? b.onColor : C.paper,
+                    color: on ? '#fff' : C.ink,
+                    border: `1px solid ${on ? b.onColor : C.divider}`,
+                    fontFamily: 'Albert Sans',
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    opacity: isPending ? 0.6 : 1,
+                    cursor: isPending ? 'wait' : 'pointer',
+                  }}
+                >
+                  {isPending ? '…' : (on ? b.onLabel : b.offLabel)}
+                </button>
+              );
+            })}
           </div>
+          {actionError && (
+            <div
+              className="px-5 pb-3 text-[11.5px]"
+              style={{ fontFamily: 'Albert Sans', color: C.terracotta }}
+              role="alert"
+            >
+              {actionError}
+            </div>
+          )}
         </div>
       </div>
     </div>
