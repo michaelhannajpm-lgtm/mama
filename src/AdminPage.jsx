@@ -547,6 +547,7 @@ const MomsTable = ({ rows, momProfiles }) => {
 // plus three flag toggles in the footer (Tasks 5–6).
 // ============================================================================
 const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
+  const [lightboxIndex, setLightboxIndex] = useState(null); // null | number — index into mom.photos
   const [pendingFlag, setPendingFlag] = useState(null); // 'verified' | 'visible' | 'blocked_global' | null
   const [actionError, setActionError] = useState(null);
 
@@ -914,6 +915,13 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
           )}
         </div>
       </div>
+      {lightboxIndex !== null && (
+        <MomPhotoLightbox
+          photos={mom.photos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 };
@@ -948,7 +956,7 @@ const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
 
   return (
     <div
-      onClick={onClose}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: `${C.ink}D9`, animation: 'fadeIn 0.15s ease-out' }}
       role="dialog"
