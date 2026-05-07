@@ -329,12 +329,13 @@
   height: 40px;
   padding: 0 16px;
   border-radius: 8px;
-  background: #2a1e22;
-  color: #f6efe2;
+  background: #c8553d;
+  color: #ffffff;
 }
 
 .wl-nav-links .wl-nav-cta:hover {
-  color: #fff;
+  background: #b14a35;
+  color: #ffffff;
 }
 
 .wl-menu-button {
@@ -505,10 +506,10 @@
   width: 100%;
   height: 46px;
   margin-top: 10px;
-  border: 1.5px solid #2a1e22;
+  border: 1.5px solid #c8553d;
   border-radius: 10px;
   background: transparent;
-  color: #2a1e22;
+  color: #c8553d;
   text-decoration: none;
   font: inherit;
   font-size: 14px;
@@ -517,8 +518,8 @@
 }
 
 .wl-prototype-cta:hover {
-  background: #2a1e22;
-  color: #d9a441;
+  background: #c8553d;
+  color: #ffffff;
 }
 
 .wl-prototype-cta:focus-visible {
@@ -624,12 +625,14 @@
 }
 
 .wl-section-dark {
-  background: #2a1e22;
-  color: #f6efe2;
+  background: #fbf6ec;
+  color: #2a1e22;
+  border-top: 1px solid rgba(42, 30, 34, 0.08);
+  border-bottom: 1px solid rgba(42, 30, 34, 0.08);
 }
 
 .wl-section-dark .wl-section-tag {
-  color: #d9a441;
+  color: #c8553d;
 }
 
 .wl-two-column {
@@ -740,16 +743,22 @@
   margin-top: 28px;
   padding: 0 18px;
   border-radius: 8px;
-  background: #2a1e22;
-  color: #f6efe2;
+  background: #c8553d;
+  color: #ffffff;
   font-weight: 800;
   text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.wl-secondary-cta:hover {
+  background: #b14a35;
 }
 
 .wl-footer {
-  background: #1b1517;
-  color: #f6efe2;
+  background: #efe6d2;
+  color: #2a1e22;
   padding: 26px 0;
+  border-top: 1px solid rgba(42, 30, 34, 0.08);
 }
 
 .wl-footer-inner {
