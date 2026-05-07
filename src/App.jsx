@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
+import { WaitlistPage } from './WaitlistPage';
 import { PhoneFrame } from './components/PhoneFrame';
 import { Toast } from './components/Toast';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
@@ -22,7 +23,7 @@ import { MainApp } from './screens/MainApp';
 // ====================================================================
 // ROOT
 // ====================================================================
-export default function App() {
+function PrototypeApp() {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[] });
@@ -177,5 +178,25 @@ export default function App() {
         </div>
       </PhoneFrame>
     </div>
+  );
+}
+
+export default function App() {
+  const [route, setRoute] = useState(() => window.location.hash || '#waitlist');
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(window.location.hash || '#waitlist');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  if (route === '#prototype') return <PrototypeApp />;
+
+  return (
+    <WaitlistPage
+      onOpenPrototype={() => {
+        window.location.hash = 'prototype';
+      }}
+    />
   );
 }
