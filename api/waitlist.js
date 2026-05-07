@@ -51,11 +51,13 @@ export default async function handler(req, res) {
   }
 
   const payload = {
-    first_name: cleanText(body.firstName, 80),
+    first_name: cleanText(body.firstName ?? body.first_name, 80),
     email,
     city: cleanText(body.city, 120),
     audience: cleanText(body.audience, 80),
     source: cleanText(body.source, 80) || 'marketing-waitlist',
+    neighborhood: cleanText(body.neighborhood, 120),
+    mom_type: cleanText(body.mom_type ?? body.momType, 40),
     user_agent: cleanText(req.headers['user-agent'], 300),
     referrer: cleanText(req.headers.referer, 500),
   };
