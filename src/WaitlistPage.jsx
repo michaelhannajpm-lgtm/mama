@@ -286,19 +286,6 @@ export const WaitlistPage = ({ onNavigate }) => {
               {status !== 'loading' && <ArrowRight size={18} />}
             </button>
 
-            <div className="wl-preview-row">
-              <a className="wl-prototype-cta" href="/preview" onClick={handleNavTo('/preview')}>
-                <Monitor size={16} />
-                Desktop view
-                <ArrowRight size={16} />
-              </a>
-              <a className="wl-prototype-cta" href="/live" onClick={handleNavTo('/live')}>
-                <Smartphone size={16} />
-                Mobile view
-                <ArrowRight size={16} />
-              </a>
-            </div>
-
             <div className="wl-form-note" role="status">
               {status === 'success' ? (
                 <span className="wl-success"><Check size={15} /> You are on the list. We will email you before launch.</span>

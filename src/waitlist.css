@@ -390,53 +390,72 @@
   line-height: 1.25;
 }
 
+/* Form is a contained card so it stands out from the cream wash. */
 .wl-form {
-  max-width: 700px;
+  max-width: 560px;
   margin-top: 34px;
+  padding: 26px;
+  background: #ffffff;
+  border: 1px solid rgba(42, 30, 34, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -24px rgba(42, 30, 34, 0.18);
 }
 
 .wl-form-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .wl-form label {
   display: block;
 }
 
-.wl-form label:nth-child(2) {
-  grid-column: span 2;
-}
-
+/* No grid-span override now — every label takes one cell. */
 .wl-form span {
   display: block;
 }
 
 .wl-form label > span {
-  margin-bottom: 7px;
+  margin-bottom: 6px;
   color: #5c4a4f;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .wl-form input,
 .wl-form select {
   width: 100%;
-  height: 50px;
-  border: 1px solid #e8decb;
-  border-radius: 8px;
-  background: #fffefa;
+  height: 46px;
+  border: 1.5px solid #efe6d2;
+  border-radius: 10px;
+  background: #fbf6ec;
   color: #2a1e22;
   font: inherit;
-  font-size: 15px;
+  font-size: 14.5px;
   outline: none;
-  padding: 0 13px;
+  padding: 0 14px;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wl-form input::placeholder {
+  color: #b3a39e;
+}
+
+.wl-form input:hover,
+.wl-form select:hover {
+  background: #fffefa;
 }
 
 .wl-form input:focus,
-.wl-form select:focus,
+.wl-form select:focus {
+  background: #ffffff;
+  border-color: #c8553d;
+  box-shadow: 0 0 0 3px rgba(200, 85, 61, 0.18);
+}
+
 .wl-submit:focus-visible,
 .wl-secondary-cta:focus-visible,
 .wl-nav-links a:focus-visible,
@@ -449,41 +468,33 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  height: 54px;
-  margin-top: 12px;
+  height: 50px;
+  margin-top: 18px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #c8553d;
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.wl-submit:hover {
+  background: #b14a35;
+}
+
+.wl-submit:active {
+  transform: translateY(1px);
 }
 
 .wl-submit:disabled {
   cursor: not-allowed;
-  background: #e8decb;
-  color: #8c7a7e;
-}
-
-.wl-preview-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.wl-preview-row .wl-prototype-cta {
-  margin-top: 0;
-  flex: 1;
-}
-
-@media (max-width: 520px) {
-  .wl-preview-row {
-    flex-direction: column;
-  }
+  background: #efe6d2;
+  color: #b3a39e;
 }
 
 .wl-prototype-cta {
@@ -492,17 +503,17 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 50px;
+  height: 46px;
   margin-top: 10px;
   border: 1.5px solid #2a1e22;
-  border-radius: 8px;
-  background: #faf5ea;
+  border-radius: 10px;
+  background: transparent;
   color: #2a1e22;
   text-decoration: none;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .wl-prototype-cta:hover {
@@ -888,19 +899,16 @@
   .wl-form {
     max-width: 100%;
     margin-top: 24px;
+    padding: 22px;
   }
 
   .wl-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .wl-form label:nth-child(2) {
-    grid-column: auto;
-  }
-
   .wl-form input,
   .wl-form select {
-    height: 48px;
+    height: 46px;
   }
 
   .wl-section {
