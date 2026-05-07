@@ -37,7 +37,13 @@ const featureCards = [
   },
 ];
 
-const launchCities = ['Tampa, FL', 'San Francisco', 'Los Angeles', 'New York', 'Austin'];
+const launchCities = [
+  { name: 'Tampa, FL',      live: true  },
+  { name: 'San Francisco',  live: false },
+  { name: 'Los Angeles',    live: false },
+  { name: 'New York',       live: false },
+  { name: 'Austin',         live: false },
+];
 
 const audienceOptions = [
   'Expecting',
@@ -190,7 +196,7 @@ export const WaitlistPage = ({ onNavigate }) => {
           </div>
         </div>
 
-        <nav className="wl-nav" aria-label="Primary">
+        {/* <nav className="wl-nav" aria-label="Primary">
           <a className="wl-brand" href="#top" onClick={closeNav}>
             <GoMamaLogo size={42} />
             <span>Go Mama</span>
@@ -219,7 +225,7 @@ export const WaitlistPage = ({ onNavigate }) => {
             </a>
             <a className="wl-nav-cta" href="#join" onClick={closeNav}>Join waitlist</a>
           </div>
-        </nav>
+        </nav> */}
 
         <div className="wl-hero-inner">
           <div className="wl-kicker">
@@ -280,19 +286,6 @@ export const WaitlistPage = ({ onNavigate }) => {
               {status !== 'loading' && <ArrowRight size={18} />}
             </button>
 
-            <div className="wl-preview-row">
-              <a className="wl-prototype-cta" href="/preview" onClick={handleNavTo('/preview')}>
-                <Monitor size={16} />
-                Desktop view
-                <ArrowRight size={16} />
-              </a>
-              <a className="wl-prototype-cta" href="/live" onClick={handleNavTo('/live')}>
-                <Smartphone size={16} />
-                Mobile view
-                <ArrowRight size={16} />
-              </a>
-            </div>
-
             <div className="wl-form-note" role="status">
               {status === 'success' ? (
                 <span className="wl-success"><Check size={15} /> You are on the list. We will email you before launch.</span>
@@ -351,13 +344,14 @@ export const WaitlistPage = ({ onNavigate }) => {
         <div className="wl-section-inner">
           <div className="wl-section-heading">
             <span>Launch focus</span>
-            <h2>Starting with dense mom communities, then expanding by demand.</h2>
+            <h2>Live in Tampa now. More cities coming soon.</h2>
           </div>
           <div className="wl-city-row">
             {launchCities.map((city) => (
-              <div className="wl-city" key={city}>
+              <div className={`wl-city ${city.live ? 'is-live' : 'is-soon'}`} key={city.name}>
                 <MapPin size={18} />
-                <span>{city}</span>
+                <span>{city.name}</span>
+                <em className="wl-city-tag">{city.live ? 'Live now' : 'Coming soon'}</em>
               </div>
             ))}
           </div>
