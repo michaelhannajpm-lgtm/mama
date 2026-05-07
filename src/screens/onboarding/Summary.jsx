@@ -1,12 +1,12 @@
 import { Heart, Users, ArrowRight } from 'lucide-react';
-import { C } from '../theme';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
-import { SAMPLE_MOMS } from '../data/moms';
-import { SUGGESTED_EVENTS } from '../data/events';
+import { C } from '../../theme';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
+import { SAMPLE_MOMS } from '../../data/moms';
+import { SUGGESTED_EVENTS } from '../../data/events';
 
-export const SummaryScreen = ({ onNext, onBack, profile, prefs, location, distance }) => {
+export const Summary = ({ onNext, onBack, profile, prefs, location, distance }) => {
   // Avoid lint warnings for unused props that are part of the documented API
   void profile; void distance;
 

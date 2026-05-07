@@ -11,14 +11,14 @@ import { MessageSheet } from './sheets/MessageSheet';
 import { CreateAccountSheet } from './sheets/CreateAccountSheet';
 import { PremiumSheet } from './sheets/PremiumSheet';
 import { Splash } from './screens/Splash';
-import { Screen2 } from './screens/Screen2';
-import { Screen3 } from './screens/Screen3';
-import { Screen4 } from './screens/Screen4';
-import { Screen5 } from './screens/Screen5';
-import { Screen6 } from './screens/Screen6';
-import { SummaryScreen } from './screens/SummaryScreen';
-import { AccountScreen } from './screens/AccountScreen';
-import { LoginScreen } from './screens/LoginScreen';
+import { Welcome }       from './screens/onboarding/Welcome';
+import { LocationStep }  from './screens/onboarding/LocationStep';
+import { ProfileStep }   from './screens/onboarding/ProfileStep';
+import { ScheduleStep }  from './screens/onboarding/ScheduleStep';
+import { PlacesStep }    from './screens/onboarding/PlacesStep';
+import { Summary }       from './screens/onboarding/Summary';
+import { Account }       from './screens/onboarding/Account';
+import { Login }         from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut } from './lib/onboarding';
 
@@ -149,7 +149,7 @@ function PrototypeApp() {
       <PhoneFrame>
         <div className="w-full h-full relative">
           {!splashShown && loginOpen ? (
-            <LoginScreen
+            <Login
               onBack={() => setLoginOpen(false)}
               onSuccess={(acct) => {
                 setAccount(acct);
@@ -163,13 +163,13 @@ function PrototypeApp() {
           ) : !splashShown ? (
             <Splash onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}/>
           ) : (<>
-          {step===0 && <Screen2 onNext={()=>advance(0, {})} onBack={()=>setStep(0)}/>}
-          {step===1 && <Screen3 onNext={()=>advance(1, { location, distance_miles: distance })} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
-          {step===2 && <Screen4 onNext={()=>advance(2, { kids_ages: profile.kidsAges, mom_types: profile.momTypes, values: profile.values, interests: profile.interests })} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
-          {step===3 && <Screen5 onNext={()=>advance(3, { slots: prefs.slots })} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
-          {step===4 && <Screen6 onNext={()=>advance(4, { places: prefs.places })} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
-          {step===5 && <SummaryScreen onNext={()=>advance(5, {})} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
-          {step===6 && <AccountScreen
+          {step===0 && <Welcome onNext={()=>advance(0, {})} onBack={()=>setStep(0)}/>}
+          {step===1 && <LocationStep onNext={()=>advance(1, { location, distance_miles: distance })} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
+          {step===2 && <ProfileStep onNext={()=>advance(2, { kids_ages: profile.kidsAges, mom_types: profile.momTypes, values: profile.values, interests: profile.interests })} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
+          {step===3 && <ScheduleStep onNext={()=>advance(3, { slots: prefs.slots })} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
+          {step===4 && <PlacesStep onNext={()=>advance(4, { places: prefs.places })} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
+          {step===5 && <Summary onNext={()=>advance(5, {})} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
+          {step===6 && <Account
             onBack={()=>setStep(5)}
             account={account}
             onComplete={(acct) => { setAccount(acct); setStep(7); }}

@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import {
   ArrowRight, MapPin, Search, Compass, ShieldCheck, Plus,
 } from 'lucide-react';
-import { C } from '../theme';
-import { NEIGHBORHOODS, DISTANCES } from '../data/taxonomy';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
+import { C } from '../../theme';
+import { NEIGHBORHOODS, DISTANCES } from '../../data/taxonomy';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
 
-export const Screen3 = ({ onNext, onBack, location, setLocation, distance, setDistance }) => {
+export const LocationStep = ({ onNext, onBack, location, setLocation, distance, setDistance }) => {
   const [query, setQuery] = useState('');
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState(null);

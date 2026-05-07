@@ -1,12 +1,12 @@
 import {
   ArrowRight, MapPin, Calendar as CalendarIcon, User, Users,
 } from 'lucide-react';
-import { C } from '../theme';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
+import { C } from '../../theme';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
 
-export const Screen2 = ({ onNext, onBack }) => (
+export const Welcome = ({ onNext, onBack }) => (
   <div className="h-full flex flex-col" style={{ background: C.cream }}>
     <StatusBar/>
     <StepHeader step={0} total={7} onBack={onBack} onSkip={onNext}/>

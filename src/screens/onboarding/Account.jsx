@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Heart, ArrowRight, ArrowLeft, Mail, Phone, Eye, EyeOff, Lock, AlertCircle } from 'lucide-react';
-import { C } from '../theme';
-import { PrimaryBtn } from '../components/PrimaryBtn';
-import { signInWithPassword, signInWithProvider } from '../lib/onboarding';
+import { Heart, ArrowRight, Mail, Phone, Eye, EyeOff, Lock, Check, AlertCircle } from 'lucide-react';
+import { C } from '../../theme';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
+import { completeSignup, signInWithProvider } from '../../lib/onboarding';
 
 const PROVIDERS = [
   { id: 'google',   label: 'Continue with Google',   bg: '#FFFFFF', fg: '#1F1F1F', border: '#DADCE0' },
@@ -33,16 +35,21 @@ const ProviderGlyph = ({ id }) => {
   return null;
 };
 
-export const LoginScreen = ({ onBack, onSuccess, flash }) => {
-  const [method, setMethod] = useState('email');
+export const Account = ({ onBack, account, onComplete, flash }) => {
+  void account;
+
+  const [firstName, setFirstName] = useState('');
+  const [method, setMethod] = useState('phone'); // 'phone' | 'email'
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(null);
+  const [oauthLoading, setOauthLoading] = useState(null); // provider id or null
   const [error, setError] = useState(null);
 
+  // Format phone as (XXX) XXX-XXXX while typing
   const formatPhone = (v) => {
     const d = v.replace(/\D/g, '').slice(0, 10);
     if (d.length < 4) return d;
@@ -53,32 +60,32 @@ export const LoginScreen = ({ onBack, onSuccess, flash }) => {
   const phoneOk = phone.replace(/\D/g, '').length === 10;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contactOk = method === 'phone' ? phoneOk : emailOk;
-  const passwordOk = password.length >= 1; // server will reject if wrong; don't gate UI on length here
-  const canSubmit = !submitting && contactOk && passwordOk;
+  const passwordOk = password.length >= 8;
+  const canSubmit = !submitting && firstName.trim().length >= 2 && contactOk && passwordOk && agreed;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setError(null);
     setSubmitting(true);
     try {
-      const data = await signInWithPassword({
+      const result = await completeSignup({
+        firstName: firstName.trim(),
         method,
         phone: method === 'phone' ? phone : undefined,
         email: method === 'email' ? email : undefined,
         password,
+        agreedTerms: agreed,
       });
-      const user = data?.user;
-      const md = user?.user_metadata || {};
-      onSuccess({
-        firstName: md.first_name || md.name?.split(' ')[0] || (email ? email.split('@')[0] : 'Mama'),
-        username: md.username,
-        auth_user_id: user?.id,
+      onComplete({
+        firstName: result.first_name,
+        username: result.username,
+        auth_user_id: result.auth_user_id,
         method,
         phone: method === 'phone' ? phone : undefined,
-        email: method === 'email' ? email : (user?.email || undefined),
+        email: method === 'email' ? email : undefined,
       });
     } catch (e) {
-      setError(e.message || 'Could not sign in');
+      setError(e.message || 'Could not create account');
       setSubmitting(false);
     }
   };
@@ -98,23 +105,19 @@ export const LoginScreen = ({ onBack, onSuccess, flash }) => {
 
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
-      {/* Top back button */}
-      <div className="px-7 pt-3 pb-2 flex items-center">
-        <button onClick={onBack} aria-label="Back" className="rounded-full p-2 -ml-2" style={{ color: C.inkSoft }}>
-          <ArrowLeft size={18}/>
-        </button>
-      </div>
+      <StatusBar/>
+      <StepHeader step={6} total={7} onBack={onBack}/>
 
       <div className="flex-1 overflow-y-auto px-7" style={{ scrollbarWidth: 'none' }}>
         <div className="mt-1">
           <div className="text-[11px] tracking-[.2em] uppercase mb-3" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Welcome back
+            ✨ Step 7 · Match me
           </div>
           <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 28, lineHeight:1.1, color: C.ink, letterSpacing:'-.02em' }}>
-            Hello again, <span style={{ fontStyle:'italic', color: C.terracotta }}>mama</span>.
+            Almost <span style={{ fontStyle:'italic', color: C.terracotta }}>there</span>.
           </h2>
           <p className="mt-2 text-[12.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.5 }}>
-            Sign in to pick up where you left off.
+            Create your account so we can save your preferences and connect you with verified moms.
           </p>
         </div>
 
@@ -140,28 +143,30 @@ export const LoginScreen = ({ onBack, onSuccess, flash }) => {
         <div className="flex items-center gap-3 mt-4 mb-3">
           <div className="flex-1 h-px" style={{ background: C.divider }}/>
           <div className="text-[10.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
-            or sign in with
+            or sign up with
           </div>
           <div className="flex-1 h-px" style={{ background: C.divider }}/>
         </div>
 
-        {/* Phone | Email toggle */}
+        {/* First name */}
         <div className="mt-2">
+          <label className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+            First name
+          </label>
+          <div className="mt-1 rounded-2xl px-4 flex items-center" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
+            <input value={firstName} onChange={e=>setFirstName(e.target.value)}
+              placeholder="What should other moms call you?"
+              className="flex-1 bg-transparent outline-none text-[13.5px]"
+              style={{ fontFamily:'Albert Sans', color: C.ink }}/>
+          </div>
+        </div>
+
+        {/* Phone | Email toggle */}
+        <div className="mt-3.5">
           <label className="text-[10.5px] tracking-[.14em] uppercase mb-1.5 block" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Sign in with
+            Sign up with
           </label>
           <div className="rounded-2xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
-            <button onClick={()=>setMethod('email')}
-              className="flex-1 rounded-xl flex items-center justify-center gap-1.5 transition-all"
-              style={{
-                height: 36,
-                background: method === 'email' ? C.paper : 'transparent',
-                color: method === 'email' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12.5, fontWeight: 600,
-                boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
-              }}>
-              <Mail size={12}/> Email
-            </button>
             <button onClick={()=>setMethod('phone')}
               className="flex-1 rounded-xl flex items-center justify-center gap-1.5 transition-all"
               style={{
@@ -173,9 +178,19 @@ export const LoginScreen = ({ onBack, onSuccess, flash }) => {
               }}>
               <Phone size={12}/> Phone
             </button>
+            <button onClick={()=>setMethod('email')}
+              className="flex-1 rounded-xl flex items-center justify-center gap-1.5 transition-all"
+              style={{
+                height: 36,
+                background: method === 'email' ? C.paper : 'transparent',
+                color: method === 'email' ? C.ink : C.inkMuted,
+                fontFamily:'Albert Sans', fontSize: 12.5, fontWeight: 600,
+                boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+              }}>
+              <Mail size={12}/> Email
+            </button>
           </div>
 
-          {/* Conditional input */}
           {method === 'phone' ? (
             <div className="mt-2 rounded-2xl px-4 flex items-center gap-2" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
               <span className="text-[13.5px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
@@ -205,33 +220,58 @@ export const LoginScreen = ({ onBack, onSuccess, flash }) => {
           <div className="mt-1 rounded-2xl px-4 flex items-center gap-2" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
             <Lock size={13} style={{ color: C.inkMuted }}/>
             <input value={password} onChange={e=>setPassword(e.target.value)}
-              type={showPassword ? 'text' : 'password'} autoComplete="current-password"
-              placeholder="Your password"
+              type={showPassword ? 'text' : 'password'} autoComplete="new-password"
+              placeholder="At least 8 characters"
               className="flex-1 bg-transparent outline-none text-[13.5px]"
-              style={{ fontFamily:'Albert Sans', color: C.ink }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}/>
+              style={{ fontFamily:'Albert Sans', color: C.ink }}/>
             <button onClick={()=>setShowPassword(s=>!s)}
               className="flex items-center justify-center"
               style={{ color: C.inkMuted }}>
               {showPassword ? <EyeOff size={15}/> : <Eye size={15}/>}
             </button>
           </div>
+          {password.length > 0 && password.length < 8 && (
+            <div className="mt-1 text-[10.5px]" style={{ fontFamily:'Albert Sans', color: C.terracotta }}>
+              {8 - password.length} more character{8 - password.length === 1 ? '' : 's'}
+            </div>
+          )}
         </div>
 
-        {/* Error */}
+        {/* Terms */}
+        <button onClick={()=>setAgreed(a=>!a)}
+          className="w-full text-left flex items-start gap-2.5 pt-3 mt-1">
+          <div className="mt-0.5 w-[18px] h-[18px] rounded-md flex items-center justify-center flex-shrink-0" style={{
+            background: agreed ? C.terracotta : 'transparent',
+            border: `1.5px solid ${agreed ? C.terracotta : C.inkMuted}`,
+          }}>
+            {agreed && <Check size={12} color="#fff" strokeWidth={3}/>}
+          </div>
+          <div className="text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
+            I agree to Go Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
+          </div>
+        </button>
+
         {error && (
-          <div className="mt-3 rounded-xl flex items-start gap-2 px-3 py-2" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
-            <AlertCircle size={14} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
-            <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.4 }}>{error}</div>
+          <div className="mt-3 rounded-2xl p-3 flex items-start gap-2" style={{ background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
+            <AlertCircle size={14} style={{ color: C.terracotta, marginTop: 1 }}/>
+            <div className="text-[12px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.4 }}>
+              {error}
+            </div>
           </div>
         )}
+
+        {/* Privacy footer */}
+        <div className="mt-4 mb-2 text-[11px] flex items-center justify-center gap-1.5" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>
+          <Lock size={11}/>
+          Your phone is never shown to other moms.
+        </div>
 
         <div className="h-2"/>
       </div>
 
       <div className="px-7 pb-8 pt-3" style={{ background: C.cream }}>
         <PrimaryBtn onClick={handleSubmit} disabled={!canSubmit} variant="terracotta">
-          <Heart size={16} fill="currentColor"/> {submitting ? 'Signing in…' : 'Sign in'} <ArrowRight size={18}/>
+          <Heart size={16} fill="currentColor"/> {submitting ? 'Creating account…' : 'Match me'} <ArrowRight size={18}/>
         </PrimaryBtn>
       </div>
     </div>

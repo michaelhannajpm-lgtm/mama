@@ -1,12 +1,12 @@
 import { ArrowRight, Plus } from 'lucide-react';
-import { C } from '../theme';
-import { DAYS, DAY_LABELS, TIME_WINDOWS } from '../data/taxonomy';
-import { matchingMoms } from '../data/moms';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
+import { C } from '../../theme';
+import { DAYS, DAY_LABELS, TIME_WINDOWS } from '../../data/taxonomy';
+import { matchingMoms } from '../../data/moms';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
 
-export const Screen5 = ({ onNext, onBack, prefs, setPrefs }) => {
+export const ScheduleStep = ({ onNext, onBack, prefs, setPrefs }) => {
   const dayHasSlots = (day) => prefs.slots.some(s => s.startsWith(`${day}-`));
   const selectedDays = DAYS.filter(d => dayHasSlots(d));
 

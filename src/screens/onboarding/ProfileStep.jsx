@@ -1,16 +1,16 @@
 import {
   ArrowRight, Sparkles, Lock, Plus, Minus,
 } from 'lucide-react';
-import { C } from '../theme';
+import { C } from '../../theme';
 import {
   MOM_TYPES, VALUES, VALUE_NO_PREF, INTERESTS, INTEREST_NO_PREF, KID_AGES,
-} from '../data/taxonomy';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
-import { Pill } from '../components/Pill';
+} from '../../data/taxonomy';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
+import { Pill } from '../../components/Pill';
 
-export const Screen4 = ({ onNext, onBack, profile, setProfile }) => {
+export const ProfileStep = ({ onNext, onBack, profile, setProfile }) => {
   const incrementKid = (age) => {
     setProfile(p => {
       const cur = p.kidsAges[age] || 0;

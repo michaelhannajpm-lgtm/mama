@@ -2,15 +2,15 @@ import { useState } from 'react';
 import {
   ArrowRight, MapPin, Sparkles, Check, ChevronDown, ChevronUp, Plus, Star,
 } from 'lucide-react';
-import { C } from '../theme';
+import { C } from '../../theme';
 import {
   PLACES, PLACE_CATEGORIES, PLACES_NO_PREF, findPlace, TOP_PICKS, BADGE_META,
-} from '../data/places';
-import { StatusBar } from '../components/StatusBar';
-import { StepHeader } from '../components/StepHeader';
-import { PrimaryBtn } from '../components/PrimaryBtn';
+} from '../../data/places';
+import { StatusBar } from '../../components/StatusBar';
+import { StepHeader } from '../../components/StepHeader';
+import { PrimaryBtn } from '../../components/PrimaryBtn';
 
-export const Screen6 = ({ onNext, onBack, prefs, setPrefs, location }) => {
+export const PlacesStep = ({ onNext, onBack, prefs, setPrefs, location }) => {
   const [activeCat, setActiveCat] = useState('cafes');
   const [browseOpen, setBrowseOpen] = useState(false);
   // Custom places — user-added spots not in our database
