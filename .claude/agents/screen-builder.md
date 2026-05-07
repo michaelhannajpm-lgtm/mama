@@ -5,13 +5,29 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
 
-You build screens for the Mama app following the existing conventions in `src/App.jsx`.
+You build screens for the Mama app following the existing modular file conventions.
 
 ## Before you write a single line
 
-1. Read `src/App.jsx` to see the most recent screen pattern (e.g. `Screen6`, `Screen7`).
+1. Read the most recent screen pattern (e.g. `src/screens/Screen6.jsx`, `src/screens/Screen7.jsx`).
 2. Read the relevant context files: `.claude/context/design-tokens.md`, `.claude/context/architecture.md`, `.claude/context/file-layout.md`.
-3. Locate the existing screens (search for `function Screen` in App.jsx).
+3. If adding a tab, read `src/screens/MainApp/index.jsx` and one existing tab (e.g. `src/screens/MainApp/MatchesTab.jsx`).
+
+## Where new code goes
+
+Create new files — this is the default, not an exception.
+
+- **New onboarding screen** → `src/screens/ScreenN.jsx` (named export `ScreenN`). Then update the `if (step === N)` router in `src/App.jsx` and add an import there.
+- **New MainApp tab** → `src/screens/MainApp/<Name>Tab.jsx` (named export). Then update `src/screens/MainApp/index.jsx` to import + render it. Tabs are imported as siblings with `'./<Name>Tab'`, NOT from `App.jsx`.
+- **New sheet/modal** → `src/sheets/<Name>Sheet.jsx`. Update `App.jsx` state (e.g. an `openSheet` boolean or selected-record state) and the render block.
+- **New leaf component** → `src/components/<Name>.jsx`. Used by sheets, screens, or other components — never importing upward.
+
+### Module convention
+- Named export only. One component per file. File name = component name.
+- Import `C` from `'../theme'` (or `'../../theme'` from deeper paths). **Never hardcode hex.**
+
+### Dependency direction
+`data ← components ← sheets ← screens ← App.jsx`. Don't import upward (e.g. a component must not reach into a screen).
 
 ## Conventions to follow
 
@@ -29,12 +45,12 @@ You build screens for the Mama app following the existing conventions in `src/Ap
 - Vertical scroll inside the phone, not page-level scroll.
 
 ### State
-- Onboarding state lives at `App` level: `step`, `profile`, `prefs`, `location`, `distance`, `account`.
+- App-level state lives in `src/App.jsx`: `step`, `profile`, `prefs`, `location`, `distance`, `account`, etc. New screens receive what they need via props.
 - New onboarding screens advance with `setStep(n+1)` and surface progress via `StepHeader`.
-- New tabs in `MainApp` add an entry to the tab bar and a conditional render block.
+- New tabs in `MainApp` add an entry to the tab bar in `MainApp/index.jsx` and a conditional render block.
 
 ### Animations
-- Use the existing keyframes: `slideUp`, `fadeIn`, `fadeInUp`. Don't add new ones unless asked.
+- Use the existing keyframes (defined in `src/index.css`): `slideUp`, `fadeIn`, `fadeInUp`, `popBadge`. Don't add new ones unless asked.
 - Apply via `style={{ animation: 'fadeInUp 0.4s ease-out' }}`.
 
 ### Account / premium gating
@@ -44,5 +60,4 @@ You build screens for the Mama app following the existing conventions in `src/Ap
 ## When you finish
 
 - Run `npm run build` to confirm the app still compiles.
-- Briefly summarize: what you added, where it lives in App.jsx, and any state additions to `App`.
-- Do **not** create a separate file unless the user has asked for the file split — keep additions in `src/App.jsx`.
+- Briefly summarize: what file(s) you added, where they're imported, and any new state in `App.jsx`.

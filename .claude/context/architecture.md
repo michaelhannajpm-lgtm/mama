@@ -1,8 +1,8 @@
 # Architecture conventions
 
-## State lifted to the `App` component
+## State lives in `src/App.jsx` (~181 lines)
 
-All app-level state lives at the top in `App`:
+`App.jsx` is the slim coordinator: it owns all app-level state, wires routing, and passes props down to screens / sheets. The 14 useStates:
 
 - `step` (0–8) — onboarding progress
 - `splashShown` — whether the splash has been shown
@@ -22,6 +22,22 @@ Helper functions also live in `App`:
 - `flash(message)` — shows a toast
 - `requestAccount({ type, mom?, slot?, event? })` — gates an action behind account creation
 - `handleAccountComplete()` — replays the pending action after sign-up
+
+## Dependency direction
+
+One-way. Nothing imports upward.
+
+```
+data ← components ← sheets ← screens ← App.jsx
+```
+
+`theme.js` is a leaf — imported by everyone, imports nothing.
+
+## Module convention
+
+- **Named exports only.** `export const Foo = (...) => ...` or `export function Foo(...)`.
+- **One component per file.** File name = component name (e.g. `Sheet.jsx` exports `Sheet`).
+- **No barrel `index.js` files.** The single exception is `src/screens/MainApp/index.jsx`, which IS the MainApp shell.
 
 ## Onboarding flow
 
@@ -57,4 +73,8 @@ The `CreateAccountSheet` opens; on completion, `handleAccountComplete()` replays
 
 ## Animation injection
 
-The `useEffect` in `App` injects CSS keyframes into `document.head`. **Don't break this** when refactoring — if files are split, either keep injection in App or migrate to `index.css`.
+CSS keyframes and the Google Fonts `@import` live in `src/index.css` — no `useEffect` injects them at runtime. The 4 keyframes available globally are `slideUp`, `fadeIn`, `fadeInUp`, `popBadge`. Apply via inline style:
+
+```jsx
+<div style={{ animation: 'fadeInUp 0.4s ease-out' }} />
+```

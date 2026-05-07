@@ -1,56 +1,64 @@
 # File layout
 
-## Current state — single file
+The Mama app is a modular React structure under `src/`. State stays in `App.jsx` (~181 lines) — everything else is split into focused, single-responsibility files.
 
-Everything lives in `src/App.jsx` (~4,000 lines):
-
-- **Color tokens** — `C` object near top
-- **Custom SVG components** — `Sprig`, `MamaLogo`, `Sun3`, `PhoneFrame`, etc.
-- **Data constants** — `PLACES`, `SAMPLE_MOMS`, `SUGGESTED_EVENTS`, `NEIGHBORHOODS`, `DAYS`, `TIME_WINDOWS`, `MOM_TYPES`, `VALUES`, `INTERESTS`
-- **Onboarding screens** — `Splash`, `Screen1` through `Screen8`
-- **MainApp shell** with 5 tabs — `CalendarTab`, `PlacesTab`, `EventsTab`, `MatchesTab`, `YouTab`
-- **Sheets/modals** — `ScheduleSheet`, `ProfileSheet`, `MessageSheet`, `CreateAccountSheet`, `PremiumSheet`, `Sheet` (base), `Toast`
-- **Root `App` component** at the bottom — owns all state, routes between Splash → onboarding → MainApp
-
-## Target structure (when split)
+## Directory tree
 
 ```
 src/
-  App.jsx                 # root component + routing
-  data/
-    places.js
-    moms.js
-    events.js
-    taxonomy.js           # NEIGHBORHOODS, DAYS, TIME_WINDOWS, MOM_TYPES, VALUES, INTERESTS
-  components/
-    Sheet.jsx
-    MamaLogo.jsx
-    PhoneFrame.jsx
-    Pill.jsx
-    PrimaryBtn.jsx
-    ...
-  screens/
-    Splash.jsx
-    Screen1.jsx
-    ...
-    Screen8.jsx
-    MainApp/
-      index.jsx
-      CalendarTab.jsx
-      PlacesTab.jsx
-      EventsTab.jsx
-      MatchesTab.jsx
-      YouTab.jsx
-  sheets/
-    ScheduleSheet.jsx
-    ProfileSheet.jsx
-    MessageSheet.jsx
-    CreateAccountSheet.jsx
-    PremiumSheet.jsx
+├── App.jsx                       # ~181 lines — state owner + router
+├── main.jsx                      # entry
+├── index.css                     # Google Fonts @import + 4 keyframes (slideUp, fadeIn, fadeInUp, popBadge)
+├── theme.js                      # named export `C` — design tokens
+│
+├── data/                         # pure data (some files contain JSX referencing lucide icons, so .js with JSX)
+│   ├── taxonomy.js               # MOM_TYPES, VALUES, INTERESTS, KID_AGES, NEIGHBORHOODS, DISTANCES,
+│   │                             #   DAYS, DAY_LABELS, TIME_WINDOWS, WINDOW_TO_BUCKET, MONTH_NAMES,
+│   │                             #   DAYS_SHORT_BY_DOW, VALUE_NO_PREF, INTEREST_NO_PREF
+│   ├── places.js                 # PLACES, PLACE_CATEGORIES, PLACES_NO_PREF, findPlace, TOP_PICKS, BADGE_META
+│   ├── moms.js                   # SAMPLE_MOMS, MOM_POOL, ALL_AVAILABLE_MOMS, matchingMoms
+│   └── events.js                 # SUGGESTED_EVENTS, EVENTS
+│
+├── components/                   # 13 leaves
+│   ├── PhoneFrame.jsx, StatusBar.jsx, Pill.jsx, Dot.jsx, StepHeader.jsx,
+│   ├── PrimaryBtn.jsx, Sheet.jsx, Toast.jsx, MatchCard.jsx, MiniMatchCard.jsx
+│   └── icons/
+│       ├── MamaLogo.jsx, Sprig.jsx, Sun3.jsx
+│
+├── screens/
+│   ├── Splash.jsx
+│   ├── Screen1.jsx ... Screen8.jsx
+│   └── MainApp/
+│       ├── index.jsx             # tab bar + tab routing, imports the 5 tabs as siblings
+│       ├── CalendarTab.jsx
+│       ├── PlacesTab.jsx
+│       ├── EventsTab.jsx
+│       ├── MatchesTab.jsx
+│       └── YouTab.jsx
+│
+└── sheets/
+    ├── ScheduleSheet.jsx, ProfileSheet.jsx, MessageSheet.jsx,
+    └── CreateAccountSheet.jsx, PremiumSheet.jsx
 ```
 
-## Splitting rules
+## Conventions
 
-- Keep the **animation `useEffect`** in `App` — it injects CSS keyframes (`slideUp`, `fadeIn`, `fadeInUp`) into `document.head`. Move to `index.css` if you must.
-- Keep the **Google Fonts `<link>`** loading in `App`'s useEffect for the same reason.
+- **Named exports only.** One component per file. File name = component name.
+- **No barrel `index.js` files** — except `src/screens/MainApp/index.jsx`, which IS the MainApp shell (tab bar + tab routing).
+- **State stays in `App.jsx`** (~14 useStates + 3 helpers). Prop drilling preserved — no Context, no useReducer, no store.
+- **Side effects:** Google Fonts and CSS keyframes live in `src/index.css` (not a `useEffect`). The 4 keyframes are `slideUp`, `fadeIn`, `fadeInUp`, `popBadge`.
+
+## Dependency direction
+
+One-way only. Nothing imports upward.
+
+```
+data ← components ← sheets ← screens ← App.jsx
+```
+
+`theme.js` is a leaf — imported by everyone, imports nothing.
+
+## Layout invariants
+
 - The `PhoneFrame` mockup wraps the entire app in a centered ~375×740 phone-shaped container — it must remain the outermost layout.
+- Vertical scroll happens inside the phone frame, not at the page level.

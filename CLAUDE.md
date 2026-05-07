@@ -1,6 +1,6 @@
 # Mama — project notes for Claude Code
 
-A React prototype for **Mama**, a mom-friendship matching app. Anti-Tinder positioning, editorial-warm aesthetic, single-file (`src/App.jsx`).
+A React prototype for **Mama**, a mom-friendship matching app. Anti-Tinder positioning, editorial-warm aesthetic, modular React structure under `src/`: `data/`, `components/`, `screens/`, `sheets/`. State stays in `App.jsx` (~181 lines).
 
 ## Project context
 
