@@ -30,8 +30,8 @@ export const verifyJwt = async (req) => {
   if (!url || !anon) return null;
   const r = await fetch(`${url}/auth/v1/user`, {
     headers: { apikey: anon, Authorization: `Bearer ${jwt}` },
-  });
-  if (!r.ok) return null;
+  }).catch(() => null);
+  if (!r || !r.ok) return null;
   const user = await r.json().catch(() => null);
   if (!user?.email) return null;
   return user;
