@@ -20,6 +20,8 @@ import { Summary }       from './screens/onboarding/Summary';
 import { Account }       from './screens/onboarding/Account';
 import { Login }         from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
+import { BuilderPage } from './screens/Builder';
+import { LivePage } from './screens/Live';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 
 // ====================================================================
@@ -288,7 +290,8 @@ export default function App() {
   }, []);
 
   if (route === '/prototype' || route === '/preview') return <PrototypeApp />;
-  if (route === '/live') return <PrototypeApp bare />;
+  if (route === '/builder' || route.startsWith('/builder/')) return <BuilderPage />;
+  if (route === '/live' || route.startsWith('/live/')) return <LivePage />;
   if (route === '/admin' || route.startsWith('/admin/')) {
     // Lazy import via static reference — kept simple, no Suspense needed.
     return <AdminPage />;
