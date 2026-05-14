@@ -1,0 +1,289 @@
+name: Claude Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Prompt to send to Claude'
+        required: true
+        type: string
+      session_id:
+        description: 'Builder session UUID'
+        required: true
+        type: string
+      mode:
+        description: 'continue or fresh'
+        required: true
+        type: string
+        default: 'continue'
+      history_b64:
+        description: 'Base64-encoded prior conversation summary (continue mode only)'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: claude-builder-release-latest
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout release-latest (or create from master)
+        uses: actions/checkout@v4
+        with:
+          ref: release-latest
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Fall back to master if release-latest doesn't exist
+        if: failure()
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Ensure we're on release-latest
+        run: |
+          set -euo pipefail
+          if git show-ref --verify --quiet refs/remotes/origin/release-latest; then
+            git checkout release-latest
+            git pull --ff-only origin release-latest
+          else
+            git checkout -B release-latest
+          fi
+          echo "On branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "claude-builder[bot]"
+          git config user.email "claude-builder@users.noreply.github.com"
+
+      - name: Webhook helper (POST signed JSON to gomama.app)
+        run: |
+          cat > /tmp/notify.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          BODY="$1"
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$BUILDER_WEBHOOK_SECRET" -hex | awk '{print $NF}')
+          curl -fsS -X POST "$BUILDER_WEBHOOK_URL" \
+            -H "content-type: application/json" \
+            -H "x-builder-signature: $SIG" \
+            --data "$BODY" >/dev/null || echo "webhook post failed (non-fatal)"
+          EOF
+          chmod +x /tmp/notify.sh
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Notify start
+        run: /tmp/notify.sh "$(jq -nc --arg s "${{ inputs.session_id }}" '{session_id:$s, kind:"status", payload:{stage:"started"}}')"
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Record pre-flight SHAs of builder-system paths (guard)
+        id: preflight
+        run: |
+          set -euo pipefail
+          GUARD_FILES=(
+            ".github/workflows/claude-builder.yml"
+            "api/builder/prompt.js"
+            "api/builder/webhook.js"
+            "api/builder/sessions.js"
+            "api/live/versions.js"
+            "api/_lib/builderAuth.js"
+            "api/_lib/builderHmac.js"
+            "api/_lib/githubDispatch.js"
+            "supabase/builder_schema.sql"
+          )
+          touch /tmp/preflight.txt
+          for f in "${GUARD_FILES[@]}"; do
+            if [ -f "$f" ]; then
+              echo "$f $(git hash-object "$f")" >> /tmp/preflight.txt
+            fi
+          done
+          cat /tmp/preflight.txt
+
+      - name: Decode history (if continue mode)
+        id: history
+        run: |
+          if [ -n "${{ inputs.history_b64 }}" ]; then
+            echo "${{ inputs.history_b64 }}" | base64 -d > /tmp/history.txt
+            echo "has_history=1" >> "$GITHUB_OUTPUT"
+          else
+            : > /tmp/history.txt
+            echo "has_history=0" >> "$GITHUB_OUTPUT"
+          fi
+          wc -l /tmp/history.txt || true
+
+      - name: Run Claude Code action
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are working in the gomama.app repo on branch `release-latest`.
+
+            Conversation history (older prompts and changes; empty if this is a fresh session):
+            ----
+            ${{ steps.history.outputs.has_history == '1' && '(see /tmp/history.txt on disk)' || '(none)' }}
+            ----
+
+            User's new prompt:
+            ----
+            ${{ inputs.prompt }}
+            ----
+
+            Constraints:
+            - DO NOT modify any of these paths (builder-system guard, the workflow will abort if you do):
+              .github/workflows/claude-builder.yml
+              api/builder/**, api/live/**, api/_lib/builderAuth.js,
+              api/_lib/builderHmac.js, api/_lib/githubDispatch.js,
+              supabase/builder_schema.sql
+            - Make focused changes. Commit nothing yourself — the workflow will commit after you finish.
+            - If the prompt is unsafe or impossible, refuse and explain briefly.
+
+      - name: Builder-system guard (abort if guarded files changed)
+        run: |
+          set -euo pipefail
+          FAIL=0
+          while read -r line; do
+            [ -z "$line" ] && continue
+            f=$(echo "$line" | awk '{print $1}')
+            old=$(echo "$line" | awk '{print $2}')
+            new=$(git hash-object "$f" 2>/dev/null || echo "missing")
+            if [ "$old" != "$new" ]; then
+              echo "GUARD VIOLATION: $f changed ($old -> $new)"
+              FAIL=1
+            fi
+          done < /tmp/preflight.txt
+          if [ "$FAIL" -eq 1 ]; then
+            /tmp/notify.sh "$(jq -nc --arg s "${{ inputs.session_id }}" '{session_id:$s, kind:"error", payload:{stage:"guard", detail:"builder-system path was modified"}}')"
+            exit 1
+          fi
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Stage & commit (skip if nothing changed)
+        id: commit
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no_changes=1" >> "$GITHUB_OUTPUT"
+          else
+            MSG=$(printf 'release: %s' "${{ inputs.prompt }}" | head -c 80)
+            git commit -m "$MSG"
+            SHA=$(git rev-parse HEAD)
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+            echo "msg=$MSG" >> "$GITHUB_OUTPUT"
+            echo "no_changes=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify commit
+        if: steps.commit.outputs.no_changes == '0'
+        run: |
+          /tmp/notify.sh "$(jq -nc \
+            --arg s "${{ inputs.session_id }}" \
+            --arg sha "${{ steps.commit.outputs.sha }}" \
+            --arg msg "${{ steps.commit.outputs.msg }}" \
+            '{session_id:$s, kind:"commit", payload:{sha:$sha, message:$msg}}')"
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Compute next release-N tag and push (with retry)
+        id: tagpush
+        if: steps.commit.outputs.no_changes == '0'
+        run: |
+          set -euo pipefail
+          # Fetch tags so we see the latest release-N globally.
+          git fetch --tags --force
+          # Find the highest existing release-N and increment.
+          LATEST=$(git tag -l 'release-*' | sed 's/release-//' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+          if [ -z "$LATEST" ]; then NEXT=1; else NEXT=$((LATEST + 1)); fi
+          for attempt in 1 2 3; do
+            TAG="release-$NEXT"
+            if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+              NEXT=$((NEXT + 1))
+              continue
+            fi
+            git tag "$TAG"
+            if git push origin release-latest "$TAG"; then
+              echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+              echo "n=$NEXT"      >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            # Push failed — refetch and bump.
+            git tag -d "$TAG"
+            git fetch --tags --force
+            git pull --ff-only origin release-latest || true
+            NEXT=$((NEXT + 1))
+          done
+          echo "Failed after 3 attempts" >&2
+          exit 1
+
+      - name: Notify tag
+        if: steps.tagpush.outputs.tag != ''
+        run: |
+          /tmp/notify.sh "$(jq -nc \
+            --arg s "${{ inputs.session_id }}" \
+            --arg t "${{ steps.tagpush.outputs.tag }}" \
+            --arg sha "${{ steps.commit.outputs.sha }}" \
+            '{session_id:$s, kind:"tag", payload:{tag:$t, sha:$sha}}')"
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Wait for Vercel deployment & notify done
+        if: steps.tagpush.outputs.tag != ''
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL: ${{ secrets.BUILDER_WEBHOOK_URL }}
+          TAG: ${{ steps.tagpush.outputs.tag }}
+          SID: ${{ inputs.session_id }}
+        run: |
+          set -euo pipefail
+          DEPLOY_URL=""
+          for i in $(seq 1 60); do  # ~5 minutes (60 * 5s)
+            RESP=$(curl -fsS "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&meta-githubCommitSha=${SHA}&limit=1" \
+              -H "Authorization: Bearer ${VERCEL_API_TOKEN}" || echo '{}')
+            STATE=$(echo "$RESP" | jq -r '.deployments[0].state // empty')
+            URL=$(echo "$RESP" | jq -r '.deployments[0].url // empty')
+            if [ "$STATE" = "READY" ] && [ -n "$URL" ]; then
+              DEPLOY_URL="https://$URL"
+              break
+            fi
+            sleep 5
+          done
+          BODY=$(jq -nc --arg s "$SID" --arg url "$DEPLOY_URL" --arg t "$TAG" --arg sha "$SHA" \
+            '{session_id:$s, kind:"done", payload:{deployUrl:$url, tag:$t, sha:$sha}}')
+          /tmp/notify.sh "$BODY"
+
+      - name: Notify no-op (if Claude made no changes)
+        if: steps.commit.outputs.no_changes == '1'
+        run: |
+          /tmp/notify.sh "$(jq -nc --arg s "${{ inputs.session_id }}" '{session_id:$s, kind:"done", payload:{detail:"no changes made"}}')"
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          /tmp/notify.sh "$(jq -nc --arg s "${{ inputs.session_id }}" --arg run "${{ github.run_id }}" \
+            '{session_id:$s, kind:"error", payload:{stage:"workflow", run_id:$run, detail:"see Actions logs"}}')"
+        env:
+          BUILDER_WEBHOOK_SECRET: ${{ secrets.BUILDER_WEBHOOK_SECRET }}
+          BUILDER_WEBHOOK_URL:    ${{ secrets.BUILDER_WEBHOOK_URL }}
