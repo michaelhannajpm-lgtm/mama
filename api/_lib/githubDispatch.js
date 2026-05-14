@@ -18,7 +18,10 @@ export const dispatchClaudeBuilder = async ({ prompt, sessionId, mode, historyB6
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ref: 'master',  // workflow file is read from master; the action checks out release-latest itself
+        // Branch the workflow FILE is read from. The workflow itself
+        // checks out release-latest regardless. Override with the
+        // BUILDER_WORKFLOW_REF env var while the feature is still on a branch.
+        ref: process.env.BUILDER_WORKFLOW_REF || 'master',
         inputs: {
           prompt: prompt.slice(0, 8000),
           session_id: sessionId,
