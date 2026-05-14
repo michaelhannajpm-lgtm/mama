@@ -33,30 +33,25 @@ jobs:
     permissions:
       contents: write
       actions: read
+      id-token: write   # claude-code-action needs OIDC
 
     steps:
-      - name: Checkout release-latest (or create from master)
-        uses: actions/checkout@v4
-        with:
-          ref: release-latest
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Fall back to master if release-latest doesn't exist
-        if: failure()
+      - name: Checkout master (will switch to release-latest after)
         uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Ensure we're on release-latest
+      - name: Switch to release-latest (create from master if missing)
         run: |
           set -euo pipefail
+          git fetch --all --tags
           if git show-ref --verify --quiet refs/remotes/origin/release-latest; then
             git checkout release-latest
             git pull --ff-only origin release-latest
           else
+            echo "release-latest doesn't exist yet — creating from master"
             git checkout -B release-latest
           fi
           echo "On branch: $(git rev-parse --abbrev-ref HEAD)"
