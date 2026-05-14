@@ -1,10 +1,32 @@
 // POST /api/builder/prompt
 // Body: { session_id?: uuid, mode: 'continue'|'fresh', prompt: string }
-// - If session_id missing: create a new session.
-// - Insert a 'prompt' event for the user message.
-// - (Task 8 will append: dispatch the GitHub Action.)
 import { json, supabaseCreds, sbHeaders, readJsonBody, cleanText, isUuid } from '../_lib/supabase.js';
 import { requireBuilder } from '../_lib/builderAuth.js';
+import { dispatchClaudeBuilder } from '../_lib/githubDispatch.js';
+
+const MAX_HISTORY_EVENTS = 60; // ~last 20 turns of prompt+commit+file_edit
+
+const buildHistory = async (creds, sessionId) => {
+  const url = `${creds.supabaseUrl}/rest/v1/builder_events?session_id=eq.${sessionId}&kind=in.(prompt,commit,file_edit,tag)&order=ts.asc&select=ts,kind,payload&limit=${MAX_HISTORY_EVENTS}`;
+  const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
+  if (!r.ok) return '';
+  const rows = await r.json();
+  const lines = rows.map((e) => {
+    if (e.kind === 'prompt') return `[user] ${e.payload?.text || ''}`;
+    if (e.kind === 'commit') return `[committed] ${e.payload?.sha?.slice(0, 7) || ''} ${e.payload?.message || ''}`;
+    if (e.kind === 'tag') return `[tagged] ${e.payload?.tag || ''}`;
+    if (e.kind === 'file_edit') return `[edited] ${e.payload?.path || ''}`;
+    return '';
+  }).filter(Boolean);
+  return Buffer.from(lines.join('\n'), 'utf8').toString('base64');
+};
+
+const insertEvent = (creds, sessionId, kind, payload) =>
+  fetch(`${creds.supabaseUrl}/rest/v1/builder_events`, {
+    method: 'POST',
+    headers: { ...sbHeaders(creds.serviceRoleKey), Prefer: 'return=minimal' },
+    body: JSON.stringify({ session_id: sessionId, kind, payload }),
+  });
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -41,21 +63,18 @@ export default async function handler(req, res) {
   }
 
   // 2) Insert prompt event.
-  const er = await fetch(`${creds.supabaseUrl}/rest/v1/builder_events`, {
-    method: 'POST',
-    headers: { ...sbHeaders(creds.serviceRoleKey), Prefer: 'return=representation' },
-    body: JSON.stringify({
-      session_id: sessionId,
-      kind: 'prompt',
-      payload: { text: prompt, by: user.email, mode },
-    }),
-  });
-  if (!er.ok) {
-    const t = await er.text().catch(() => '');
-    return json(res, 502, { error: `Supabase event insert: ${t.slice(0, 200)}` });
+  await insertEvent(creds, sessionId, 'prompt', { text: prompt, by: user.email, mode });
+
+  // 3) Bundle history (only in continue mode).
+  const historyB64 = mode === 'continue' ? await buildHistory(creds, sessionId) : '';
+
+  // 4) Dispatch workflow.
+  const result = await dispatchClaudeBuilder({ prompt, sessionId, mode, historyB64 });
+  if (!result.ok) {
+    await insertEvent(creds, sessionId, 'error', { stage: 'dispatch', detail: result.error || 'unknown' });
+    return json(res, 502, { error: 'Dispatch failed', detail: result.error });
   }
 
-  // 3) (Task 8) dispatch workflow with history.
-  // For now: just return the session id.
-  return json(res, 200, { session_id: sessionId, dispatched: false });
+  await insertEvent(creds, sessionId, 'status', { stage: 'dispatched' });
+  return json(res, 200, { session_id: sessionId, dispatched: true });
 }
