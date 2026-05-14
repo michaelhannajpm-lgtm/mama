@@ -62,7 +62,7 @@ export function BuilderPage() {
 
   // ---- Renders ----
   if (!authReady) return <Centered>Loading…</Centered>;
-  if (!authUser) return <Centered>Sign in via gomama.app first, then return to /builder.</Centered>;
+  if (!authUser) return <SignIn />;
 
   const deployUrl = (() => {
     // Last event of kind 'done' or 'deploy' with a url.
@@ -99,6 +99,65 @@ function Centered({ children }) {
   return (
     <div style={{ height: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'Albert Sans, sans-serif', color: C.inkSoft }}>
       <div>{children}</div>
+    </div>
+  );
+}
+
+function SignIn() {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error'
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const send = async (e) => {
+    e?.preventDefault?.();
+    const addr = email.trim().toLowerCase();
+    if (!addr) return;
+    if (!isSupabaseReady()) { setStatus('error'); setErrorMsg('Supabase not configured'); return; }
+    setStatus('sending'); setErrorMsg('');
+    const { error } = await supabase.auth.signInWithOtp({
+      email: addr,
+      options: { emailRedirectTo: `${window.location.origin}/builder` },
+    });
+    if (error) { setStatus('error'); setErrorMsg(error.message); return; }
+    setStatus('sent');
+  };
+
+  return (
+    <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: C.cream, fontFamily: 'Albert Sans, sans-serif', color: C.ink }}>
+      <div style={{ width: 360, padding: 24, background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 6 }}>
+        <h1 style={{ margin: 0, marginBottom: 6, fontFamily: 'Fraunces, serif', fontSize: 22 }}>Builder sign-in</h1>
+        <p style={{ marginTop: 0, marginBottom: 16, color: C.inkSoft, fontSize: 13 }}>
+          Enter your email. If it's on the allowlist, we'll send a magic link.
+        </p>
+        {status === 'sent' ? (
+          <div style={{ padding: 12, background: C.creamSoft, borderRadius: 4, fontSize: 14 }}>
+            Check <strong>{email}</strong> for a sign-in link. Click it to come back here.
+          </div>
+        ) : (
+          <form onSubmit={send}>
+            <input
+              type="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              style={{ width: '100%', boxSizing: 'border-box', padding: 8, fontSize: 14, border: `1px solid ${C.divider}`, borderRadius: 4, marginBottom: 8 }}
+              disabled={status === 'sending'}
+            />
+            <button type="submit" disabled={status === 'sending' || !email.trim()} style={{
+              width: '100%', padding: '8px 12px', fontSize: 14, color: 'white',
+              background: status === 'sending' ? C.inkMuted : C.terracotta,
+              border: 'none', borderRadius: 4,
+              cursor: status === 'sending' ? 'not-allowed' : 'pointer',
+            }}>
+              {status === 'sending' ? 'Sending…' : 'Send magic link'}
+            </button>
+            {status === 'error' && (
+              <div style={{ marginTop: 10, color: '#B23A48', fontSize: 13 }}>{errorMsg}</div>
+            )}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
