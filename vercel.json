@@ -25,6 +25,14 @@
       "destination": "/"
     },
     {
+      "source": "/builder",
+      "destination": "/"
+    },
+    {
+      "source": "/builder/:path*",
+      "destination": "/"
+    },
+    {
       "source": "/live",
       "destination": "/"
     },
