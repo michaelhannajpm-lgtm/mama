@@ -24,24 +24,16 @@ const extractJwt = (req) => {
 
 export const verifyJwt = async (req) => {
   const jwt = extractJwt(req);
-  if (!jwt) { console.error('[builderAuth] no JWT in Authorization header'); return null; }
+  if (!jwt) return null;
   const url = process.env.SUPABASE_URL;
   const anon = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anon) {
-    console.error('[builderAuth] env missing — SUPABASE_URL set?', !!url, 'SUPABASE_ANON_KEY set?', !!anon);
-    return null;
-  }
+  if (!url || !anon) return null;
   const r = await fetch(`${url}/auth/v1/user`, {
     headers: { apikey: anon, Authorization: `Bearer ${jwt}` },
-  }).catch((e) => { console.error('[builderAuth] fetch threw:', e?.message); return null; });
-  if (!r) return null;
-  if (!r.ok) {
-    const body = await r.text().catch(() => '');
-    console.error('[builderAuth] /auth/v1/user', r.status, body.slice(0, 200));
-    return null;
-  }
+  }).catch(() => null);
+  if (!r || !r.ok) return null;
   const user = await r.json().catch(() => null);
-  if (!user?.email) { console.error('[builderAuth] user JSON has no email:', JSON.stringify(user)?.slice(0, 200)); return null; }
+  if (!user?.email) return null;
   return user;
 };
 
