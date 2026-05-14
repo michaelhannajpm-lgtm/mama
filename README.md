@@ -275,3 +275,20 @@ src/theme.js
 ```bash
 git status --short --branch
 ```
+
+## In-browser builder (`/builder` and `/live`)
+
+`/builder` is an authenticated chat where the owner (and a small email allowlist) can prompt Claude to make code changes from any device. Each prompt:
+
+1. Inserts a `prompt` event into Supabase `builder_events`.
+2. Triggers a `workflow_dispatch` on `claude-builder.yml`.
+3. The Action runs `anthropics/claude-code-action` against the `release-latest` branch.
+4. Claude's changes are committed and pushed; a `release-N` tag is created.
+5. Vercel auto-deploys the new commit.
+6. Action posts back HMAC-signed webhooks; the chat UI subscribes via Supabase Realtime.
+
+`/live` lists `release-*` tags and links each one to its Vercel preview URL.
+
+**Builder-system guard:** the Action aborts if Claude tries to edit any of the builder's own auth or workflow files. See `.github/workflows/claude-builder.yml`.
+
+**Env vars:** see `.env.example` (and configure them in Vercel + GitHub Secrets).
