@@ -4,7 +4,9 @@ import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 
 export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPremium }) => {
-  const FREE_LIMIT = 10;
+  // GoMama redesign: free tier softened from 10 → 25 messages per mom.
+  // Premium still unlocks unlimited; gating mechanism unchanged.
+  const FREE_LIMIT = 25;
   const userMessages = history.filter(m => m.fromUser);
   const used = userMessages.length;
   const remaining = FREE_LIMIT - used;
@@ -33,7 +35,7 @@ export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPre
           <h3 className="mt-1.5" style={{ fontFamily:'Fraunces', fontSize: 22, fontWeight:500, color: C.ink, letterSpacing:'-.02em' }}>
             {isPremium
               ? <>Chat <span style={{ fontStyle:'italic', color: C.terracotta }}>unlimited</span>.</>
-              : <>Your first <span style={{ fontStyle:'italic', color: C.terracotta }}>10 messages</span> are free.</>}
+              : <>Your first <span style={{ fontStyle:'italic', color: C.terracotta }}>{FREE_LIMIT} messages</span> are free.</>}
           </h3>
         </div>
 
@@ -98,7 +100,7 @@ export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPre
               </div>
             </div>
             <div className="text-[12px] mb-3" style={{ fontFamily:'Albert Sans', opacity: .8, lineHeight: 1.4 }}>
-              You've used your 3 free messages with {mom.name.split(' ')[0]}. Plus unlocks unlimited chat with every match.
+              You've used your {FREE_LIMIT} free messages with {mom.name.split(' ')[0]}. Plus unlocks unlimited chat with every match.
             </div>
             <button onClick={openPremium} className="w-full rounded-xl flex items-center justify-center gap-2"
               style={{

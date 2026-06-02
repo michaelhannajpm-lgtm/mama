@@ -10,15 +10,11 @@ import { ProfileSheet } from './sheets/ProfileSheet';
 import { MessageSheet } from './sheets/MessageSheet';
 import { CreateAccountSheet } from './sheets/CreateAccountSheet';
 import { PremiumSheet } from './sheets/PremiumSheet';
-import { Splash } from './screens/Splash';
-import { Welcome }       from './screens/onboarding/Welcome';
-import { LocationStep }  from './screens/onboarding/LocationStep';
-import { ProfileStep }   from './screens/onboarding/ProfileStep';
-import { ScheduleStep }  from './screens/onboarding/ScheduleStep';
-import { PlacesStep }    from './screens/onboarding/PlacesStep';
-import { Summary }       from './screens/onboarding/Summary';
-import { Account }       from './screens/onboarding/Account';
-import { Login }         from './screens/onboarding/Login';
+import { Landing }        from './screens/Landing';
+import { AboutYou }       from './screens/onboarding/AboutYou';
+import { VillagePreview } from './screens/onboarding/VillagePreview';
+import { Account }        from './screens/onboarding/Account';
+import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 
@@ -29,10 +25,11 @@ function PrototypeApp({ bare = false }) {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'' });
+  const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
   const [location, setLocation] = useState('Tampa, FL');
   const [distance, setDistance] = useState(null);
   const [prefs, setPrefs] = useState({ slots:[], places:[] });
+  const [savedItems, setSavedItems] = useState([]); // ids of bookmarked meetups + places (Favorites)
   const [scheduleMom, setScheduleMom] = useState(null);
   const [profileMom, setProfileMom] = useState(null);
   const [messageMom, setMessageMom] = useState(null);
@@ -84,7 +81,7 @@ function PrototypeApp({ bare = false }) {
           email: result.email,
         });
         setSplashShown(true);
-        setStep(7);
+        setStep(3); // jump straight to MainApp for returning users
         flash(`Welcome back, ${result.first_name} ✦`);
       } catch {
         /* silent */
@@ -108,10 +105,11 @@ function PrototypeApp({ bare = false }) {
 
   const restart = async () => {
     setStep(0);
-    setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'' });
+    setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
     setLocation('Tampa, FL');
     setDistance(null);
     setPrefs({ slots:[], places:[] });
+    setSavedItems([]);
     setAccount(null);
     setScheduled1to1({});
     setJoinedEvents([]);
@@ -170,31 +168,45 @@ function PrototypeApp({ bare = false }) {
                 setAccount(acct);
                 setLoginOpen(false);
                 setSplashShown(true);
-                setStep(7);
+                setStep(3);
                 flash(`Welcome back, ${acct.firstName} ✦`);
               }}
               flash={flash}
             />
           ) : !splashShown ? (
-            <Splash onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}/>
+            <Landing onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}/>
           ) : (<>
-          {step===0 && <Welcome onNext={()=>advance(0, {})} onBack={()=>setStep(0)}/>}
-          {step===1 && <LocationStep onNext={()=>advance(1, { location, distance_miles: distance })} onBack={()=>setStep(0)} location={location} setLocation={setLocation} distance={distance} setDistance={setDistance}/>}
-          {step===2 && <ProfileStep onNext={()=>advance(2, { kids_ages: profile.kidsAges, mom_types: profile.momTypes, values: profile.values, interests: profile.interests })} onBack={()=>setStep(1)} profile={profile} setProfile={setProfile}/>}
-          {step===3 && <ScheduleStep onNext={()=>advance(3, { slots: prefs.slots })} onBack={()=>setStep(2)} prefs={prefs} setPrefs={setPrefs}/>}
-          {step===4 && <PlacesStep onNext={()=>advance(4, { places: prefs.places })} onBack={()=>setStep(3)} prefs={prefs} setPrefs={setPrefs} location={location}/>}
-          {step===5 && <Summary onNext={()=>advance(5, {})} onBack={()=>setStep(4)} profile={profile} prefs={prefs} location={location} distance={distance}/>}
-          {step===6 && <Account
-            onBack={()=>setStep(5)}
+          {step===0 && <AboutYou
+            onNext={()=>advance(0, {
+              location,
+              kids_ages: profile.kidsAges,
+              mom_types: profile.momTypes,
+              interests: profile.interests,
+              slots: prefs.slots,
+            })}
+            onBack={()=>{ setSplashShown(false); }}
+            profile={profile} setProfile={setProfile}
+            location={location} setLocation={setLocation}
+            prefs={prefs} setPrefs={setPrefs}
+          />}
+          {step===1 && <VillagePreview
+            onNext={()=>advance(1, {})}
+            onBack={()=>setStep(0)}
+            savedItems={savedItems}
+            setSavedItems={setSavedItems}
+          />}
+          {step===2 && <Account
+            onBack={()=>setStep(1)}
             account={account}
-            onComplete={(acct) => { setAccount(acct); setStep(7); }}
+            onComplete={(acct) => { setAccount(acct); setStep(3); }}
             flash={flash}
           />}
-          {step===7 && <MainApp
+          {step===3 && <MainApp
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} distance={distance}
             scheduled1to1={scheduled1to1}
             joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
+            savedItems={savedItems} setSavedItems={setSavedItems}
             account={account} requestAccount={requestAccount}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}
@@ -277,29 +289,24 @@ export default function App() {
   const [route, setRoute] = useState(getRoute);
 
   useEffect(() => {
-    if (window.location.hash === '#prototype') {
-      window.history.replaceState({}, '', '/prototype');
-      setRoute('/prototype');
-    }
-
     const onRouteChange = () => setRoute(getRoute());
     window.addEventListener('popstate', onRouteChange);
     return () => window.removeEventListener('popstate', onRouteChange);
   }, []);
 
-  if (route === '/prototype' || route === '/preview') return <PrototypeApp />;
-  if (route === '/live') return <PrototypeApp bare />;
   if (route === '/admin' || route.startsWith('/admin/')) {
-    // Lazy import via static reference — kept simple, no Suspense needed.
     return <AdminPage />;
   }
+  if (route === '/waitlist') {
+    return (
+      <WaitlistPage
+        onNavigate={(path) => {
+          window.history.pushState({}, '', path);
+          window.dispatchEvent(new Event('popstate'));
+        }}
+      />
+    );
+  }
 
-  return (
-    <WaitlistPage
-      onNavigate={(path) => {
-        window.history.pushState({}, '', path);
-        window.dispatchEvent(new Event('popstate'));
-      }}
-    />
-  );
+  return <PrototypeApp bare />;
 }

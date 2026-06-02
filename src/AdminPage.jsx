@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
-  Monitor, Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
+  Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
   ChevronLeft, ChevronRight, MessageSquare,
 } from 'lucide-react';
 import { C } from './theme';
@@ -276,8 +276,9 @@ const MomsReport = ({ rows, momProfiles }) => {
   const completed = rows.filter(r => !!r.completed_at);
   const completionRate = pct(completed.length, rows.length);
 
-  // Funnel by current_step (0..7)
-  const stepLabels = ['Splash', 'Welcome', 'Location', 'Profile', 'When', 'Where', 'Summary', 'Account', 'Done'];
+  // Funnel by current_step (0..3) — new 4-screen GoMama onboarding flow.
+  // 0 = Landing (pre-step), 1 = AboutYou done, 2 = VillagePreview done, 3 = Account done.
+  const stepLabels = ['Landing', 'About you', 'Village preview', 'Account', 'Done'];
   const stepCounts = stepLabels.map((_, i) => rows.filter(r => (r.current_step || 0) >= i).length);
 
   // Breakdowns
@@ -869,6 +870,28 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
             ) : (
               <span className="text-[12.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>—</span>
             )}
+            {/* GoMama prototype verification signals — self-attested by the mom
+                in Profile tab. (Instagram OR Facebook) + photo ⇒ Verified mom. */}
+            {mom.verified && typeof mom.verified === 'object' && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[
+                  { key: 'instagram', label: 'Instagram' },
+                  { key: 'facebook',  label: 'Facebook'  },
+                  { key: 'photo',     label: 'Real photo' },
+                ].map(f => {
+                  const on = !!mom.verified[f.key];
+                  return (
+                    <span key={f.key} className="rounded-full px-2.5 py-1 text-[11px]" style={{
+                      background: on ? `${C.sageDark}20` : C.creamSoft,
+                      color: on ? C.sageDark : C.inkMuted,
+                      fontFamily: 'Albert Sans', fontWeight: 700, letterSpacing: '.04em',
+                    }}>
+                      {f.label} · {on ? 'on' : 'off'}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </Section>
 
           <Section title="Audit">
@@ -1070,6 +1093,14 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
     return `${a.slice(0, max).join(', ')} +${a.length - max}`;
   };
 
+  // GoMama redesign — verification signal counts (Instagram + Facebook + photo).
+  // Source: profile.verified, mirrored into onboarding_profiles JSONB.
+  const social = rows.filter(r => r.verified?.instagram || r.verified?.facebook).length;
+  const photoVerified = rows.filter(r => r.verified?.photo).length;
+  const fullyVerified = rows.filter(r =>
+    (r.verified?.instagram || r.verified?.facebook) && r.verified?.photo
+  ).length;
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1077,6 +1108,13 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
         <Stat label="Real signups" value={fmt(realCount)} hint="source=onboarding"/>
         <Stat label="Seeded" value={fmt(seedCount)} hint="source=seed"/>
         <Stat label="Verified" value={fmt(verified)} hint={pct(verified, rows.length)}/>
+      </div>
+
+      {/* GoMama verification funnel — social ⇄ photo ⇄ fully verified */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Stat label="Social connected" value={fmt(social)} hint="Instagram or Facebook"/>
+        <Stat label="Real photo added" value={fmt(photoVerified)} hint={pct(photoVerified, rows.length)}/>
+        <Stat label="Fully verified" value={fmt(fullyVerified)} hint="social + photo"/>
       </div>
 
       <SectionTitle hint="last 30 days">Daily new mom profiles</SectionTitle>
@@ -1760,15 +1798,10 @@ export const AdminPage = () => {
               Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} onboardings · ${momProfiles?.length || 0} mom profiles · ${waitlist?.length || 0} waitlist` : ''}
             </div>
           </div>
-          <a href="/preview" target="_blank" rel="noopener noreferrer"
+          <a href="/" target="_blank" rel="noopener noreferrer"
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"
             style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-            <Monitor size={13}/> Show desktop version
-          </a>
-          <a href="/live" target="_blank" rel="noopener noreferrer"
-            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-            <Smartphone size={13}/> Show mobile version
+            <Smartphone size={13}/> Open the app
           </a>
           <button onClick={load} disabled={loading}
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"

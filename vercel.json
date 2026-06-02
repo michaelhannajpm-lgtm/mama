@@ -1,19 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/prototype",
-      "destination": "/"
-    },
-    {
-      "source": "/prototype/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/preview",
-      "destination": "/"
-    },
-    {
-      "source": "/preview/:path*",
+      "source": "/waitlist",
       "destination": "/"
     },
     {
@@ -22,14 +10,6 @@
     },
     {
       "source": "/admin/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/live",
-      "destination": "/"
-    },
-    {
-      "source": "/live/:path*",
       "destination": "/"
     },
     {

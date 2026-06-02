@@ -7,7 +7,6 @@ import {
   Mail,
   MapPin,
   Menu,
-  Monitor,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -220,11 +219,8 @@ export const WaitlistPage = ({ onNavigate }) => {
           <div className={`wl-nav-links ${navOpen ? 'is-open' : ''}`}>
             <a href="#why" onClick={closeNav}>Why Go Mama</a>
             <a href="#launch" onClick={closeNav}>Launch cities</a>
-            <a href="/preview" onClick={handleNavTo('/preview')}>
-              Desktop view
-            </a>
-            <a href="/live" onClick={handleNavTo('/live')}>
-              Mobile view
+            <a href="/" onClick={handleNavTo('/')}>
+              Open the app
             </a>
             <a href="/admin" onClick={handleNavTo('/admin')}>
               Admin
@@ -377,12 +373,8 @@ export const WaitlistPage = ({ onNavigate }) => {
             <span>Go Mama</span>
           </div>
           <div className="wl-footer-links">
-            <a href="/preview" onClick={handleNavTo('/preview')}>
-              Desktop view
-              <Monitor size={16} />
-            </a>
-            <a href="/live" onClick={handleNavTo('/live')}>
-              Mobile view
+            <a href="/" onClick={handleNavTo('/')}>
+              Open the app
               <Smartphone size={16} />
             </a>
           </div>

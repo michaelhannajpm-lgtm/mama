@@ -36,11 +36,12 @@ The database is **Postgres**, managed by Supabase. Schema lives in `supabase/*.s
 ## Product Areas
 
 - Waitlist marketing page for early demand capture
-- Onboarding for location, kid ages, mom type, values, interests, availability, and places
+- 3-screen GoMama-style onboarding (AboutYou → VillagePreview → Account) capturing Tampa-Bay area, kid ages, mom type, available days, and interests
 - Matching cards based on schedule overlap and profile fit
-- Main app tabs for matches, calendar, places, events, and profile
+- 4-tab main app: Meetups (1:1 + group toggle), Places, Favorites, Profile (with verification + upcoming meetups)
+- Profile verification via Instagram or Facebook plus a real photo
 - Bottom-sheet flows for profiles, scheduling, messages, premium, account creation, and profile editing
-- Premium preview for full profiles, full attendee visibility, and expanded messaging
+- Premium preview for full profiles, full attendee visibility, and expanded messaging (25-message free tier)
 
 ## Tech Stack
 
@@ -250,12 +251,14 @@ origin/master
 
 ## Design System
 
-The app uses a warm editorial visual system:
+The app uses the GoMama coral / navy visual system (ported from the
+Expo prototype at `C:\projects\GoMama` on 2026-06-01):
 
-- Cream and paper backgrounds
-- Terracotta primary actions
-- Sage secondary accents
-- Saffron highlights
+- Cream + blush backgrounds
+- Coral primary actions (`#E96B7D` / `#D6446A` gradient)
+- Navy ink for body text
+- Light sage / lilac / peach feature backgrounds
+- Saffron highlights for premium pop
 - Fraunces headings
 - Albert Sans body and UI text
 
@@ -264,6 +267,11 @@ Shared color tokens live in:
 ```txt
 src/theme.js
 ```
+
+Existing token names (`terracotta`, `ink`, `sage`, etc.) are preserved
+so every component inherits the palette without a rename. See
+`docs/superpowers/specs/2026-06-01-gomama-prototype-port-design.md` for
+the full mapping.
 
 ## Notes For Contributors
 

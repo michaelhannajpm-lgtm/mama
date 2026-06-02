@@ -2,19 +2,48 @@ import { useRef, useState } from 'react';
 import {
   MapPin, Lock, ShieldCheck, Star, MessageCircle, Calendar as CalendarIcon,
   Plus, X, Pencil, ChevronLeft, ChevronRight, Mail, Phone, LogOut,
+  Instagram, Facebook, User as UserIcon, Users,
+  ChevronRight as ChevronRightSm,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { Sprig } from '../../components/icons/Sprig';
 import { MOM_TYPES } from '../../data/taxonomy';
+import { SAMPLE_MOMS } from '../../data/moms';
+import { SUGGESTED_EVENTS } from '../../data/events';
 import { EditProfileSheet } from '../../sheets/EditProfileSheet';
 import { signOut as signOutSession, updateMomProfile } from '../../lib/onboarding';
 
 const MAX_PHOTOS = 6;
 
-export const YouTab = ({ profile, setProfile, account, prefs, location, distance, restart }) => {
+export const YouTab = ({
+  profile, setProfile, account, prefs, location, distance,
+  scheduled1to1 = {}, joinedEvents = [], goToMeetups,
+  restart,
+}) => {
   void prefs;
   const [editOpen, setEditOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ───── Verification state (Instagram + Facebook + real photo)
+  // Stored under profile.verified so it survives across renders.
+  const verified = profile.verified || { instagram: false, facebook: false, photo: false };
+  const isFullyVerified = (verified.instagram || verified.facebook) && verified.photo;
+  const toggleVerification = (key) => {
+    setProfile(p => ({
+      ...p,
+      verified: { ...(p.verified || {}), [key]: !((p.verified || {})[key]) },
+    }));
+  };
+
+  // ───── Upcoming items (folded from the old Calendar tab)
+  const upcoming1to1 = Object.entries(scheduled1to1 || {}).map(([momId, slot]) => {
+    const mom = SAMPLE_MOMS.find(m => String(m.id) === String(momId));
+    return mom ? { kind: '1to1', mom, slot } : null;
+  }).filter(Boolean);
+  const upcomingGroups = (joinedEvents || []).map(id =>
+    SUGGESTED_EVENTS.find(e => e.id === id)
+  ).filter(Boolean);
+  const totalUpcoming = upcoming1to1.length + upcomingGroups.length;
 
   const photos = profile.photos || [];
   const canAddPhoto = photos.length < MAX_PHOTOS;
@@ -232,6 +261,118 @@ export const YouTab = ({ profile, setProfile, account, prefs, location, distance
         {!account && (
           <div className="mt-3 flex items-center gap-2 text-[11.5px]" style={{ fontFamily:'Albert Sans', opacity:.92 }}>
             <Lock size={11}/> Sign up to save · keep using free
+          </div>
+        )}
+      </div>
+
+      {/* Verification — ported from GoMama prototype.
+          (Instagram OR Facebook) + real photo ⇒ "Verified mom". */}
+      <div className="mb-4">
+        <div className="text-[10.5px] tracking-[.16em] uppercase mb-2 flex items-baseline justify-between" style={{
+          color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600,
+        }}>
+          <span>Verify your profile</span>
+          <span className="rounded-full px-2 py-0.5 text-[10px]" style={{
+            background: isFullyVerified ? '#DFF5E5' : '#FFF4D6',
+            color: isFullyVerified ? '#2A7A48' : '#B8852A',
+            fontFamily:'Albert Sans', fontWeight:700, letterSpacing:'.04em',
+            textTransform: 'none',
+          }}>
+            {isFullyVerified ? '✓ Verified mom' : '⏳ Pending'}
+          </span>
+        </div>
+        <div className="rounded-[18px] p-3.5" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
+          <div className="text-[11.5px] mb-2.5" style={{ fontFamily:'Albert Sans', color: C.inkMuted, lineHeight: 1.4 }}>
+            Connect a social account + add a real photo. Keeps the space safe for moms.
+          </div>
+          {[
+            { key:'instagram', label:'Connect Instagram', icon: Instagram, brand:'#E4405F' },
+            { key:'facebook',  label:'Connect Facebook',  icon: Facebook,  brand:'#1877F2' },
+            { key:'photo',     label:'Add a real photo',  icon: UserIcon,  brand: C.coralDeep },
+          ].map(row => {
+            const on = !!verified[row.key];
+            return (
+              <button key={row.key} onClick={() => toggleVerification(row.key)}
+                className="w-full mt-1.5 first:mt-0 rounded-xl px-3 py-2.5 flex items-center gap-2.5 transition-all active:scale-[.99]"
+                style={{
+                  background: on ? C.sage : C.paper,
+                  border: `1.3px solid ${on ? '#5E7A3B' : C.line}`,
+                }}>
+                <row.icon size={16} style={{ color: on ? '#5E7A3B' : row.brand }}/>
+                <span className="flex-1 text-left text-[13px]" style={{ fontFamily:'Albert Sans', fontWeight:600, color: C.navy }}>
+                  {row.label}
+                </span>
+                <span style={{ color: on ? '#5E7A3B' : C.muted, fontWeight: 700 }}>
+                  {on ? '✓' : '›'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Upcoming — folded from the old Calendar tab */}
+      <div className="mb-4">
+        <div className="text-[10.5px] tracking-[.16em] uppercase mb-2 flex items-baseline justify-between" style={{
+          color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600,
+        }}>
+          <span>Upcoming</span>
+          <span className="text-[10px]" style={{ color: C.inkMuted, fontWeight:500, textTransform:'none', letterSpacing:0 }}>
+            {totalUpcoming === 0 ? 'Nothing on the calendar' : `${totalUpcoming} ${totalUpcoming === 1 ? 'meetup' : 'meetups'}`}
+          </span>
+        </div>
+        {totalUpcoming === 0 ? (
+          <button onClick={goToMeetups}
+            className="w-full rounded-[18px] p-4 flex items-center justify-between transition-all active:scale-[.99]"
+            style={{ background: C.coralSoft, border: `1px dashed ${C.coral}` }}>
+            <div className="text-left">
+              <div className="text-[13px]" style={{ fontFamily:'Albert Sans', fontWeight:700, color: C.coralDeep }}>
+                Schedule your first meetup
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ fontFamily:'Albert Sans', color: C.coralDeep, opacity:.75 }}>
+                Browse Meetups for moms + groups near you
+              </div>
+            </div>
+            <ChevronRightSm size={16} color={C.coralDeep}/>
+          </button>
+        ) : (
+          <div className="rounded-[18px] overflow-hidden" style={{ background: C.paper, border:`1px solid ${C.divider}` }}>
+            {upcoming1to1.map(({ mom, slot }, i) => (
+              <div key={`m-${mom.id}`}
+                className="flex items-center gap-3 px-3 py-2.5"
+                style={{ borderTop: i === 0 ? 'none' : `1px solid ${C.divider}` }}>
+                <div className="rounded-xl flex-shrink-0 overflow-hidden" style={{ width: 36, height: 36, background: C.coral }}>
+                  {mom.photo && <img src={mom.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12.5px] truncate" style={{ fontFamily:'Albert Sans', fontWeight:700, color: C.navy }}>
+                    1:1 with {mom.name.split(' ')[0]}
+                  </div>
+                  <div className="text-[10.5px] mt-0.5 truncate" style={{ fontFamily:'Albert Sans', color: C.muted }}>
+                    {slot.day} · {slot.time}{slot.place ? ` · ${slot.place}` : ''}
+                  </div>
+                </div>
+                <CalendarIcon size={14} color={C.coralDeep}/>
+              </div>
+            ))}
+            {upcomingGroups.map((ev, i) => (
+              <div key={`e-${ev.id}`}
+                className="flex items-center gap-3 px-3 py-2.5"
+                style={{ borderTop: (upcoming1to1.length === 0 && i === 0) ? 'none' : `1px solid ${C.divider}` }}>
+                <div className="rounded-xl flex-shrink-0 overflow-hidden" style={{ width: 36, height: 36, background: C.sage }}>
+                  {ev.photo && <img src={ev.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12.5px] truncate" style={{ fontFamily:'Albert Sans', fontWeight:700, color: C.navy }}>
+                    {ev.name}
+                  </div>
+                  <div className="text-[10.5px] mt-0.5 truncate" style={{ fontFamily:'Albert Sans', color: C.muted }}>
+                    {ev.day} · {ev.time} · {ev.place}
+                  </div>
+                </div>
+                <Users size={14} color="#5E7A3B"/>
+              </div>
+            ))}
           </div>
         )}
       </div>

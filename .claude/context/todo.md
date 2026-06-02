@@ -1,94 +1,69 @@
-# TODO — UX improvements (prioritized)
+# TODO — remaining work after the GoMama port
 
-Each item is a discrete, achievable task. Implement one at a time and commit between each.
+The GoMama prototype port landed on 2026-06-01 (see
+`docs/superpowers/specs/2026-06-01-*.md`). Most of the previous UX TODOs
+(persona-based onboarding, day-pill availability, etc.) were superseded
+by that port. What's still open:
 
-## Top 3 (highest impact)
+## High value
 
-### 1. Persona-based onboarding
+### 1. Wire Bookmark buttons across the app
+The `savedItems` state in `App.jsx` is currently only populated by
+`VillagePreview`. To make `FavoritesTab` actually useful, add bookmark
+toggles to:
 
-Replace the dense profile screen (kids + mom-types + values + interests) with one screen showing 4–5 picker cards:
+- `MatchCardFull` — bookmark icon top-right of each mom card
+- `GroupCardFull` — bookmark icon top-right of each group card
+- `PlacesTab` — bookmark icon on each place row
 
-> *Working mama · Stay-at-home · New mom · Toddler mom · Big-kid mom*
+All three need a `saved: boolean` prop and an `onToggleSave: () => void`
+callback, threaded through `MainApp/index.jsx`.
 
-Each pre-fills sensible defaults for `profile.values`, `profile.interests`, `profile.momTypes`. **Keep the kids stepper** — that's specific enough to be worth asking.
+### 2. Persist `savedItems` and `profile.verified` to Supabase
+Today both are client-only. Either:
+- Add a `saved_items text[]` and `verified jsonb` column to `onboarding_profiles`, or
+- Add a separate `user_saved_items` table.
 
-**Goal:** cut onboarding completion friction by 50%+.
+Mirror through `recordStep` so the admin dashboard can read it back.
 
-### 2. When-screen redesign — tap-once-per-day
+### 3. Real social verification
+The Instagram / Facebook connect rows in Profile are self-attested
+toggles. Wire them to real OAuth (Supabase already supports Facebook —
+Instagram needs a custom flow via Meta's Graph API).
 
-Current Screen 6 is a 7×5 grid (35 toggles). Restructure:
+## Medium
 
-- **Top row: 7 day pills.** Tap to enable that whole day with sensible default time windows.
-- **Only enabled days expand** to show editable time windows below.
+### 4. Live "X moms match" counter
+Persistent counter on AboutYou as the user selects chips. Computed by
+intersecting selected slots/types/interests against `SAMPLE_MOMS`.
+Confirms matching is real + creates dopamine pull forward.
 
-Power users can refine; everyone else taps 3–4 days and is done.
+### 5. Match overlap on group cards
+Show *"Sara + 2 of your matches going"* on group cards. Compute overlap
+between event attendees and the user's matched moms.
 
-### 3. Live "X moms match" counter
-
-Add a small persistent counter at the bottom of:
-
-- The When screen
-- The Where screen
-- The persona picker (after #1)
-
-Updates in real-time as preferences narrow:
-
-> *"7 moms match your week."*
-
-Confirms matching is real + creates dopamine pull forward. Computed by intersecting selected slots/places against `SAMPLE_MOMS`.
-
-## Next round
-
-### 4. Match overlap on group cards
-
-Show *"Sara + 2 of your matches going"* on EventsTab cards. Compute overlap between event attendees (mock from `SAMPLE_MOMS`) and the user's matched moms.
-
-### 5. Empty-state CTAs
-
-Calendar's *"Nothing on the calendar yet"* should have a button:
-
-> *"Schedule your first meetup →"*
-
-…that jumps to Matches tab via `setTab('matches')` from MainApp. Same pattern for Chat (when added) and any other empty state.
-
-### 6. Filter chips on Matches tab
-
-Add a row of filter chips under the headline:
-
+### 6. Filter chips on Meetups tab
+Add a row of filter chips under the toggle:
 > *This week · Same kid ages · Weekends · Verified · < 1 mile*
 
-Filter the displayed `SAMPLE_MOMS` accordingly. State lives locally in `MatchesTab`.
-
-### 7. Confirm-before-paywall
-
-When a free user taps Auto-schedule and `requestAccount` fires, the `CreateAccountSheet` pops with a one-line micro-confirmation above the form:
-
-> *"Sign up to schedule Mon 9 AM with Sara K."*
-
-Already partially implemented via the pending-action summary card — verify and improve copy.
+State lives locally in `MatchesTab`.
 
 ## Polish
 
-### 8. Bigger tab labels
-
-Current 10px labels on 5 tabs feel cramped. Either bigger labels or icon-only with active label below (Instagram pattern).
-
-### 9. Save + resume onboarding
-
-Persist `step`, `profile`, `prefs`, `location`, `distance` to `localStorage` on each change. On Splash render, detect partial state → show:
-
+### 7. Save + resume onboarding
+Persist `step`, `profile`, `prefs`, `location`, `distance`, `savedItems`
+to `localStorage` on each change. On Landing render, detect partial
+state → show:
 > *"Welcome back, you're on step N"*
 
 …and a *"Continue"* CTA alongside *"Start over"*.
 
-### 10. Undo toast for destructive actions
-
+### 8. Undo toast for destructive actions
 When user removes a place / unjoins a group / cancels a meetup, show:
-
 > *"Removed · Undo"*
 
-…for 5s. The `Toast` component exists; add an `action` prop and an inverse-action callback.
+…for 5s. The `Toast` component exists; add an `action` prop and an
+inverse-action callback.
 
-### 11. Search bar in Places tab
-
-Add a search input that filters across `PLACES` (and TOP_PICKS). Local state in `PlacesTab`.
+### 9. Search bar in Places tab
+Filter across `PLACES` and `TOP_PICKS`. Local state in `PlacesTab`.

@@ -1,27 +1,31 @@
 # Architecture conventions
 
-## State lives in `src/App.jsx` (~181 lines)
+## State lives in `src/App.jsx`
 
-`App.jsx` is the slim coordinator: it owns all app-level state, wires routing, and passes props down to screens / sheets. The 14 useStates:
+`App.jsx` is the slim coordinator: it owns all app-level state, wires routing across `/`, `/prototype`, `/live`, and `/admin`, and passes props down to screens / sheets. Core state:
 
-- `step` (0–8) — onboarding progress
-- `splashShown` — whether the splash has been shown
-- `profile` — user's profile data (name, kids, momTypes, values, interests)
+- `step` (0–3) — onboarding progress
+- `splashShown` — whether the Landing screen has been dismissed
+- `loginOpen` — Login sheet visibility (returning users)
+- `profile` — `{ kidsAges, momTypes, values, interests, photos, bio, verified: { instagram, facebook, photo } }`
 - `prefs` — `{ slots, places }` matching preferences
 - `location`, `distance` — geographic preferences
 - `account` — auth/account info, including `isPremium`
 - `pendingAction` — queued action awaiting account creation
+- `savedItems` — array of bookmarked-item ids (Favorites tab)
 - `scheduleMom`, `profileMom`, `messageMom` — currently-selected mom for each sheet
 - `premiumOpen` — premium sheet visibility
-- `scheduled1to1` — array of scheduled 1:1 meetups
-- `joinedEvents` — array of joined events
-- `messageHistory` — `{ momId: messageCount }` for free-tier 3-message limit
+- `scheduled1to1` — map of `{ momId: { day, time, place } }` for confirmed 1:1s
+- `joinedEvents` — array of joined event ids
+- `messageHistory` — `{ momId: [...messages] }` for the per-mom free-tier limit
 - `toast` — current toast message
 
 Helper functions also live in `App`:
 - `flash(message)` — shows a toast
 - `requestAccount({ type, mom?, slot?, event? })` — gates an action behind account creation
 - `handleAccountComplete()` — replays the pending action after sign-up
+- `advance(currentStepIndex, patch)` — `recordStep` + `setStep(n+1)`
+- `restart()` — resets all state and signs out
 
 ## Dependency direction
 
@@ -41,15 +45,18 @@ data ← components ← sheets ← screens ← App.jsx
 
 ## Onboarding flow
 
-Gated by `splashShown` and `step`. `step` advances via `setStep(n+1)`. `StepHeader` renders progress.
+Gated by `splashShown` and `step`. `step` advances via `advance(n, patch)` which calls `recordStep` (writes to Supabase via `/api/onboarding/step`) and then `setStep(n+1)`.
 
 ```
-Splash → Screen1 → Screen2 → ... → Screen8 → MainApp
+Landing → AboutYou → VillagePreview → Account → MainApp
+(splashShown=false)  step=0      step=1            step=2    step=3
 ```
+
+Returning OAuth users hydrate directly into MainApp (skip onboarding) via the `promoteSession` `useEffect` in `App.jsx`.
 
 ## Account-gated actions
 
-Free actions (auto-schedule, pick time, join group, etc.) check for an account first:
+Free actions (auto-schedule, RSVP, send invite, etc.) check for an account first:
 
 ```js
 if (!account) {
@@ -68,8 +75,15 @@ The `CreateAccountSheet` opens; on completion, `handleAccountComplete()` replays
 - Profile: blurred bio + 2 values vs. full bio + all values
 - Events: first 3 attendees + count vs. all attendees + DM access
 - Group chat: read-only vs. read + post
+- Messaging: **25 messages per mom** free (softened from 10 on 2026-06-01) vs. unlimited
 
 `PremiumSheet`'s `onActivate` callback flips `isPremium: true` and starts a 7-day trial timer (visual only).
+
+## Profile verification
+
+The Profile tab (`YouTab.jsx`) shows three connect rows: Instagram, Facebook, real photo. Each toggle flips `profile.verified.<key>`. The badge flips from "⏳ Pending" to "✓ Verified mom" when (Instagram OR Facebook) AND photo are both on.
+
+This is currently a self-attested toggle. Real Instagram/Facebook OAuth integration is a follow-up.
 
 ## Animation injection
 

@@ -1,6 +1,6 @@
-# Mama — project notes for Claude Code
+# Go Mama — project notes for Claude Code
 
-A React prototype for **Mama**, a mom-friendship matching app. Anti-Tinder positioning, editorial-warm aesthetic, modular React structure under `src/`: `data/`, `components/`, `screens/`, `sheets/`. State stays in `App.jsx` (~181 lines).
+A React/Vite app for **Go Mama**, a mom-friendship matching app. Anti-Tinder positioning, coral + navy editorial aesthetic (ported from the GoMama Expo prototype on 2026-06-01). Modular React structure under `src/`: `data/`, `components/`, `screens/`, `sheets/`, `lib/`. Supabase Auth + Postgres backend; Vercel hosting. Admin dashboard at `/admin`.
 
 ## Project context
 
@@ -32,6 +32,10 @@ Dispatch them via the Task tool when their description matches the work.
 | `npm run build` | Production build |
 | `npm run preview` | Preview built app |
 
+## Per-feature specs
+
+For each shipped feature, see `docs/superpowers/specs/2026-06-01-*.md` — one design doc per feature (palette, Landing, AboutYou, VillagePreview, 4-tab MainApp, Favorites, Profile verification, Calendar fold, Premium softening, Admin updates).
+
 ## Where to start
 
-For UX improvements, see `.claude/context/todo.md` — items are prioritized and self-contained. Implement one at a time and commit between each.
+For remaining UX work, see `.claude/context/todo.md` — items are prioritized and self-contained. Implement one at a time and commit between each.
