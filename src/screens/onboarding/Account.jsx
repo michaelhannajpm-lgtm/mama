@@ -7,8 +7,13 @@ import { PrimaryBtn } from '../../components/PrimaryBtn';
 import { completeSignup, signInWithProvider } from '../../lib/onboarding';
 import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
 
-const ProviderGlyph = ({ id }) => {
-  const size = 14;
+// ==========================================================================
+// Account — sized to fit iPhone SE (375x667) without scroll. OAuth providers
+// render as icon-only buttons in a single row, inputs are 40px tall, vertical
+// spacing is compressed, CTA honours safe-area-inset-bottom.
+// ==========================================================================
+
+const ProviderGlyph = ({ id, size = 16 }) => {
   if (id === 'google') return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
       <path fill="#4285F4" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6.1C12.3 13.6 17.7 9.5 24 9.5z"/>
@@ -34,17 +39,16 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
   void account;
 
   const [firstName, setFirstName] = useState('');
-  const [method, setMethod] = useState('phone'); // 'phone' | 'email'
+  const [method, setMethod] = useState('phone');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(null); // provider id or null
+  const [oauthLoading, setOauthLoading] = useState(null);
   const [error, setError] = useState(null);
 
-  // Format phone as (XXX) XXX-XXXX while typing
   const formatPhone = (v) => {
     const d = v.replace(/\D/g, '').slice(0, 10);
     if (d.length < 4) return d;
@@ -90,7 +94,6 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
     setOauthLoading(provider);
     try {
       await signInWithProvider(provider);
-      // signInWithOAuth redirects away; if it returns, the redirect was a no-op.
     } catch (e) {
       setError(e.message || `Could not start ${provider} sign-in`);
       setOauthLoading(null);
@@ -99,46 +102,44 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ background: C.cream }}>
+    <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
       <StepHeader step={6} total={7} onBack={onBack}/>
 
-      <div className="flex-1 overflow-y-auto px-7" style={{ scrollbarWidth: 'none' }}>
-        <div className="mt-1">
-          <div className="text-[11px] tracking-[.2em] uppercase mb-3" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
+      <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
+        <div style={{ marginTop: 2 }}>
+          <div className="text-[10px] tracking-[.2em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
             ✨ Step 7 · Match me
           </div>
-          <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 28, lineHeight:1.1, color: C.ink, letterSpacing:'-.02em' }}>
+          <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 22, lineHeight:1.12, color: C.ink, letterSpacing:'-.02em' }}>
             Almost <span style={{ fontStyle:'italic', color: C.terracotta }}>there</span>.
           </h2>
-          <p className="mt-2 text-[12.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.5 }}>
-            Create your account so we can save your preferences and connect you with verified moms.
+          <p className="mt-1 text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
+            Create your account so we can save your preferences.
           </p>
         </div>
 
-        {/* OAuth buttons + divider — only render when at least one provider is enabled. */}
         {PROVIDERS.length > 0 && (
           <>
-            <div className="mt-5 space-y-2">
+            <div className="grid gap-2" style={{ marginTop: 12, gridTemplateColumns: `repeat(${PROVIDERS.length}, minmax(0, 1fr))` }}>
               {PROVIDERS.map(p => (
                 <button key={p.id} onClick={()=>handleOAuth(p.id)}
                   disabled={!!oauthLoading || submitting}
-                  className="w-full rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[.99]"
+                  className="rounded-xl flex items-center justify-center transition-all active:scale-[.99]"
                   style={{
-                    height: 46, background: p.bg, color: p.fg,
+                    height: 40, background: p.bg, color: p.fg,
                     border: `1px solid ${p.border}`,
-                    fontFamily:'Albert Sans', fontWeight:600, fontSize: 13.5,
                     opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
-                  }}>
-                  <ProviderGlyph id={p.id}/>
-                  {oauthLoading === p.id ? 'Redirecting…' : p.label}
+                  }}
+                  aria-label={p.label}>
+                  <ProviderGlyph id={p.id} size={18}/>
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-3 mt-4 mb-3">
+            <div className="flex items-center gap-3" style={{ marginTop: 10, marginBottom: 6 }}>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
-              <div className="text-[10.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
+              <div className="text-[9.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
                 or sign up with
               </div>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
@@ -146,43 +147,41 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
           </>
         )}
 
-        {/* First name */}
-        <div className="mt-2">
-          <label className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+        <div style={{ marginTop: 8 }}>
+          <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
             First name
           </label>
-          <div className="mt-1 rounded-2xl px-4 flex items-center" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
+          <div className="rounded-xl px-3 flex items-center" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
             <input value={firstName} onChange={e=>setFirstName(e.target.value)}
               placeholder="What should other moms call you?"
-              className="flex-1 bg-transparent outline-none text-[13.5px]"
+              className="flex-1 bg-transparent outline-none text-[13px]"
               style={{ fontFamily:'Albert Sans', color: C.ink }}/>
           </div>
         </div>
 
-        {/* Phone | Email toggle */}
-        <div className="mt-3.5">
-          <label className="text-[10.5px] tracking-[.14em] uppercase mb-1.5 block" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+        <div style={{ marginTop: 10 }}>
+          <label className="text-[10px] tracking-[.14em] uppercase block" style={{ marginBottom: 4, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
             Sign up with
           </label>
-          <div className="rounded-2xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
+          <div className="rounded-xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
             <button onClick={()=>setMethod('phone')}
-              className="flex-1 rounded-xl flex items-center justify-center gap-1.5 transition-all"
+              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
               style={{
-                height: 36,
+                height: 30,
                 background: method === 'phone' ? C.paper : 'transparent',
                 color: method === 'phone' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12.5, fontWeight: 600,
+                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
                 boxShadow: method === 'phone' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
               }}>
               <Phone size={12}/> Phone
             </button>
             <button onClick={()=>setMethod('email')}
-              className="flex-1 rounded-xl flex items-center justify-center gap-1.5 transition-all"
+              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
               style={{
-                height: 36,
+                height: 30,
                 background: method === 'email' ? C.paper : 'transparent',
                 color: method === 'email' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12.5, fontWeight: 600,
+                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
                 boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
               }}>
               <Mail size={12}/> Email
@@ -190,86 +189,77 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
           </div>
 
           {method === 'phone' ? (
-            <div className="mt-2 rounded-2xl px-4 flex items-center gap-2" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
-              <span className="text-[13.5px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
+            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+              <span className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
               <input value={phone} onChange={e=>setPhone(formatPhone(e.target.value))}
-                inputMode="tel" type="tel"
-                placeholder="(555) 123-4567"
-                className="flex-1 bg-transparent outline-none text-[13.5px]"
+                inputMode="tel" type="tel" placeholder="(555) 123-4567"
+                className="flex-1 bg-transparent outline-none text-[13px]"
                 style={{ fontFamily:'Albert Sans', color: C.ink, letterSpacing:'.02em' }}/>
             </div>
           ) : (
-            <div className="mt-2 rounded-2xl px-4 flex items-center gap-2" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
-              <Mail size={14} style={{ color: C.inkMuted }}/>
+            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+              <Mail size={13} style={{ color: C.inkMuted }}/>
               <input value={email} onChange={e=>setEmail(e.target.value)}
-                inputMode="email" type="email" autoComplete="email"
-                placeholder="you@example.com"
-                className="flex-1 bg-transparent outline-none text-[13.5px]"
+                inputMode="email" type="email" autoComplete="email" placeholder="you@example.com"
+                className="flex-1 bg-transparent outline-none text-[13px]"
                 style={{ fontFamily:'Albert Sans', color: C.ink }}/>
             </div>
           )}
         </div>
 
-        {/* Password */}
-        <div className="mt-3.5">
-          <label className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+        <div style={{ marginTop: 10 }}>
+          <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
             Password
           </label>
-          <div className="mt-1 rounded-2xl px-4 flex items-center gap-2" style={{ background: C.paper, border:`1px solid ${C.divider}`, height: 46 }}>
+          <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
             <Lock size={13} style={{ color: C.inkMuted }}/>
             <input value={password} onChange={e=>setPassword(e.target.value)}
               type={showPassword ? 'text' : 'password'} autoComplete="new-password"
               placeholder="At least 8 characters"
-              className="flex-1 bg-transparent outline-none text-[13.5px]"
+              className="flex-1 bg-transparent outline-none text-[13px]"
               style={{ fontFamily:'Albert Sans', color: C.ink }}/>
             <button onClick={()=>setShowPassword(s=>!s)}
               className="flex items-center justify-center"
               style={{ color: C.inkMuted }}>
-              {showPassword ? <EyeOff size={15}/> : <Eye size={15}/>}
+              {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
             </button>
           </div>
-          {password.length > 0 && password.length < 8 && (
-            <div className="mt-1 text-[10.5px]" style={{ fontFamily:'Albert Sans', color: C.terracotta }}>
-              {8 - password.length} more character{8 - password.length === 1 ? '' : 's'}
-            </div>
-          )}
         </div>
 
-        {/* Terms */}
         <button onClick={()=>setAgreed(a=>!a)}
-          className="w-full text-left flex items-start gap-2.5 pt-3 mt-1">
-          <div className="mt-0.5 w-[18px] h-[18px] rounded-md flex items-center justify-center flex-shrink-0" style={{
+          className="w-full text-left flex items-start gap-2"
+          style={{ marginTop: 10 }}>
+          <div className="rounded-md flex items-center justify-center flex-shrink-0" style={{
+            width: 16, height: 16, marginTop: 1,
             background: agreed ? C.terracotta : 'transparent',
             border: `1.5px solid ${agreed ? C.terracotta : C.inkMuted}`,
           }}>
-            {agreed && <Check size={12} color="#fff" strokeWidth={3}/>}
+            {agreed && <Check size={11} color="#fff" strokeWidth={3}/>}
           </div>
-          <div className="text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
+          <div className="text-[10.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.35 }}>
             I agree to Go Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
           </div>
         </button>
 
         {error && (
-          <div className="mt-3 rounded-2xl p-3 flex items-start gap-2" style={{ background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
-            <AlertCircle size={14} style={{ color: C.terracotta, marginTop: 1 }}/>
-            <div className="text-[12px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.4 }}>
+          <div className="rounded-xl p-2 flex items-start gap-2" style={{ marginTop: 8, background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
+            <AlertCircle size={13} style={{ color: C.terracotta, marginTop: 1 }}/>
+            <div className="text-[11px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.35 }}>
               {error}
             </div>
           </div>
         )}
 
-        {/* Privacy footer */}
-        <div className="mt-4 mb-2 text-[11px] flex items-center justify-center gap-1.5" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>
-          <Lock size={11}/>
-          Your phone is never shown to other moms.
-        </div>
-
-        <div className="h-2"/>
+        <div style={{ height: 4 }}/>
       </div>
 
-      <div className="px-7 pb-8 pt-3" style={{ background: C.cream }}>
+      <div style={{
+        padding: '6px 24px',
+        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+        background: C.cream,
+      }}>
         <PrimaryBtn onClick={handleSubmit} disabled={!canSubmit} variant="terracotta">
-          <Heart size={16} fill="currentColor"/> {submitting ? 'Creating account…' : 'Match me'} <ArrowRight size={18}/>
+          <Heart size={15} fill="currentColor"/> {submitting ? 'Creating account…' : 'Match me'} <ArrowRight size={17}/>
         </PrimaryBtn>
       </div>
     </div>

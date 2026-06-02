@@ -4,15 +4,9 @@ import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 
 // ==========================================================================
-// AboutYou — ported from the GoMama Expo prototype.
-// Single onboarding screen with chip pickers for:
-//   · Tampa-Bay area
-//   · Kids' ages
-//   · Mom type
-//   · Available days
-//   · Interests
-// Replaces the old LocationStep / ProfileStep / ScheduleStep / PlacesStep /
-// Summary chain. Step 2 of 4 in the new 4-screen onboarding.
+// AboutYou — sized to fit iPhone SE (375x667) without scroll.
+// Section spacing, chip padding, and section labels are compressed; CTA
+// honours safe-area-inset-bottom for the iOS home indicator.
 // ==========================================================================
 
 const TAMPA_AREAS = [
@@ -46,8 +40,8 @@ const StepDots = ({ current, total }) => (
   <div className="flex items-center gap-1.5">
     {Array.from({ length: total }, (_, i) => (
       <div key={i} style={{
-        width: i + 1 === current ? 24 : 8,
-        height: 8,
+        width: i + 1 === current ? 22 : 7,
+        height: 7,
         borderRadius: 4,
         background: i + 1 === current ? C.coral : C.line,
         transition: 'width .15s ease',
@@ -67,12 +61,12 @@ const Chip = ({ active, onClick, children, variant = 'coral' }) => {
       onClick={onClick}
       className="rounded-full transition-all active:scale-[.97]"
       style={{
-        padding: '7px 12px',
+        padding: '5px 10px',
         background: active ? styles.bg : '#fff',
         border: `1.3px solid ${active ? styles.border : C.line}`,
         color: active ? styles.fg : C.navy,
         fontFamily: 'Albert Sans',
-        fontSize: 11.5,
+        fontSize: 11,
         fontWeight: active ? 700 : 600,
         whiteSpace: 'nowrap',
       }}
@@ -87,7 +81,6 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
   const ages = Object.keys(profile.kidsAges || {});
   const types = profile.momTypes || [];
   const interests = profile.interests || [];
-  // Use existing slots; store one Mon-morning per selected day as a sane default
   const [days, setDays] = useState(() => {
     const selected = new Set();
     (prefs.slots || []).forEach(s => {
@@ -120,7 +113,6 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     setDays(prev => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i); else next.add(i);
-      // Project days → slots: 1 Mon-morning-style slot per chosen day
       const slots = [...next].map(idx => `${DAY_KEYS[idx]}-morning`);
       setPrefs(pp => ({ ...pp, slots }));
       return next;
@@ -136,47 +128,41 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ background: C.cream }}>
+    <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between" style={{ padding: '8px 14px' }}>
         <button
           onClick={onBack}
           className="rounded-full flex items-center justify-center"
-          style={{
-            width: 36, height: 36,
-            background: '#fff', border: `1px solid ${C.line}`,
-          }}
+          style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
           aria-label="Back"
         >
-          <ChevronLeft size={20} color={C.navy}/>
+          <ChevronLeft size={18} color={C.navy}/>
         </button>
         <StepDots current={2} total={4}/>
-        <div style={{ width: 36 }}/>
+        <div style={{ width: 32 }}/>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex-1 px-5" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <h2 style={{
-          fontFamily: 'Fraunces', fontSize: 26, fontWeight: 600,
-          color: C.navy, lineHeight: 1.1, letterSpacing: '-.02em',
+          fontFamily: 'Fraunces', fontSize: 22, fontWeight: 600,
+          color: C.navy, lineHeight: 1.12, letterSpacing: '-.02em',
         }}>
           Tell us about{' '}
           <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>you</span>
         </h2>
-        <p className="mt-2 text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.4 }}>
+        <p className="mt-1 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.35 }}>
           So we can match you with the right moms nearby.
         </p>
 
-        {/* Where */}
         <SectionLabel>WHERE ARE YOU?</SectionLabel>
-        <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
           {TAMPA_AREAS.map(a => (
             <Chip key={a} active={area === a} onClick={() => toggleArea(a)}>{a}</Chip>
           ))}
         </div>
 
-        {/* Kids ages */}
         <SectionLabel>KIDS' AGES</SectionLabel>
         <div className="flex flex-wrap gap-1.5">
           {AGE_OPTS.map(a => (
@@ -184,7 +170,6 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           ))}
         </div>
 
-        {/* Mom type */}
         <SectionLabel>WHAT BEST DESCRIBES YOU?</SectionLabel>
         <div className="flex flex-wrap gap-1.5">
           {MOM_TYPES.map(t => (
@@ -194,7 +179,6 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           ))}
         </div>
 
-        {/* Days */}
         <SectionLabel>USUALLY AVAILABLE</SectionLabel>
         <div className="flex items-center gap-1.5 flex-wrap">
           {DAYS.map((d, i) => {
@@ -205,11 +189,11 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                 onClick={() => toggleDay(i)}
                 className="flex items-center justify-center transition-all active:scale-95"
                 style={{
-                  width: 32, height: 32, borderRadius: 16,
+                  width: 28, height: 28, borderRadius: 14,
                   background: active ? C.coral : '#fff',
                   border: `1.3px solid ${active ? C.coral : C.line}`,
                   color: active ? '#fff' : C.navy,
-                  fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 11,
+                  fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 10.5,
                 }}
               >
                 {d}
@@ -218,9 +202,8 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           })}
         </div>
 
-        {/* Interests */}
         <SectionLabel>MY INTERESTS</SectionLabel>
-        <div className="flex flex-wrap gap-1.5 mb-6">
+        <div className="flex flex-wrap gap-1.5">
           {INTERESTS.map(i => (
             <Chip
               key={i}
@@ -233,11 +216,13 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           ))}
         </div>
 
-        <div style={{ height: 16 }}/>
+        <div style={{ height: 8 }}/>
       </div>
 
-      {/* CTA */}
-      <div className="px-5 pb-6 pt-3">
+      <div style={{
+        padding: '8px 20px',
+        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+      }}>
         <button
           onClick={onNext}
           disabled={!area || ages.length === 0 || types.length === 0}
@@ -246,13 +231,13 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
             background: !area || ages.length === 0 || types.length === 0
               ? '#D8CCB6'
               : `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
-            color: '#fff', padding: '15px 24px',
-            fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 700,
+            color: '#fff', padding: '13px 24px',
+            fontFamily: 'Albert Sans', fontSize: 14.5, fontWeight: 700,
             border: 'none', cursor: 'pointer',
             boxShadow: '0 10px 22px -8px rgba(214,68,106,.55)',
           }}
         >
-          <Heart size={16} fill="currentColor"/>
+          <Heart size={15} fill="currentColor"/>
           Find my village
         </button>
       </div>
@@ -262,8 +247,9 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
 const SectionLabel = ({ children }) => (
   <div
-    className="mt-5 mb-2 text-[10px]"
+    className="mb-1.5 text-[9.5px]"
     style={{
+      marginTop: 12,
       fontFamily: 'Albert Sans', fontWeight: 800,
       letterSpacing: '.1em', color: C.navySoft,
     }}
