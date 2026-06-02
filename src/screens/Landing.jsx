@@ -1,85 +1,138 @@
-import { Heart, Users, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { Heart, Users, Calendar, MapPin, Leaf, Search } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
 
 // ==========================================================================
-// Landing — ported from the GoMama Expo prototype (C:\projects\GoMama).
-// Hero image + headline + 4 feature buttons + "Let's Go Mama" primary CTA.
-// Replaces the old animated Splash screen.
+// Landing — top half is a single composed hero image (logo + headline +
+// subhead + moms photo, all baked in). Below it: 4 pastel feature rows
+// and the coral "Find My Village" CTA. Page background matches the warm
+// pink-cream wall tone inside the hero so the seam is invisible.
 // ==========================================================================
 
-const FeatureBtn = ({ icon: Icon, label, color, bg }) => (
-  <div className="flex items-center gap-2 rounded-2xl px-3 py-2.5" style={{ background: bg, flex: '1 1 calc(50% - 4px)' }}>
-    <div className="rounded-lg flex items-center justify-center flex-shrink-0"
-      style={{ width: 28, height: 28, background: '#fff' }}>
-      <Icon size={14} style={{ color }}/>
-    </div>
-    <span className="text-[10.5px] leading-tight" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.navy }}>
-      {label}
-    </span>
-  </div>
-);
+const BG = '#FBEEEA'; // warm pink-cream — matches the wall in landing-top.png
 
 export const Landing = ({ onBegin, onSignIn }) => (
-  <div className="h-full flex flex-col relative overflow-hidden" style={{ background: C.cream }}>
+  <div
+    className="h-full flex flex-col relative overflow-y-auto"
+    style={{ background: BG }}
+  >
     <StatusBar/>
 
-    {/* Hero photo */}
-    <div style={{ height: 260, width: '100%', overflow: 'hidden', flexShrink: 0 }}>
-      <img
-        src="https://images.unsplash.com/photo-1542884748-2b87b36c6b90?w=900&auto=format&fit=crop"
-        alt="Moms and kids at the park"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 35%' }}
+    {/* Top-half composed hero */}
+    <img
+      src="/landing-top.png"
+      alt="Go Mama — Your kid needs a friend, and so do you."
+      style={{
+        width: '100%',
+        height: 'auto',
+        display: 'block',
+      }}
+    />
+
+    {/* Feature list */}
+    <div style={{ padding: '14px 22px 0' }}>
+      <FeatureRow
+        icon={Users}
+        iconBg={C.coralSoft}
+        iconColor={C.coral}
+        title="Meet Moms Like You"
+        body="Find local moms who get your stage of life."
+      />
+      <FeatureRow
+        icon={Calendar}
+        iconBg={C.peach}
+        iconColor={C.saffron}
+        title="Fun Things To Do"
+        body="Activities, classes, and events for kids."
+      />
+      <FeatureRow
+        icon={MapPin}
+        iconBg={C.lilac}
+        iconColor="#7E5BAE"
+        title="Best Local Spots"
+        body="Discover places moms and kids love."
+      />
+      <FeatureRow
+        icon={Leaf}
+        iconBg={C.sage}
+        iconColor={C.sageDark}
+        title="Support Made For You"
+        body="Resources matched to your family's needs."
       />
     </div>
 
-    {/* Card body */}
-    <div className="flex-1 flex flex-col px-5 pt-5 pb-6">
-      <h1 style={{
-        fontFamily: 'Fraunces', fontWeight: 600, fontSize: 28, lineHeight: 1.15,
-        color: C.navy, letterSpacing: '-.02em', marginBottom: 16,
+    <div className="flex-1" style={{ minHeight: 8 }}/>
+
+    {/* CTA */}
+    <div style={{ padding: '14px 22px 20px', position: 'relative' }}>
+      <Heart
+        size={10}
+        style={{ position: 'absolute', left: 14, top: 22, color: C.coralSoft }}
+        fill="currentColor"
+      />
+      <Heart
+        size={10}
+        style={{ position: 'absolute', right: 14, top: 22, color: C.coralSoft }}
+        fill="currentColor"
+      />
+
+      <button
+        onClick={onBegin}
+        className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+        style={{
+          background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
+          color: '#fff', padding: '15px 24px',
+          fontFamily: 'Albert Sans', fontSize: 16, fontWeight: 700,
+          boxShadow: '0 14px 28px -12px rgba(214,68,106,.7)',
+          border: 'none', cursor: 'pointer',
+        }}
+      >
+        <Search size={18} strokeWidth={2.4}/>
+        Find My Village
+      </button>
+
+      <button
+        onClick={onSignIn}
+        className="w-full text-center"
+        style={{
+          background: 'transparent', border: 'none',
+          fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navySoft,
+          padding: '10px 6px 0', cursor: 'pointer',
+        }}
+      >
+        Already have an account?{' '}
+        <span style={{ color: C.coral, fontWeight: 700 }}>
+          Log in
+        </span>
+      </button>
+    </div>
+  </div>
+);
+
+const FeatureRow = ({ icon: Icon, iconBg, iconColor, title, body }) => (
+  <div className="flex items-center" style={{ gap: 12, padding: '8px 0' }}>
+    <div
+      className="flex items-center justify-center flex-shrink-0"
+      style={{
+        width: 40, height: 40,
+        borderRadius: 12,
+        background: iconBg,
+      }}
+    >
+      <Icon size={20} style={{ color: iconColor }} strokeWidth={2}/>
+    </div>
+    <div style={{ minWidth: 0 }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.2,
       }}>
-        Your kid needs a{' '}
-        <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>friend,</span>
-        <br/>
-        so do <span style={{ color: C.coralDeep, fontStyle: 'italic', fontWeight: 500 }}>you.</span>
-      </h1>
-
-      <div className="flex flex-wrap gap-2 mb-3">
-        <FeatureBtn icon={Users}        label="Local Moms Meetups"        color={C.coralDeep} bg={C.coralSoft}/>
-        <FeatureBtn icon={CalendarIcon} label="Kids Activities nearby"    color="#C46B3A"     bg={C.peach}/>
-        <FeatureBtn icon={MapPin}       label="Places to go with kids"    color="#7B4FA8"     bg={C.lilac}/>
-        <FeatureBtn icon={Heart}        label="Local Support & Resources" color="#5E7A3B"     bg={C.sage}/>
+        {title}
       </div>
-
-      <div className="mt-auto">
-        <button
-          onClick={onBegin}
-          className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
-          style={{
-            background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
-            color: '#fff', padding: '15px 24px',
-            fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 700,
-            boxShadow: '0 10px 22px -8px rgba(214,68,106,.55)',
-            border: 'none', cursor: 'pointer',
-          }}
-        >
-          <Heart size={16} fill="currentColor"/>
-          Let's Go Mama
-        </button>
-
-        <button
-          onClick={onSignIn}
-          className="w-full text-center mt-3"
-          style={{
-            background: 'transparent', border: 'none',
-            fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
-            padding: 6, cursor: 'pointer',
-          }}
-        >
-          Already have an account?{' '}
-          <span style={{ color: C.coralDeep, fontWeight: 700 }}>Log in</span>
-        </button>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 11.5, lineHeight: 1.35,
+        color: C.navySoft, marginTop: 2,
+      }}>
+        {body}
       </div>
     </div>
   </div>
