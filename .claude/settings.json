@@ -17,6 +17,7 @@
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(git stash:*)",
+      "Bash(git push:*)",
       "Bash(ls:*)",
       "Bash(find src:*)",
       "Bash(grep:*)",
@@ -28,22 +29,18 @@
       "Edit(//Users/michael/Projects/mama-app/CLAUDE.md)",
       "Edit(//Users/michael/Projects/mama-app/README.md)",
       "Write(//Users/michael/Projects/mama-app/src/**)",
-      "Write(//Users/michael/Projects/mama-app/.claude/**)"
-    ],
-    "deny": [
-      "Bash(rm -rf:*)",
-      "Bash(git push:*)",
-      "Bash(git reset --hard:*)",
-      "Edit(//Users/michael/Projects/mama-app/.git/**)",
-      "Edit(//Users/michael/Projects/mama-app/node_modules/**)",
-      "Edit(//Users/michael/Projects/mama-app/package-lock.json)"
-    ],
-    "ask": [
+      "Write(//Users/michael/Projects/mama-app/.claude/**)",
       "Bash(npm uninstall:*)",
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
       "Bash(git rebase:*)"
+    ],
+    "deny": [
+     
+    ],
+    "ask": [
+
     ]
   },
   "hooks": {
