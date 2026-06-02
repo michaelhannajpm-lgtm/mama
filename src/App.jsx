@@ -308,5 +308,5 @@ export default function App() {
     );
   }
 
-  return <PrototypeApp bare />;
+  return <PrototypeApp />;
 }
