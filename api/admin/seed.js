@@ -1,13 +1,15 @@
 // POST /api/admin/seed — runs the Phase 1 seed against the configured Supabase
 // project. Same effect as `npm run seed` from the CLI, but driven from the
 // admin dashboard.
-// SECURITY: NO authentication. Add auth before exposing publicly.
+// SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
 import { json, readJsonBody, supabaseCreds } from '../_lib/supabase.js';
+import { requireAdmin } from '../_lib/admin-auth.js';
 import { runSeed } from '../_lib/seed.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
+  if (!requireAdmin(req, res)) return;
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
 
   const creds = supabaseCreds();

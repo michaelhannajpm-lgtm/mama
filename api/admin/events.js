@@ -1,10 +1,12 @@
 // GET /api/admin/events — returns all events for the admin dashboard.
-// SECURITY: NO authentication. Add auth before exposing publicly.
+// SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
+import { requireAdmin } from '../_lib/admin-auth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
+  if (!requireAdmin(req, res)) return;
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
 
   const creds = supabaseCreds();

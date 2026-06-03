@@ -1,10 +1,11 @@
 // POST /api/admin/mom-profiles/update — admin-only flag toggles.
-// SECURITY: NO authentication. Add auth before exposing publicly.
+// SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
 //
 // Body: { id: uuid, patch: { verified?: boolean, visible?: boolean, blocked_global?: boolean } }
 // Whitelists those three boolean flags only — any other key is rejected 400
 // so this endpoint can't double as a generic profile-edit gateway.
 import { json, readJsonBody, supabaseCreds, sbHeaders, isUuid } from '../../_lib/supabase.js';
+import { requireAdmin } from '../../_lib/admin-auth.js';
 
 const ALLOWED_FLAGS = new Set(['verified', 'visible', 'blocked_global']);
 
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
+  if (!requireAdmin(req, res)) return;
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
 
   const creds = supabaseCreds();

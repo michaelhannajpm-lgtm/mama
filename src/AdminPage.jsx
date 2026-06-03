@@ -8,8 +8,9 @@ import { C } from './theme';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
-// SECURITY: this dashboard has NO authentication. Anyone with the URL can read
-// PII. Add auth before publishing the URL anywhere.
+// SECURITY: gated by a shared admin password (see api/_lib/admin-auth.js).
+// The login exchanges the password for a signed bearer token; every
+// /api/admin/* route enforces it server-side via requireAdmin.
 // ============================================================================
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString());
@@ -26,6 +27,93 @@ const rel = (iso) => {
   const days = Math.floor(h / 24);
   if (days < 30) return `${days}d ago`;
   return d.toLocaleDateString();
+};
+
+// Admin auth ----------------------------------------------------------------
+// The password is exchanged once (via /api/admin/login) for a signed token.
+// Only the token is stored (localStorage) and sent (Authorization: Bearer …).
+
+const TOKEN_KEY = 'gm_admin_token';
+const getAdminToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
+const setAdminToken = (t) => { try { localStorage.setItem(TOKEN_KEY, t); } catch { /* ignore */ } };
+const clearAdminToken = () => { try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ } };
+
+// fetch wrapper that attaches the admin bearer token and, on a 401, drops the
+// token and signals the dashboard (via a window event) to fall back to login.
+const adminFetch = async (path, options = {}) => {
+  const token = getAdminToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(path, { ...options, headers });
+  if (res.status === 401) {
+    clearAdminToken();
+    window.dispatchEvent(new Event('gm-admin-unauthorized'));
+  }
+  return res;
+};
+
+// Login gate — shown until a valid token is stored.
+const AdminLogin = ({ onSuccess }) => {
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (submitting || !password) return;
+    setSubmitting(true); setErr(null);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        throw new Error('API routes need `vercel dev` or a deployed preview to run.');
+      }
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || `Login failed (${res.status})`);
+      if (!body?.token) throw new Error('No token returned');
+      setAdminToken(body.token);
+      onSuccess();
+    } catch (e2) {
+      setErr(e2?.message || 'Login failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-5" style={{ background: C.creamSoft }}>
+      <form onSubmit={submit} className="w-full max-w-[360px] rounded-2xl p-7"
+        style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
+        <div className="rounded-lg w-10 h-10 flex items-center justify-center mb-4"
+          style={{ background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 20, fontWeight: 600 }}>M</div>
+        <h1 style={{ fontFamily: 'Fraunces', fontSize: 24, fontWeight: 500, color: C.ink, letterSpacing: '-.02em' }}>
+          Go Mama · <span style={{ fontStyle: 'italic', color: C.terracotta, fontWeight: 500 }}>Admin</span>
+        </h1>
+        <p className="mt-1 mb-5 text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+          Enter the admin password to continue.
+        </p>
+        <input
+          type="password" value={password} autoFocus
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Admin password"
+          className="w-full rounded-xl px-3.5 py-3 mb-3 outline-none"
+          style={{ background: C.cream, border: `1px solid ${err ? C.terracotta : C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontSize: 14 }}
+        />
+        {err && (
+          <div className="mb-3 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.terracotta }}>{err}</div>
+        )}
+        <button type="submit" disabled={submitting || !password}
+          className="w-full rounded-xl py-3 flex items-center justify-center"
+          style={{ background: C.terracotta, color: '#fff', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, opacity: (submitting || !password) ? 0.6 : 1 }}>
+          {submitting ? 'Checking…' : 'Sign in'}
+        </button>
+      </form>
+    </div>
+  );
 };
 
 // Small helpers --------------------------------------------------------------
@@ -611,7 +699,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched }) => {
     setPendingFlag(key);
     setActionError(null);
     try {
-      const r = await fetch('/api/admin/mom-profiles/update', {
+      const r = await adminFetch('/api/admin/mom-profiles/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: mom.id, patch: { [key]: next } }),
@@ -1480,7 +1568,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
     setPhase('running');
     setError(null);
     try {
-      const res = await fetch('/api/admin/reset', { method: 'POST' });
+      const res = await adminFetch('/api/admin/reset', { method: 'POST' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setPhase('error');
@@ -1512,7 +1600,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
     setSeedPhase('running');
     setSeedError(null);
     try {
-      const res = await fetch('/api/admin/seed', {
+      const res = await adminFetch('/api/admin/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(seedOpts),
@@ -1726,6 +1814,13 @@ export const AdminPage = () => {
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [authed, setAuthed] = useState(() => !!getAdminToken());
+
+  const signOut = () => {
+    clearAdminToken();
+    setAuthed(false);
+    setMoms(null); setWaitlist(null); setMomProfiles(null); setPlaces(null); setFeedback(null);
+  };
 
   // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
   // Vite serves the raw .js source file (which starts with a `//` comment)
@@ -1734,7 +1829,7 @@ export const AdminPage = () => {
   const fetchEndpoint = async (path, label) => {
     let res;
     try {
-      res = await fetch(path);
+      res = await adminFetch(path);
     } catch (e) {
       throw new Error(`${label}: network error — ${e?.message || 'unreachable'}`);
     }
@@ -1783,7 +1878,16 @@ export const AdminPage = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // A 401 from any admin call drops us back to the login gate.
+  useEffect(() => {
+    const onUnauth = () => setAuthed(false);
+    window.addEventListener('gm-admin-unauthorized', onUnauth);
+    return () => window.removeEventListener('gm-admin-unauthorized', onUnauth);
+  }, []);
+
+  useEffect(() => { if (authed) load(); }, [authed]);
+
+  if (!authed) return <AdminLogin onSuccess={() => setAuthed(true)} />;
 
   return (
     <div style={{ minHeight: '100vh', background: C.creamSoft }}>
@@ -1807,6 +1911,11 @@ export const AdminPage = () => {
             className="rounded-xl px-3 py-2 flex items-center gap-1.5"
             style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, opacity: loading ? 0.6 : 1 }}>
             <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}/> Refresh
+          </button>
+          <button onClick={signOut}
+            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
+            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
+            <ShieldOff size={13}/> Sign out
           </button>
         </div>
         <div className="max-w-[1200px] mx-auto px-5 pb-2 flex gap-1">
@@ -1836,13 +1945,6 @@ export const AdminPage = () => {
       </header>
 
       <div className="max-w-[1200px] mx-auto px-5 py-5">
-        {/* Auth warning */}
-        <div className="mb-4 rounded-xl flex items-start gap-2.5 p-3" style={{ background: `${C.saffron}25`, border: `1px solid ${C.saffron}` }}>
-          <ShieldOff size={16} style={{ color: C.ink, flexShrink: 0, marginTop: 2 }}/>
-          <div className="text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
-            <strong>No authentication.</strong> Anyone with this URL can read every signup. Add auth before sharing.
-          </div>
-        </div>
 
         {error && (
           <div className="mb-4 rounded-xl flex items-start gap-2.5 p-3" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>

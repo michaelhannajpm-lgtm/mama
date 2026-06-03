@@ -1,7 +1,7 @@
 // POST /api/admin/reset — truncates all five admin-visible tables.
-// SECURITY: NO authentication. Anyone with the URL + a network can wipe
-// the database. Add auth before exposing publicly.
+// SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
+import { requireAdmin } from '../_lib/admin-auth.js';
 
 // Order matters: events FK references places, so wipe events first.
 // mom_profiles is independent at this stage.
@@ -10,6 +10,7 @@ const TABLES = ['events', 'mom_profiles', 'onboarding_profiles', 'waitlist_signu
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
+  if (!requireAdmin(req, res)) return;
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
 
   const creds = supabaseCreds();
