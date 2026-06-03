@@ -54,7 +54,8 @@ export const MainApp = ({ profile, setProfile, prefs, setPrefs, location, distan
                   <div style={{
                     position: 'absolute', top: -1,
                     width: 20, height: 2.5,
-                    borderRadius: 2, background: C.coral,
+                    borderRadius: 2,
+                    background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
                   }}/>
                 )}
                 <t.icon

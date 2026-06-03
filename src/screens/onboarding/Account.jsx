@@ -8,10 +8,22 @@ import { completeSignup, signInWithProvider } from '../../lib/onboarding';
 import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
 
 // ==========================================================================
-// Account — sized to fit iPhone SE (375x667) without scroll. OAuth providers
-// render as icon-only buttons in a single row, inputs are 40px tall, vertical
-// spacing is compressed, CTA honours safe-area-inset-bottom.
+// Account — ported from docs/HTML/GoMama-Prototype-html.html (Screen 4).
+// OAuth providers render as full-width labeled buttons (Apple dark C.ink,
+// Google white + border). Body still has firstName + phone/email toggle +
+// password + terms because the underlying Supabase flow is password-based
+// (no magic-link wiring). Adds the blush verification note from the HTML.
+// CTA honours safe-area-inset-bottom.
 // ==========================================================================
+
+// Per-provider visual treatment matching the HTML spec — Apple dark, Google
+// white+border. Falls back to the provider config in oauth-providers.js
+// for anything not explicitly listed.
+const PROVIDER_STYLE = {
+  apple:    { bg: C.ink,    fg: '#fff',    border: C.ink   },
+  google:   { bg: '#fff',   fg: C.ink,     border: C.line  },
+  facebook: { bg: '#1877F2',fg: '#fff',    border: '#1877F2' },
+};
 
 const ProviderGlyph = ({ id, size = 16 }) => {
   if (id === 'google') return (
@@ -108,39 +120,43 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
 
       <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <div style={{ marginTop: 2 }}>
-          <div className="text-[10px] tracking-[.2em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
-            ✨ Step 7 · Match me
-          </div>
-          <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 22, lineHeight:1.12, color: C.ink, letterSpacing:'-.02em' }}>
-            Almost <span style={{ fontStyle:'italic', color: C.terracotta }}>there</span>.
+          <h2 style={{ fontFamily:'Fraunces', fontWeight:700, fontSize: 24, lineHeight:1.15, color: C.navy, letterSpacing:'-.01em' }}>
+            Create your <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>account</span>
           </h2>
-          <p className="mt-1 text-[11.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
-            Create your account so we can save your preferences.
+          <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.muted, lineHeight:1.4 }}>
+            One tap and you're in.
           </p>
         </div>
 
         {PROVIDERS.length > 0 && (
           <>
-            <div className="grid gap-2" style={{ marginTop: 12, gridTemplateColumns: `repeat(${PROVIDERS.length}, minmax(0, 1fr))` }}>
-              {PROVIDERS.map(p => (
-                <button key={p.id} onClick={()=>handleOAuth(p.id)}
-                  disabled={!!oauthLoading || submitting}
-                  className="rounded-xl flex items-center justify-center transition-all active:scale-[.99]"
-                  style={{
-                    height: 40, background: p.bg, color: p.fg,
-                    border: `1px solid ${p.border}`,
-                    opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
-                  }}
-                  aria-label={p.label}>
-                  <ProviderGlyph id={p.id} size={18}/>
-                </button>
-              ))}
+            <div style={{ marginTop: 14 }}>
+              {PROVIDERS.map(p => {
+                const s = PROVIDER_STYLE[p.id] || { bg: p.bg, fg: p.fg, border: p.border };
+                return (
+                  <button key={p.id} onClick={()=>handleOAuth(p.id)}
+                    disabled={!!oauthLoading || submitting}
+                    className="w-full flex items-center justify-center gap-2 transition-all active:scale-[.99]"
+                    style={{
+                      height: 44, marginBottom: 8,
+                      borderRadius: 13,
+                      background: s.bg, color: s.fg,
+                      border: `1.3px solid ${s.border}`,
+                      fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
+                      opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
+                    }}
+                    aria-label={p.label}>
+                    <ProviderGlyph id={p.id} size={16}/>
+                    <span>{p.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="flex items-center gap-3" style={{ marginTop: 10, marginBottom: 6 }}>
+            <div className="flex items-center gap-3" style={{ marginTop: 6, marginBottom: 6 }}>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
-              <div className="text-[9.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
-                or sign up with
+              <div className="text-[10px] tracking-[.18em] uppercase" style={{ color: C.muted, fontFamily:'Albert Sans', fontWeight:600 }}>
+                or
               </div>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
             </div>
@@ -224,6 +240,20 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
               {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
             </button>
           </div>
+        </div>
+
+        {/* Verification note — blush bg + dashed coral border (HTML S4) */}
+        <div className="flex items-start gap-2.5 rounded-xl" style={{
+          marginTop: 12, padding: 10,
+          background: C.blush, border: `1px dashed ${C.coralSoft}`,
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>🛡️</span>
+          <p style={{
+            fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600,
+            color: C.navy, lineHeight: 1.45, margin: 0,
+          }}>
+            We'll ask you to verify your profile later — it's how we keep this safe for moms.
+          </p>
         </div>
 
         <button onClick={()=>setAgreed(a=>!a)}

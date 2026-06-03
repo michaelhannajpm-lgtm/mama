@@ -1,109 +1,146 @@
-import { Heart, Users, Calendar, MapPin, Leaf, Search } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
 
 // ==========================================================================
-// Landing — composed hero (logo + headline + subhead + moms photo) on top,
-// 4 pastel feature rows + coral "Find My Village" CTA below. Sized to fit
-// iPhone SE (375x667) with no scroll; flex spacer + safe-area-aware CTA
-// padding handle larger phones and the iOS home indicator.
+// Landing — ported from docs/HTML/GoMama-Prototype-html.html (Screen 1).
+// Logo + floating ♡ hearts + ——♡—— divider + headline with coral italic
+// "friend" / coralDeep "you." + ≺ STOP SEARCHING ≻ tagline + 4 pastel
+// feature rows (chevrons + dividers) + coral gradient CTA with ✦ sparkles.
+// Sized to fit iPhone SE (375x667) without scrolling; safe-area aware
+// bottom padding for the iOS home indicator.
 // ==========================================================================
 
-const BG = '#FBEEEA';
+const BG = '#FAF3F0';
+
+const FEATURES = [
+  { bg: '#F8D7DD', icon: '👥', title: 'Meet Moms',                 body: 'Find local moms who get your stage of life.' },
+  { bg: '#FDE2D4', icon: '📅', title: 'Find Activities',           body: 'Activities, classes, and events for kids.' },
+  { bg: '#EDE4F4', icon: '📍', title: 'Explore Local Favorites',   body: 'Places moms and kids love.' },
+  { bg: '#E2EBD8', icon: '🤲', title: 'Get Personalized Support',  body: 'Resources matched to your family’s needs.' },
+];
 
 export const Landing = ({ onBegin, onSignIn }) => (
   <div
     className="flex flex-col relative"
     style={{
-      height: '100%',
-      minHeight: 0,
-      width: '100%',
-      background: BG,
-      boxSizing: 'border-box',
-      overflow: 'hidden',
+      height: '100%', minHeight: 0, width: '100%',
+      background: BG, boxSizing: 'border-box', overflow: 'hidden',
     }}
   >
     <StatusBar/>
 
-    <img
-      src="/landing-top.png"
-      alt="Go Mama — Your kid needs a friend, and so do you."
-      style={{
-        width: '100%',
-        height: 'auto',
-        maxHeight: 'min(42dvh, 280px)',
-        objectFit: 'contain',
-        objectPosition: 'center top',
-        display: 'block',
-        flexShrink: 0,
-      }}
-    />
+    {/* Logo area — floating hearts + logo + decorative line + headline */}
+    <div style={{ position: 'relative', textAlign: 'center', padding: '14px 20px 0', flexShrink: 0 }}>
+      <span style={{ position: 'absolute', top: 18, left: 16, fontSize: 20, color: '#F5B8C8', opacity: .8 }}>♡</span>
+      <span style={{ position: 'absolute', top: 42, left: 30, fontSize: 12, color: '#F5B8C8', opacity: .6 }}>♡</span>
 
-    <div style={{ padding: 'clamp(8px, 1.2dvh, 14px) 22px 0' }}>
-      <FeatureRow icon={Users}    iconBg={C.coralSoft} iconColor={C.coral}    title="Meet Moms Like You"     body="Find local moms who get your stage of life."/>
-      <FeatureRow icon={Calendar} iconBg={C.peach}     iconColor={C.saffron}  title="Fun Things To Do"       body="Activities, classes, and events for kids."/>
-      <FeatureRow icon={MapPin}   iconBg={C.lilac}     iconColor="#7E5BAE"    title="Best Local Spots"       body="Discover places moms and kids love."/>
-      <FeatureRow icon={Leaf}     iconBg={C.sage}      iconColor={C.sageDark} title="Support Made For You"   body="Resources matched to your family's needs."/>
+      <img
+        src="/gomama-logo.png"
+        alt="Go Mama"
+        style={{
+          width: 140, height: 'auto', display: 'block',
+          margin: '0 auto 3px', mixBlendMode: 'multiply',
+        }}
+      />
+
+      <div className="flex items-center justify-center" style={{ gap: 5, marginBottom: 8 }}>
+        <div style={{ width: 24, height: 1, background: C.coral }}/>
+        <span style={{ fontSize: 9, color: C.coral }}>♡</span>
+        <div style={{ width: 24, height: 1, background: C.coral }}/>
+      </div>
+
+      <div style={{
+        fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700,
+        lineHeight: 1.2, color: C.navy, marginBottom: 8, letterSpacing: '-.01em',
+      }}>
+        Your kid needs a{' '}
+        <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>friend</span>
+        <br/>
+        and so do{' '}
+        <span style={{ color: C.coralDeep }}>you.</span>{' '}
+        <span style={{ color: C.coral, fontSize: 16 }}>←</span>
+      </div>
     </div>
 
-    <div className="flex-1" style={{ minHeight: 4 }}/>
+    {/* Tagline */}
+    <div className="flex items-center justify-center" style={{ padding: '8px 16px 4px', flexShrink: 0 }}>
+      <span style={{
+        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800,
+        letterSpacing: '.5px', color: C.coralDeep,
+      }}>
+        STOP SEARCHING. START CONNECTING.
+      </span>
+    </div>
 
-    <div
-      style={{
-        padding: '10px 22px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-        position: 'relative',
-      }}
-    >
-      <Heart size={10} style={{ position: 'absolute', left: 14, top: 18, color: C.coralSoft }} fill="currentColor"/>
-      <Heart size={10} style={{ position: 'absolute', right: 14, top: 18, color: C.coralSoft }} fill="currentColor"/>
+    {/* Feature rows — flex fills space */}
+    <div className="flex-1 flex flex-col justify-center" style={{ padding: '0 2px', minHeight: 0 }}>
+      {FEATURES.map((f, i) => (
+        <FeatureRow key={f.title} {...f} divider={i < FEATURES.length - 1}/>
+      ))}
+    </div>
+
+    {/* CTA */}
+    <div style={{
+      padding: '8px 16px 10px',
+      paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
+      flexShrink: 0, position: 'relative',
+    }}>
+      <span style={{ position: 'absolute', left: 22, top: 16, color: C.coral, fontSize: 11, zIndex: 1 }}>✦</span>
+      <span style={{ position: 'absolute', right: 22, top: 16, color: C.coral, fontSize: 11, zIndex: 1 }}>✦</span>
 
       <button
         onClick={onBegin}
-        className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+        className="w-full rounded-full flex items-center justify-center active:scale-[.98] transition-transform"
         style={{
-          background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
-          color: '#fff', padding: '13px 24px',
-          fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 700,
-          boxShadow: '0 14px 28px -12px rgba(214,68,106,.7)',
+          height: 48, gap: 8,
+          background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+          color: '#fff',
+          fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 800,
+          boxShadow: '0 8px 20px -8px rgba(214,68,106,.5)',
           border: 'none', cursor: 'pointer',
         }}
       >
-        <Search size={17} strokeWidth={2.4}/>
-        Find My Village
+        🔍&nbsp;&nbsp;Find My Village
       </button>
 
-      <button
-        onClick={onSignIn}
-        className="w-full text-center"
-        style={{
-          background: 'transparent', border: 'none',
-          fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navySoft,
-          padding: '8px 6px 0', cursor: 'pointer',
-        }}
-      >
+      <div className="text-center" style={{
+        marginTop: 6, fontSize: 10.5, color: C.muted, fontFamily: 'Albert Sans',
+      }}>
         Already have an account?{' '}
-        <span style={{ color: C.coral, fontWeight: 700 }}>Log in</span>
-      </button>
+        <button
+          onClick={onSignIn}
+          style={{
+            background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+            color: C.coralDeep, fontWeight: 700, fontSize: 10.5, fontFamily: 'Albert Sans',
+          }}
+        >
+          Log In
+        </button>
+      </div>
     </div>
   </div>
 );
 
-const FeatureRow = ({ icon: Icon, iconBg, iconColor, title, body }) => (
-  <div className="flex items-center" style={{ gap: 12, padding: 'clamp(4px, 0.6dvh, 7px) 0' }}>
-    <div
-      className="flex items-center justify-center flex-shrink-0"
-      style={{ width: 38, height: 38, borderRadius: 12, background: iconBg }}
-    >
-      <Icon size={19} style={{ color: iconColor }} strokeWidth={2}/>
-    </div>
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700, color: C.navy, lineHeight: 1.2 }}>
-        {title}
+const FeatureRow = ({ bg, icon, title, body, divider }) => (
+  <>
+    <div className="flex items-center" style={{ padding: '6px 14px', cursor: 'pointer' }}>
+      <div
+        className="flex items-center justify-center flex-shrink-0"
+        style={{ width: 44, height: 44, borderRadius: 22, background: bg, fontSize: 18 }}
+      >
+        {icon}
       </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, lineHeight: 1.35, color: C.navySoft, marginTop: 2 }}>
-        {body}
+      <div style={{ width: 1.5, height: 34, background: '#E0D4CF', margin: '0 10px' }}/>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy, lineHeight: 1.2 }}>
+          {title}
+        </div>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1, lineHeight: 1.3 }}>
+          {body}
+        </div>
       </div>
+      <span style={{ color: '#C8B8B2', fontSize: 14 }}>›</span>
     </div>
-  </div>
+    {divider && <div style={{ height: 1, background: C.line, margin: '0 14px' }}/>}
+  </>
 );

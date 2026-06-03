@@ -35,7 +35,7 @@ export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails }) => {
 
   return (
     <div className="rounded-[28px] overflow-hidden h-full flex flex-col relative" style={{
-      background: C.cream, border: `1px solid ${C.divider}`, boxShadow: '0 6px 24px rgba(42,30,34,.06)',
+      background: C.paper, border: `1px solid ${C.divider}`, boxShadow: '0 6px 24px rgba(42,30,34,.06)',
     }}>
       {/* Hero */}
       <div className="relative" style={{ flex: '0 0 55%', backgroundImage: `url('${event.photo}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>

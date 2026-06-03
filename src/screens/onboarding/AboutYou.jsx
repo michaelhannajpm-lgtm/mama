@@ -146,14 +146,14 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
       <div className="flex-1 px-5" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <h2 style={{
-          fontFamily: 'Fraunces', fontSize: 22, fontWeight: 600,
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
           color: C.navy, lineHeight: 1.12, letterSpacing: '-.02em',
         }}>
           Tell us about{' '}
           <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>you</span>
         </h2>
-        <p className="mt-1 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.35 }}>
-          So we can match you with the right moms nearby.
+        <p className="mt-1 text-[11px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.4 }}>
+          Match you with the right moms &amp; resources nearby.
         </p>
 
         <SectionLabel>WHERE ARE YOU?</SectionLabel>

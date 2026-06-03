@@ -34,26 +34,26 @@ export const MatchesTab = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Top toggle */}
+      {/* Top toggle — both pills use coral gradient when active (HTML S5) */}
       <div className="px-5 pt-3 pb-2">
         <div className="rounded-full p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
           <button onClick={() => setView('moms')} className="flex-1 rounded-full flex items-center justify-center gap-1.5 transition-all" style={{
             height: 38,
-            background: view === 'moms' ? C.terracotta : 'transparent',
+            background: view === 'moms' ? `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})` : 'transparent',
             color: view === 'moms' ? '#fff' : C.inkMuted,
-            fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13,
-            boxShadow: view === 'moms' ? '0 2px 8px rgba(200,85,61,.4)' : 'none',
+            fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
+            boxShadow: view === 'moms' ? '0 4px 12px -4px rgba(214,68,106,.5)' : 'none',
           }}>
-            <Heart size={13} fill={view === 'moms' ? 'currentColor' : 'none'}/> Moms · {momCount}
+            <Heart size={13} fill={view === 'moms' ? 'currentColor' : 'none'}/> 1:1 matches · {momCount}
           </button>
           <button onClick={() => setView('groups')} className="flex-1 rounded-full flex items-center justify-center gap-1.5 transition-all" style={{
             height: 38,
-            background: view === 'groups' ? C.sageDark : 'transparent',
+            background: view === 'groups' ? `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})` : 'transparent',
             color: view === 'groups' ? '#fff' : C.inkMuted,
-            fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13,
-            boxShadow: view === 'groups' ? '0 2px 8px rgba(126,150,120,.45)' : 'none',
+            fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
+            boxShadow: view === 'groups' ? '0 4px 12px -4px rgba(214,68,106,.5)' : 'none',
           }}>
-            <Users size={13}/> Groups · {groupCount}
+            <Users size={13}/> Group meetups · {groupCount}
           </button>
         </div>
       </div>
