@@ -6,6 +6,22 @@ import { AdminPage } from './AdminPage';
 import { PhoneFrame } from './components/PhoneFrame';
 import { Toast } from './components/Toast';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
+
+// True when the viewport is phone-sized. On a real phone (or a narrow window)
+// we drop the decorative PhoneFrame and let the app fill the screen edge-to-edge.
+const PHONE_QUERY = '(max-width: 640px)';
+function useIsNarrowViewport() {
+  const get = () => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches;
+  const [isNarrow, setIsNarrow] = useState(get);
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY);
+    const onChange = () => setIsNarrow(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isNarrow;
+}
 import { ProfileSheet } from './sheets/ProfileSheet';
 import { MessageSheet } from './sheets/MessageSheet';
 import { CreateAccountSheet } from './sheets/CreateAccountSheet';
@@ -22,6 +38,10 @@ import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboard
 // ROOT
 // ====================================================================
 function PrototypeApp({ bare = false }) {
+  // Phone-sized viewports skip the PhoneFrame and render full-screen, same as
+  // the explicit `bare` route (/live) used for embedding.
+  const isNarrow = useIsNarrowViewport();
+  const fullScreen = bare || isNarrow;
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -260,7 +280,7 @@ function PrototypeApp({ bare = false }) {
     </div>
   );
 
-  if (bare) {
+  if (fullScreen) {
     return (
       <div className="w-full relative" style={{
         height: '100dvh',
