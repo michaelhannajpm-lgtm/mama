@@ -1,40 +1,46 @@
-import { useState } from 'react';
-import { Heart, ChevronLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Heart, ChevronLeft, MapPin, LocateFixed, Check } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 
 // ==========================================================================
-// AboutYou — sized to fit iPhone SE (375x667) without scroll.
-// Section spacing, chip padding, and section labels are compressed; CTA
-// honours safe-area-inset-bottom for the iOS home indicator.
+// AboutYou — 3-question onboarding (progressive profiling).
+// We collect only what's needed to render the village preview:
+//   1. Where are you?      (geolocation auto-detect + chip fallback)
+//   2. Kids' ages          (multi-select chips — #1 matching signal)
+//   3. What kind of mom?   (single-select card — drives match tone)
+// Interests + availability are captured later in context:
+//   - interests: after first bookmark on VillagePreview
+//   - days:      when the user opens ScheduleSheet for the first time
 // ==========================================================================
 
 const TAMPA_AREAS = [
-  'South Tampa 🌴',
-  'North Tampa 🌳',
-  'St. Petersburg 🏖️',
-  'Clearwater 🌊',
-  'SouthShore ☀️',
+  { label: 'South Tampa 🌴',  lat: 27.90, lng: -82.49 },
+  { label: 'North Tampa 🌳',  lat: 28.05, lng: -82.42 },
+  { label: 'St. Petersburg 🏖️', lat: 27.77, lng: -82.64 },
+  { label: 'Clearwater 🌊',   lat: 27.97, lng: -82.80 },
+  { label: 'SouthShore ☀️',   lat: 27.65, lng: -82.40 },
 ];
 
 const MOM_TYPES = [
-  '💼 Working mom',
-  '🏡 Stay-at-home',
-  '💛 Solo mom',
-  '📍 New to area',
-  '🌍 Multicultural',
+  { id: '💼 Working mom',    blurb: 'Juggling 9–5 + bedtime' },
+  { id: '🏡 Stay-at-home',   blurb: 'Home base, every day' },
+  { id: '💛 Solo mom',        blurb: 'Doing it on my own' },
+  { id: '📍 New to area',     blurb: 'Just landed in Tampa' },
+  { id: '🌍 Multicultural',   blurb: 'Raising across cultures' },
 ];
 
 const AGE_OPTS = ['0–1', '1–3', '3–5', '5–8', '8–12', '13+'];
-const DAYS     = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const DAY_KEYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const INTERESTS = [
-  '🌳 Outdoors',
-  '☕ Coffee',
-  '🧘‍♀️ Wellness',
-  '🎨 Crafts',
-  '📚 Books',
-];
+
+// Distance metric — Euclidean on lat/lng is fine across a single metro.
+const nearestArea = (lat, lng) => {
+  let best = TAMPA_AREAS[0], bestD = Infinity;
+  for (const a of TAMPA_AREAS) {
+    const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
+    if (d < bestD) { bestD = d; best = a; }
+  }
+  return best.label;
+};
 
 const StepDots = ({ current, total }) => (
   <div className="flex items-center gap-1.5">
@@ -54,19 +60,18 @@ const Chip = ({ active, onClick, children, variant = 'coral' }) => {
   const styles = {
     coral: { border: C.coral, bg: C.coralSoft, fg: C.coralDeep },
     lilac: { border: C.navySoft, bg: C.lilac, fg: C.navy },
-    sage:  { border: '#5E7A3B', bg: C.sage, fg: '#3D5E20' },
   }[variant];
   return (
     <button
       onClick={onClick}
       className="rounded-full transition-all active:scale-[.97]"
       style={{
-        padding: '5px 10px',
+        padding: '6px 11px',
         background: active ? styles.bg : '#fff',
         border: `1.3px solid ${active ? styles.border : C.line}`,
         color: active ? styles.fg : C.navy,
         fontFamily: 'Albert Sans',
-        fontSize: 11,
+        fontSize: 11.5,
         fontWeight: active ? 700 : 600,
         whiteSpace: 'nowrap',
       }}
@@ -76,22 +81,64 @@ const Chip = ({ active, onClick, children, variant = 'coral' }) => {
   );
 };
 
-export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, prefs, setPrefs }) => {
-  const [area, setArea] = useState(location || '');
+// Single-select card for mom-type — bigger weight than a chip because
+// this is the centerpiece signal after location + ages.
+const TypeCard = ({ active, onClick, label, blurb }) => (
+  <button
+    onClick={onClick}
+    className="rounded-xl transition-all active:scale-[.98] text-left flex items-center gap-2.5"
+    style={{
+      padding: '9px 12px',
+      width: '100%',
+      background: active ? C.coralSoft : '#fff',
+      border: `1.3px solid ${active ? C.coral : C.line}`,
+      color: C.navy,
+      fontFamily: 'Albert Sans',
+    }}
+  >
+    <div className="flex-1 min-w-0">
+      <div style={{ fontSize: 13, fontWeight: active ? 700 : 600, color: active ? C.coralDeep : C.navy }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 10.5, color: C.muted, marginTop: 1 }}>
+        {blurb}
+      </div>
+    </div>
+    {active && (
+      <div
+        className="rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ width: 20, height: 20, background: C.coral }}
+      >
+        <Check size={12} color="#fff" strokeWidth={3}/>
+      </div>
+    )}
+  </button>
+);
+
+export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation }) => {
+  const [area, setArea] = useState(location && TAMPA_AREAS.some(a => a.label === location) ? location : '');
+  const [geoStatus, setGeoStatus] = useState('idle'); // idle | locating | ok | denied | unsupported
   const ages = Object.keys(profile.kidsAges || {});
-  const types = profile.momTypes || [];
-  const interests = profile.interests || [];
-  const [days, setDays] = useState(() => {
-    const selected = new Set();
-    (prefs.slots || []).forEach(s => {
-      const d = s.split('-')[0];
-      const idx = DAY_KEYS.indexOf(d);
-      if (idx >= 0) selected.add(idx);
-    });
-    return selected;
-  });
+  const selectedType = (profile.momTypes || [])[0] || null;
 
   const toggleArea = (a) => { setArea(a); setLocation(a); };
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) { setGeoStatus('unsupported'); return; }
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const nearest = nearestArea(pos.coords.latitude, pos.coords.longitude);
+        setArea(nearest); setLocation(nearest);
+        setGeoStatus('ok');
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 6000, maximumAge: 5 * 60 * 1000 },
+    );
+  };
+
+  // Surface the auto-detect prompt only if the user hasn't already picked an area.
+  useEffect(() => { /* prompt is manual — user taps "Use my location" */ }, []);
 
   const toggleAge = (age) => {
     setProfile(p => {
@@ -101,31 +148,11 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     });
   };
 
-  const toggleType = (t) => {
-    setProfile(p => {
-      const cur = p.momTypes || [];
-      const has = cur.includes(t);
-      return { ...p, momTypes: has ? cur.filter(x => x !== t) : [...cur, t] };
-    });
+  const selectType = (t) => {
+    setProfile(p => ({ ...p, momTypes: selectedType === t ? [] : [t] }));
   };
 
-  const toggleDay = (i) => {
-    setDays(prev => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i); else next.add(i);
-      const slots = [...next].map(idx => `${DAY_KEYS[idx]}-morning`);
-      setPrefs(pp => ({ ...pp, slots }));
-      return next;
-    });
-  };
-
-  const toggleInterest = (label) => {
-    setProfile(p => {
-      const cur = p.interests || [];
-      const has = cur.includes(label);
-      return { ...p, interests: has ? cur.filter(x => x !== label) : [...cur, label] };
-    });
-  };
+  const canContinue = area && ages.length > 0 && selectedType;
 
   return (
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
@@ -146,20 +173,42 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
       <div className="flex-1 px-5" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <h2 style={{
-          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
           color: C.navy, lineHeight: 1.12, letterSpacing: '-.02em',
         }}>
           Tell us about{' '}
           <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>you</span>
         </h2>
-        <p className="mt-1 text-[11px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.4 }}>
-          Match you with the right moms &amp; resources nearby.
+        <p className="mt-1 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.muted, lineHeight: 1.4 }}>
+          Three quick taps — we'll fill in the rest as we go.
         </p>
 
         <SectionLabel>WHERE ARE YOU?</SectionLabel>
+        <button
+          onClick={detectLocation}
+          disabled={geoStatus === 'locating'}
+          className="flex items-center gap-1.5 rounded-full active:scale-[.97] transition-transform"
+          style={{
+            padding: '6px 11px',
+            background: geoStatus === 'ok' ? C.coralSoft : '#fff',
+            border: `1.3px solid ${geoStatus === 'ok' ? C.coral : C.line}`,
+            color: geoStatus === 'ok' ? C.coralDeep : C.navy,
+            fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
+          <LocateFixed size={12} />
+          {geoStatus === 'locating' ? 'Finding you…'
+            : geoStatus === 'ok' ? `Found: ${area}`
+            : geoStatus === 'denied' ? 'Pick your area below'
+            : geoStatus === 'unsupported' ? 'Pick your area below'
+            : 'Use my location'}
+        </button>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
           {TAMPA_AREAS.map(a => (
-            <Chip key={a} active={area === a} onClick={() => toggleArea(a)}>{a}</Chip>
+            <Chip key={a.label} active={area === a.label} onClick={() => toggleArea(a.label)}>
+              {a.label}
+            </Chip>
           ))}
         </div>
 
@@ -170,53 +219,20 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           ))}
         </div>
 
-        <SectionLabel>WHAT BEST DESCRIBES YOU?</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
+        <SectionLabel>WHAT KIND OF MOM ARE YOU?</SectionLabel>
+        <div className="flex flex-col gap-1.5">
           {MOM_TYPES.map(t => (
-            <Chip key={t} active={types.includes(t)} onClick={() => toggleType(t)} variant="lilac">
-              {t}
-            </Chip>
+            <TypeCard
+              key={t.id}
+              label={t.id}
+              blurb={t.blurb}
+              active={selectedType === t.id}
+              onClick={() => selectType(t.id)}
+            />
           ))}
         </div>
 
-        <SectionLabel>USUALLY AVAILABLE</SectionLabel>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {DAYS.map((d, i) => {
-            const active = days.has(i);
-            return (
-              <button
-                key={i}
-                onClick={() => toggleDay(i)}
-                className="flex items-center justify-center transition-all active:scale-95"
-                style={{
-                  width: 28, height: 28, borderRadius: 14,
-                  background: active ? C.coral : '#fff',
-                  border: `1.3px solid ${active ? C.coral : C.line}`,
-                  color: active ? '#fff' : C.navy,
-                  fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 10.5,
-                }}
-              >
-                {d}
-              </button>
-            );
-          })}
-        </div>
-
-        <SectionLabel>MY INTERESTS</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {INTERESTS.map(i => (
-            <Chip
-              key={i}
-              active={interests.includes(i)}
-              onClick={() => toggleInterest(i)}
-              variant="sage"
-            >
-              {i}
-            </Chip>
-          ))}
-        </div>
-
-        <div style={{ height: 8 }}/>
+        <div style={{ height: 12 }}/>
       </div>
 
       <div style={{
@@ -225,10 +241,10 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
       }}>
         <button
           onClick={onNext}
-          disabled={!area || ages.length === 0 || types.length === 0}
+          disabled={!canContinue}
           className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
           style={{
-            background: !area || ages.length === 0 || types.length === 0
+            background: !canContinue
               ? '#D8CCB6'
               : `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
             color: '#fff', padding: '13px 24px',
@@ -247,9 +263,9 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
 const SectionLabel = ({ children }) => (
   <div
-    className="mb-1.5 text-[9.5px]"
+    className="mb-2 text-[10px]"
     style={{
-      marginTop: 12,
+      marginTop: 16,
       fontFamily: 'Albert Sans', fontWeight: 800,
       letterSpacing: '.1em', color: C.navySoft,
     }}

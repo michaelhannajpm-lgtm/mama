@@ -201,19 +201,17 @@ function PrototypeApp({ bare = false }) {
               location,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
-              interests: profile.interests,
-              slots: prefs.slots,
             })}
             onBack={()=>{ setSplashShown(false); }}
             profile={profile} setProfile={setProfile}
             location={location} setLocation={setLocation}
-            prefs={prefs} setPrefs={setPrefs}
           />}
           {step===1 && <VillagePreview
             onNext={()=>advance(1, {})}
             onBack={()=>setStep(0)}
             savedItems={savedItems}
             setSavedItems={setSavedItems}
+            profile={profile} setProfile={setProfile}
           />}
           {step===2 && <Account
             onBack={()=>setStep(1)}
@@ -238,6 +236,7 @@ function PrototypeApp({ bare = false }) {
 
           {scheduleMom && <ScheduleSheet mom={scheduleMom}
             hasAccount={!!account}
+            prefs={prefs} setPrefs={setPrefs}
             onClose={()=>setScheduleMom(null)}
             onContinue={(slot)=>{
               if (account) {
