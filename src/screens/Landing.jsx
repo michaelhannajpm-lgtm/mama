@@ -1,75 +1,54 @@
-import { Heart, Users, Music, MapPin, Calendar, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, ArrowRight, ShieldCheck, MapPin, Users } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
 
 // ==========================================================================
-// Landing — engaged, comprehensive service pitch.
+// Landing — revamp around an editorial-magazine pattern.
 //
-// Headline keeps the emotional hook ("Your kid needs a friend / and so do
-// you. ←"). Below it, a 2×2 grid of pastel pillar tiles sells the four
-// big things the app delivers, each with a concrete number for curiosity:
+// Hierarchy (top → bottom):
+//   1. Logo + tiny coral accents
+//   2. Headline + subhead (tight unit)
+//   3. Hero photo as the centerpiece (uncropped, fills leftover space)
+//      with a floating *live activity* pill overlaid on its lower edge:
+//        ● 50 moms meeting this week in Tampa
+//      Coral pulsing dot conveys "this is happening right now."
+//   4. Compact trust strip: Verified moms · Tampa-local · Real meetups
+//   5. Coral gradient CTA + secondary log-in link
 //
-//   ♥ 92 verified moms · 👥 23 meetups this week
-//   ♪ 47 kid classes  · 📍 120+ curated places
-//
-// A compact "+ also" row below the grid surfaces the supporting services
-// (scheduling, verified chat, favorites) without the visual weight of more
-// tiles.
-//
-// Sized to fit iPhone SE (375x667) without scrolling; safe-area aware
-// bottom padding for the iOS home indicator.
+// Replaces the prior 3-tile stats block — one motion-led proof point reads
+// more confident than three competing pillars, and the trust strip
+// reinforces the moat (verified, local, anti-Tinder) in one quick scan.
 // ==========================================================================
 
 const BG = '#FAF3F0';
-const PURPLE = '#7E5BAE';
 
-// Numbers are hardcoded marketing copy. Wiring them to live counts would
-// take a `/api/landing/stats` endpoint — out of scope for this screen.
-const PILLARS = [
-  {
-    Icon: Heart,
-    bg: C.coralSoft,
-    fg: C.coralDeep,
-    iconFill: true,
-    big: '92',
-    label: 'Verified moms',
-    sub: 'near you',
-  },
-  {
-    Icon: Users,
-    bg: C.sage,
-    fg: C.sageDark,
-    big: '23',
-    label: 'Group meetups',
-    sub: 'this week',
-  },
-  {
-    Icon: Music,
-    bg: C.peach,
-    fg: C.saffron,
-    big: '47',
-    label: 'Kid activities',
-    sub: 'classes & camps to join',
-  },
-  {
-    Icon: MapPin,
-    bg: C.lilac,
-    fg: PURPLE,
-    big: '120+',
-    label: 'Curated places',
-    sub: 'Tampa moms love',
-  },
+const TRUST_SIGNALS = [
+  { Icon: ShieldCheck, label: 'Verified moms' },
+  { Icon: MapPin,      label: 'Tampa-local' },
+  { Icon: Users,       label: 'Real meetups' },
 ];
 
-// Supporting services shown as a single inline row — covers the rest of
-// what the app does without adding more tiles.
-const ALSO = [
-  { Icon: Calendar,       label: '1-tap scheduling' },
-  { Icon: MessageCircle,  label: 'Verified chat' },
-  { Icon: ShieldCheck,    label: 'Real moms only' },
+// Live-activity stats cycled through the badge — explicitly broadens the
+// pitch beyond mom-matching so users don't read it as a Peanut clone.
+const ACTIVITY_STATS = [
+  { count: '50',     label: 'mom meetups' },
+  { count: '70',     label: 'kid activities' },
+  { count: '1,200+', label: 'local gems' },
 ];
 
-export const Landing = ({ onBegin, onSignIn }) => (
+export const Landing = ({ onBegin, onSignIn }) => {
+  const [statIdx, setStatIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setStatIdx(i => (i + 1) % ACTIVITY_STATS.length),
+      2400,
+    );
+    return () => clearInterval(id);
+  }, []);
+  const stat = ACTIVITY_STATS[statIdx];
+
+  return (
   <div
     className="flex flex-col relative"
     style={{
@@ -79,58 +58,137 @@ export const Landing = ({ onBegin, onSignIn }) => (
   >
     <StatusBar/>
 
-    {/* Decorative floating hearts — container has no height, just provides position context */}
-    <div style={{ position: 'relative', height: 0 }}>
-      <span style={{ position: 'absolute', top: 14, left: 16, fontSize: 18, color: '#F5B8C8', opacity: .8 }}>♡</span>
-      <span style={{ position: 'absolute', top: 36, left: 30, fontSize: 11, color: '#F5B8C8', opacity: .6 }}>♡</span>
-      <span style={{ position: 'absolute', top: 20, right: 22, fontSize: 13, color: '#F5B8C8', opacity: .55 }}>♡</span>
-    </div>
+    {/* Soft pink corner blobs — atmospheric decoration */}
+    <div style={{
+      position: 'absolute', top: 0, left: 0, width: 140, height: 120,
+      background: 'radial-gradient(120% 100% at 0% 0%, #F8D2DC 0%, rgba(248,210,220,0) 65%)',
+      pointerEvents: 'none', zIndex: 0,
+    }}/>
+    <div style={{
+      position: 'absolute', top: 0, right: 0, width: 120, height: 100,
+      background: 'radial-gradient(120% 100% at 100% 0%, #F8D2DC 0%, rgba(248,210,220,0) 65%)',
+      pointerEvents: 'none', zIndex: 0,
+    }}/>
 
-    {/* Centered stack — logo + headline + grid + also share the same 12px gap */}
-    <div className="flex-1 flex flex-col justify-center" style={{ padding: '0 16px', minHeight: 0, gap: 12 }}>
-      <img
-        src="/gomama-logo.png"
-        alt="Go Mama"
-        style={{
-          width: 150, height: 'auto', display: 'block',
-          margin: '0 auto', mixBlendMode: 'multiply',
-        }}
-      />
+    {/* Content stack */}
+    <div
+      className="flex-1 flex flex-col"
+      style={{ minHeight: 0, position: 'relative', zIndex: 1 }}
+    >
+      {/* Logo + tiny coral accents — PNG was cropped tight to content
+          (1024×1536 → 661×613), so a much smaller box now shows the same
+          visual size while freeing vertical room for the hero. */}
+      <div style={{ position: 'relative', textAlign: 'center', padding: '10px 20px 0', flexShrink: 0 }}>
+        <img
+          src="/gomama-logo.png"
+          alt="Go Mama"
+          style={{
+            height: 132, width: 'auto', display: 'block',
+            margin: '0 auto', mixBlendMode: 'multiply',
+          }}
+        />
+        <span style={{
+          position: 'absolute', top: 22, right: 78,
+          color: C.coral, fontSize: 18, opacity: .78,
+        }}>♡</span>
+        <span style={{
+          position: 'absolute', top: 44, right: 64,
+          color: C.coral, fontSize: 11, opacity: .5,
+        }}>✦</span>
+      </div>
 
-      {/* Headline */}
-      <div style={{ textAlign: 'center', padding: '0 6px' }}>
+      {/* Headline + subhead — tight unit under the logo */}
+      <div style={{ textAlign: 'center', padding: '4px 24px 0', flexShrink: 0 }}>
         <div style={{
-          fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700,
-          lineHeight: 1.15, color: C.navy, letterSpacing: '-.015em',
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.navy, lineHeight: 1.15, letterSpacing: '-.02em',
         }}>
-          Your kid needs a{' '}
-          <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>friend</span>
-          <br/>
-          and so do{' '}
-          <span style={{ color: C.coralDeep }}>you.</span>{' '}
-          <span style={{ color: C.coral, fontSize: 16 }}>←</span>
+          Your kid needs a friend.
+        </div>
+        <div style={{
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.coralDeep, lineHeight: 1.15, letterSpacing: '-.02em',
+          marginTop: 2,
+        }}>
+          So do you.{' '}
+          <span style={{ color: C.coral, fontSize: 15 }}>♡</span>
+        </div>
+        <p style={{
+          fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
+          lineHeight: 1.4, marginTop: 6, padding: '0 6px',
+        }}>
+          Meet local moms, find kid activities &amp; local gems — all in one app.
+        </p>
+      </div>
+
+      {/* Hero — flex-1 absorbs leftover space; objectFit contain keeps the
+          original picture visible without cropping. Live-activity pill is
+          overlaid on the lower edge of the photo. */}
+      <div
+        className="flex-1 relative flex items-center justify-center"
+        style={{ padding: '12px 16px 0', minHeight: 0 }}
+      >
+        <img
+          src="/hero-moms.png"
+          alt="Two moms with their kids"
+          style={{
+            width: '100%', height: '100%',
+            objectFit: 'contain', display: 'block',
+            borderRadius: 18,
+          }}
+        />
+
+        {/* Floating live-activity pill */}
+        <div
+          style={{
+            position: 'absolute', bottom: 8, left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#fff',
+            padding: '7px 14px 7px 12px',
+            borderRadius: 999,
+            border: `1.3px solid ${C.coralSoft}`,
+            boxShadow: '0 10px 24px -10px rgba(214,68,106,.5), 0 1px 2px rgba(27,42,78,.06)',
+            display: 'flex', alignItems: 'center', gap: 9,
+            animation: 'fadeInUp 0.55s ease-out',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: 4,
+            background: C.coral,
+            boxShadow: `0 0 0 3px ${C.coralSoft}`,
+            animation: 'livePulse 1.4s ease-in-out infinite',
+          }}/>
+          <span style={{
+            fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
+            color: C.navy, letterSpacing: '.005em',
+          }}>
+            <span
+              key={statIdx}
+              style={{ display: 'inline-block', animation: 'fadeInUp 0.4s ease-out' }}
+            >
+              <span style={{ color: C.coralDeep }}>{stat.count}</span>{' '}
+              {stat.label}
+            </span>{' '}
+            <span style={{ color: C.muted, fontWeight: 600 }}>· this week in Tampa</span>
+          </span>
         </div>
       </div>
 
-      {/* 2×2 pillar grid */}
-      <div className="grid grid-cols-2" style={{ gap: 8 }}>
-        {PILLARS.map(p => <PillarTile key={p.label} {...p}/>)}
-      </div>
-
-      {/* Also row — supporting services */}
+      {/* Trust strip */}
       <div
         className="flex items-center justify-center"
-        style={{
-          gap: 12, marginTop: 2, padding: '6px 0',
-        }}
+        style={{ padding: '14px 16px 0', flexShrink: 0 }}
       >
-        {ALSO.map(({ Icon, label }, i) => (
-          <span key={label} className="flex items-center" style={{ gap: 4 }}>
-            {i > 0 && <span style={{ color: C.coralSoft, marginRight: 4 }}>·</span>}
-            <Icon size={11} color={C.coralDeep} strokeWidth={2.3}/>
+        {TRUST_SIGNALS.map(({ Icon, label }, i) => (
+          <span key={label} className="flex items-center" style={{ gap: 5 }}>
+            {i > 0 && (
+              <span style={{ color: C.line, fontSize: 12, margin: '0 10px' }}>•</span>
+            )}
+            <Icon size={12} color={C.coralDeep} strokeWidth={2.3}/>
             <span style={{
-              fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
-              color: C.navySoft, whiteSpace: 'nowrap',
+              fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+              color: C.navySoft, whiteSpace: 'nowrap', letterSpacing: '.01em',
             }}>
               {label}
             </span>
@@ -141,33 +199,35 @@ export const Landing = ({ onBegin, onSignIn }) => (
 
     {/* CTA */}
     <div style={{
-      padding: '6px 16px 28px',
-      paddingBottom: 'max(28px, env(safe-area-inset-bottom, 0px))',
-      flexShrink: 0, position: 'relative',
+      padding: '14px 16px 14px',
+      paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+      flexShrink: 0, position: 'relative', zIndex: 1,
     }}>
-      <span style={{ position: 'absolute', left: 22, top: 14, color: C.coral, fontSize: 11, zIndex: 1 }}>✦</span>
-      <span style={{ position: 'absolute', right: 22, top: 14, color: C.coral, fontSize: 11, zIndex: 1 }}>✦</span>
+      <span style={{ position: 'absolute', left: 22, top: 24, color: C.coral, fontSize: 11 }}>✦</span>
+      <span style={{ position: 'absolute', right: 22, top: 24, color: C.coral, fontSize: 11 }}>✦</span>
 
       <button
         onClick={onBegin}
         className="w-full rounded-full flex items-center justify-center active:scale-[.98] transition-transform"
         style={{
-          height: 50, gap: 8,
+          height: 54, gap: 10,
           background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
           color: '#fff',
-          fontFamily: 'Albert Sans', fontSize: 14.5, fontWeight: 800,
-          boxShadow: '0 8px 20px -8px rgba(214,68,106,.5)',
+          fontFamily: 'Albert Sans', fontSize: 15.5, fontWeight: 800,
+          letterSpacing: '.005em',
+          boxShadow: '0 12px 24px -10px rgba(214,68,106,.55), inset 0 -2px 0 rgba(0,0,0,.06)',
           border: 'none', cursor: 'pointer',
         }}
       >
-        <Sparkles size={15} fill="currentColor"/>
+        <Sparkles size={16} fill="currentColor"/>
         Find My Village
+        <ArrowRight size={17} strokeWidth={2.4}/>
       </button>
 
       <div className="text-center" style={{
-        marginTop: 6, fontSize: 11, color: C.muted, fontFamily: 'Albert Sans',
+        marginTop: 8, fontSize: 11, color: C.muted, fontFamily: 'Albert Sans',
       }}>
-        Already have an account?{' '}
+        Already a mom?{' '}
         <button
           onClick={onSignIn}
           style={{
@@ -180,58 +240,5 @@ export const Landing = ({ onBegin, onSignIn }) => (
       </div>
     </div>
   </div>
-);
-
-// ==========================================================================
-// PillarTile — one of the four big squares in the grid.
-// Pastel bg (the pillar's color), lucide icon top-left, big Fraunces
-// number, then label + sub. The number is the engagement hook:
-// "92 verified moms" / "23 group meetups" reads as abundance + specificity,
-// not as a generic feature label.
-// ==========================================================================
-const PillarTile = ({ Icon, bg, fg, iconFill, big, label, sub }) => (
-  <div
-    className="relative overflow-hidden"
-    style={{
-      background: bg,
-      borderRadius: 16,
-      padding: '12px 12px 11px',
-      minHeight: 96,
-    }}
-  >
-    <div
-      className="flex items-center justify-center"
-      style={{
-        width: 26, height: 26, borderRadius: 13,
-        background: 'rgba(255,255,255,.55)',
-        marginBottom: 6,
-      }}
-    >
-      <Icon
-        size={14}
-        color={fg}
-        strokeWidth={2.2}
-        fill={iconFill ? fg : 'none'}
-      />
-    </div>
-    <div style={{
-      fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
-      color: fg, lineHeight: 1, letterSpacing: '-.02em',
-    }}>
-      {big}
-    </div>
-    <div style={{
-      marginTop: 4,
-      fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
-      color: C.navy, lineHeight: 1.2,
-    }}>
-      {label}
-    </div>
-    <div style={{
-      fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 600,
-      color: C.navySoft, marginTop: 1, lineHeight: 1.25,
-    }}>
-      {sub}
-    </div>
-  </div>
-);
+  );
+};

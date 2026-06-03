@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { X, Check, Instagram, Minus, Plus } from 'lucide-react';
+import { X, Check, Instagram, Minus, Plus, MapPin, Search } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 import {
   MOM_TYPES, VALUES, INTERESTS, KID_AGES,
 } from '../data/taxonomy';
 import { updateMomProfile } from '../lib/onboarding';
+
+const DISTANCE_STOPS = [1, 3, 5, 10, 15, 25];
 
 const Section = ({ title, hint, children }) => (
   <div className="mb-5">
@@ -37,7 +39,10 @@ const Chip = ({ active, onClick, disabled, children }) => (
   </button>
 );
 
-export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
+export const EditProfileSheet = ({
+  profile, setProfile, onClose,
+  location, setLocation, distance, setDistance,
+}) => {
   const [draft, setDraft] = useState(() => ({
     bio: profile.bio || '',
     kidsAges: { ...(profile.kidsAges || {}) },
@@ -45,7 +50,12 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
     values: [...(profile.values || [])],
     interests: [...(profile.interests || [])],
     socialLinks: { ...(profile.socialLinks || {}) },
+    location: location || '',
+    distance: distance ?? 5,
   }));
+
+  const radiusIdx = Math.max(0, DISTANCE_STOPS.indexOf(draft.distance));
+  const radiusLabel = radiusIdx === DISTANCE_STOPS.length - 1 ? '25+ mi' : `${draft.distance} mi`;
 
   const incrementKidAge = (age) => {
     setDraft(d => {
@@ -96,11 +106,10 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
       interests: draft.interests,
       socialLinks: draft.socialLinks,
     };
-    // Local state always updates so the UI reflects the change immediately.
     setProfile(p => ({ ...p, ...nextProfile }));
+    if (setLocation) setLocation(draft.location.trim());
+    if (setDistance) setDistance(draft.distance);
 
-    // Best-effort persist to Supabase. Errors are swallowed — the local
-    // edit still stands, and the user can retry on the next save.
     setSaving(true);
     try {
       await updateMomProfile({
@@ -110,6 +119,8 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
         values: draft.values,
         interests: draft.interests,
         social_links: draft.socialLinks,
+        location: draft.location.trim(),
+        distance_miles: draft.distance,
       });
     } catch {
       /* swallow — local edit already landed */
@@ -126,7 +137,7 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
           <X size={18}/>
         </button>
         <h2 style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 500, color: C.ink, letterSpacing: '-.01em' }}>
-          Profile
+          Profile & preferences
         </h2>
         <button onClick={handleSave}
           className="rounded-full px-3 py-1.5 flex items-center gap-1"
@@ -136,6 +147,59 @@ export const EditProfileSheet = ({ profile, setProfile, onClose }) => {
       </div>
 
       <div className="px-5 pt-4 pb-8 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Matching preferences — area + radius */}
+        <Section title="Area" hint="Where you want to meet moms">
+          <div className="flex items-center gap-2 rounded-full" style={{
+            height: 38, padding: '0 12px',
+            background: C.cream, border: `1px solid ${C.divider}`,
+          }}>
+            <Search size={13} color={C.inkMuted}/>
+            <input
+              type="text"
+              value={draft.location}
+              onChange={e => setDraft(d => ({ ...d, location: e.target.value }))}
+              placeholder="Type your neighborhood…"
+              className="flex-1 bg-transparent outline-none min-w-0 text-[13px]"
+              style={{ fontFamily: 'Albert Sans', fontWeight: 600, color: C.ink }}
+            />
+            {draft.location && (
+              <button
+                onClick={() => setDraft(d => ({ ...d, location: '' }))}
+                aria-label="Clear"
+                className="rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ width: 18, height: 18, background: C.line }}
+              >
+                <X size={10} color={C.ink}/>
+              </button>
+            )}
+            <MapPin size={13} color={C.coralDeep}/>
+          </div>
+        </Section>
+
+        <Section title="Match radius" hint={radiusLabel}>
+          <div className="flex items-center gap-3">
+            <div className="text-[11px]" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.inkSoft, whiteSpace: 'nowrap' }}>
+              Within
+            </div>
+            <input
+              type="range"
+              className="range-coral flex-1"
+              min={0}
+              max={DISTANCE_STOPS.length - 1}
+              step={1}
+              value={radiusIdx}
+              onChange={e => setDraft(d => ({ ...d, distance: DISTANCE_STOPS[parseInt(e.target.value, 10)] }))}
+              aria-label="Match radius in miles"
+            />
+            <div style={{
+              fontFamily: 'Fraunces', fontSize: 15, fontWeight: 600,
+              color: C.coralDeep, minWidth: 56, textAlign: 'right',
+            }}>
+              {radiusLabel}
+            </div>
+          </div>
+        </Section>
+
         {/* Bio */}
         <Section title="About you" hint={`${draft.bio.length}/280`}>
           <textarea

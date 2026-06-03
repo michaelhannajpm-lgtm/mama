@@ -1,8 +1,24 @@
 import { useState } from 'react';
-import { Heart, ChevronLeft, MapPin, Bookmark, X } from 'lucide-react';
+import { Heart, ChevronLeft, Bookmark, X } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { recordStep } from '../../lib/onboarding';
+
+// ==========================================================================
+// VillagePreview — onboarding screen 3.
+// Four sections of curated picks. Each item carries a sage match-chip that
+// explains why it surfaced for *this* user (mom type / kids' ages / area).
+//
+//   1 · Connect with other moms
+//        ↳ Group meetups this week  (1 row)
+//        ↳ Moms nearby              (2 rows)
+//   2 · Things to do this week      (2 rows)
+//   3 · Top local spots             (2 rows)
+//   4 · Recommended resources       (2 rows)
+//
+// First bookmark surfaces a contextual interests prompt (kept from prior
+// progressive-profiling pass — it only fires once per session).
+// ==========================================================================
 
 const INTEREST_OPTIONS = [
   '🌳 Outdoors',
@@ -12,42 +28,104 @@ const INTEREST_OPTIONS = [
   '📚 Books',
 ];
 
-// ==========================================================================
-// VillagePreview — onboarding screen 3.
-// Compressed so Mom Matches + Group Meetups both sit above the fold on a
-// 375×740 phone, with the Activities kicker peeking as a scroll teaser.
-// Cards are horizontal photo cards (72px image left, copy right, 🔖 top-right).
-// Mom cards carry a match-% chip overlaid on the photo top-left.
-// ==========================================================================
+// Two registers per mom-type — "kin" for moms-like-you cards,
+// "for" for activities / events / resources that serve that type.
+const TYPE_CHIP = {
+  '💛 Solo Mom':      { kin: 'Solo mom too',         for: 'For solo moms'         },
+  '🌍 Multicultural': { kin: 'Multicultural family', for: 'Multicultural focus'   },
+  '💼 Working Mom':   { kin: 'Working mom too',      for: 'Working-mom friendly'  },
+  '🏡 Stay-at-home':  { kin: 'Stay-at-home too',     for: 'For SAHMs'             },
+  '📍 New to area':   { kin: 'New to Tampa too',     for: 'For Tampa newcomers'   },
+  '🤰 Pregnant':      { kin: 'Also pregnant',        for: 'Pregnancy-friendly'    },
+};
 
-const PREVIEW_DATA = [
-  {
-    section: 'YOUR PEOPLE',
-    title: 'Mom Matches',
-    count: '12 nearby',
-    items: [
-      { id: 'm1', title: 'Sarah M.', sub: 'Toddler at Curtis Hixon most mornings', meta: '0.4 mi away', badge: '92%', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop' },
-      { id: 'm2', title: 'Maya R.',  sub: 'New to Tampa · loves coffee walks',     meta: '0.7 mi away', badge: '89%', photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=300&auto=format&fit=crop' },
-    ],
-  },
-  {
-    section: 'MEET NEARBY',
-    title: 'Group Meetups',
-    count: '8 this week',
-    items: [
-      { id: 'g1', title: 'Toddler & Coffee Club', sub: 'Hyde Park · Sat 10am', meta: '3 of your matches going', photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop' },
-      { id: 'g2', title: 'Park Picnic Sundays',   sub: 'Bayshore · Sun 11am',  meta: '2 of your matches going', photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop' },
-    ],
-  },
-  {
-    section: 'THIS WEEK',
-    title: 'Activities for kids',
-    count: '6 picks',
-    items: [
-      { id: 'a1', title: 'Little Sprouts Music', sub: 'Drop-in · sliding scale', meta: 'Tue/Thu · Ages 1–3', photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop' },
-      { id: 'a2', title: 'Splash & Story Hour',  sub: 'Free at library',         meta: 'Sat 11am · Family',  photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop' },
-    ],
-  },
+// Walk the item's tags in order; return the first one that aligns with
+// the user's profile. Falls back to the item's hard-coded chip.
+const matchChip = (item, profile, mode = 'kin') => {
+  const types = profile?.momTypes || [];
+  for (const tag of item.tags || []) {
+    if (types.includes(tag)) return TYPE_CHIP[tag]?.[mode];
+  }
+  const ages = Object.keys(profile?.kidsAges || {});
+  for (const tag of item.tags || []) {
+    if (ages.includes(tag)) return mode === 'for' ? `Ages ${tag}` : `Kids ${tag}`;
+  }
+  return item.fallbackChip || null;
+};
+
+const placeChip = (item, location) =>
+  location && item.area === location ? `In ${item.area}` : item.fallbackChip;
+
+const MEETUPS = [
+  { id: 'g1', title: 'Saturday Coffee Walk', sub: 'Hyde Park · Sat 10am',
+    tags: ['💛 Solo Mom', '🏡 Stay-at-home', '📍 New to area'],
+    fallbackChip: '4 moms going',
+    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&auto=format&fit=crop' },
+  { id: 'g2', title: 'Bayshore Stroller Group', sub: 'Fri 8am · all paces',
+    tags: ['💼 Working Mom', '🤰 Pregnant', '0–1'],
+    fallbackChip: 'Beginner-friendly',
+    photo: 'https://images.unsplash.com/photo-1483721310020-03333e577078?w=200&auto=format&fit=crop' },
+  { id: 'g3', title: 'Mom Mixer at Armature', sub: 'Wed 7pm · social hour',
+    tags: ['🌍 Multicultural', '📍 New to area', '3–5'],
+    fallbackChip: 'Open RSVP',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=200&auto=format&fit=crop' },
+];
+
+const MOMS = [
+  { id: 'm1', title: 'Sarah M.', sub: '0.4 mi · Curtis Hixon mornings',
+    tags: ['💛 Solo Mom', '🏡 Stay-at-home', '1–3'],
+    fallbackChip: 'Near you',
+    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop' },
+  { id: 'm2', title: 'Priya K.', sub: '0.7 mi · loves Bayshore walks',
+    tags: ['🌍 Multicultural', '💼 Working Mom', '1–3', '3–5'],
+    fallbackChip: 'Near you',
+    photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=200&auto=format&fit=crop' },
+  { id: 'm3', title: 'Liz B.', sub: '1.1 mi · weekday playdates',
+    tags: ['📍 New to area', '🤰 Pregnant', '0–1'],
+    fallbackChip: 'Near you',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop' },
+];
+
+const ACTIVITIES = [
+  { id: 'a1', title: 'Little Sprouts Music', sub: 'Tue/Thu drop-in · sliding scale',
+    tags: ['1–3', '3–5', '🏡 Stay-at-home'],
+    fallbackChip: 'Drop-in',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=200&auto=format&fit=crop' },
+  { id: 'a2', title: 'Splash & Story Hour', sub: 'Sat 11am · free at library',
+    tags: ['0–1', '1–3', '💼 Working Mom'],
+    fallbackChip: 'Free · family',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&auto=format&fit=crop' },
+  { id: 'a3', title: 'Tampa Toddler Yoga', sub: 'Mon 9am · YMCA',
+    tags: ['1–3', '3–5', '💛 Solo Mom', '🌍 Multicultural'],
+    fallbackChip: 'Beginner-friendly',
+    photo: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&auto=format&fit=crop' },
+];
+
+const PLACES = [
+  { id: 'p1', title: 'Buddy Brew Coffee', sub: 'Mom-friendly · sidewalk seating',
+    area: 'South Tampa', fallbackChip: 'South Tampa',
+    photo: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=200&auto=format&fit=crop' },
+  { id: 'p2', title: 'Curtis Hixon Park', sub: 'Big lawn · splash fountain',
+    area: 'Downtown', fallbackChip: 'Downtown',
+    photo: 'https://images.unsplash.com/photo-1571086291540-b137111ff5a3?w=200&auto=format&fit=crop' },
+  { id: 'p3', title: 'Armature Works', sub: 'Food hall · stroller-friendly',
+    area: 'Downtown', fallbackChip: 'Downtown',
+    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=200&auto=format&fit=crop' },
+];
+
+const RESOURCES = [
+  { id: 'r1', title: 'Tampa Solo Mom Network', sub: 'Free support group · meets monthly',
+    tags: ['💛 Solo Mom', '📍 New to area'],
+    fallbackChip: 'Recommended',
+    photo: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200&auto=format&fit=crop' },
+  { id: 'r2', title: 'Mama-friendly therapists', sub: 'Sliding scale · postpartum focus',
+    tags: ['🤰 Pregnant', '💼 Working Mom'],
+    fallbackChip: 'Postpartum focus',
+    photo: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&auto=format&fit=crop' },
+  { id: 'r3', title: 'MOPS Tampa Chapter', sub: 'Mothers of Preschoolers · Tuesdays',
+    tags: ['🏡 Stay-at-home', '🌍 Multicultural', '1–3', '3–5'],
+    fallbackChip: 'Weekly',
+    photo: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=200&auto=format&fit=crop' },
 ];
 
 const StepDots = ({ current, total }) => (
@@ -63,85 +141,91 @@ const StepDots = ({ current, total }) => (
   </div>
 );
 
-// Horizontal photo card — 72px image on the left, text on the right,
-// bookmark top-right, optional match-% badge top-left over the photo.
-const PhotoCard = ({ photo, title, sub, meta, badge, saved, onSave }) => (
+// Compact list row — 44px thumb, sage match-chip inline with sub, bookmark top-right.
+const CompactRow = ({ photo, title, sub, chip, saved, onSave }) => (
   <div
-    className="flex items-center overflow-hidden relative"
+    className="flex items-center relative"
     style={{
       background: '#fff',
-      borderRadius: 12,
+      borderRadius: 10,
       border: `1px solid ${C.line}`,
-      marginBottom: 5,
-      boxShadow: '0 3px 8px -6px rgba(27,42,78,.15)',
+      marginBottom: 4,
+      padding: 6,
+      boxShadow: '0 2px 6px -5px rgba(27,42,78,.15)',
     }}
   >
-    <div style={{ position: 'relative', flexShrink: 0 }}>
-      <img
-        src={photo}
-        alt=""
-        style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }}
-      />
-      {badge && (
-        <div style={{
-          position: 'absolute', top: 5, left: 5,
-          padding: '1px 5px',
-          borderRadius: 6,
-          background: 'rgba(255,255,255,.94)',
-          fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
-          color: C.coralDeep, letterSpacing: '.02em',
-          boxShadow: '0 1px 2px rgba(27,42,78,.18)',
-        }}>
-          {badge}
-        </div>
-      )}
-    </div>
-    <div className="flex-1 min-w-0" style={{ padding: '7px 28px 7px 10px' }}>
+    <img src={photo} alt="" style={{
+      width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0,
+    }}/>
+    <div className="flex-1 min-w-0" style={{ padding: '0 26px 0 8px' }}>
       <div className="truncate" style={{
         fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
         color: C.navy, lineHeight: 1.2,
       }}>
         {title}
       </div>
-      <div className="truncate" style={{
-        fontFamily: 'Albert Sans', fontSize: 10, color: C.muted, marginTop: 2,
-      }}>
-        {sub}
-      </div>
-      <div className="flex items-center gap-1 truncate" style={{ marginTop: 3 }}>
-        <MapPin size={9} color={C.navySoft}/>
-        <span style={{
-          fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 600, color: C.navySoft,
-        }}>
-          {meta}
-        </span>
+      <div className="flex items-center gap-1.5 truncate" style={{ marginTop: 2 }}>
+        {chip && (
+          <span style={{
+            background: C.sage,
+            color: '#3D5E20',
+            fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+            padding: '1.5px 5px', borderRadius: 4, letterSpacing: '.02em',
+            flexShrink: 0, whiteSpace: 'nowrap',
+          }}>{chip}</span>
+        )}
+        <span className="truncate" style={{
+          fontFamily: 'Albert Sans', fontSize: 9.5, color: C.muted,
+        }}>{sub}</span>
       </div>
     </div>
-    <button
-      onClick={onSave}
-      aria-label={saved ? 'Unsave' : 'Save'}
-      style={{
-        position: 'absolute', top: 6, right: 6,
-        width: 22, height: 22, borderRadius: 11,
-        background: 'rgba(255,255,255,.92)',
-        border: 'none', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <Bookmark
-        size={12}
-        color={saved ? C.coralDeep : C.muted}
-        fill={saved ? C.coralDeep : 'none'}
-      />
-    </button>
+    {onSave && (
+      <button
+        onClick={onSave}
+        aria-label={saved ? 'Unsave' : 'Save'}
+        style={{
+          position: 'absolute', top: 6, right: 6,
+          width: 20, height: 20, borderRadius: 10,
+          background: 'rgba(255,255,255,.92)',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Bookmark
+          size={11}
+          color={saved ? C.coralDeep : C.muted}
+          fill={saved ? C.coralDeep : 'none'}
+        />
+      </button>
+    )}
   </div>
 );
 
-export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems, profile, setProfile }) => {
+const SectionTitle = ({ children }) => (
+  <div style={{
+    fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
+    color: C.navy, letterSpacing: '-.01em', marginBottom: 6,
+  }}>
+    {children}
+  </div>
+);
+
+const SubHead = ({ children }) => (
+  <div style={{
+    fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+    letterSpacing: '.12em', color: C.coralDeep,
+    marginTop: 6, marginBottom: 3,
+  }}>
+    {children}
+  </div>
+);
+
+export const VillagePreview = ({
+  onNext, onBack, savedItems = [], setSavedItems,
+  profile, setProfile, location,
+}) => {
   const [localSaved, setLocalSaved] = useState(new Set(savedItems));
   const initialInterests = profile?.interests || [];
-  // Show the prompt once: after the user's first bookmark, unless interests
-  // were already captured or the user dismissed it.
   const [interestPromptState, setInterestPromptState] = useState(
     initialInterests.length > 0 ? 'done' : 'hidden',
   ); // hidden | open | done | dismissed
@@ -153,7 +237,6 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems,
       const wasEmpty = next.size === 0;
       if (next.has(id)) next.delete(id); else next.add(id);
       setSavedItems?.([...next]);
-      // First bookmark → surface the contextual interests prompt.
       if (wasEmpty && next.size === 1 && interestPromptState === 'hidden') {
         setInterestPromptState('open');
       }
@@ -193,7 +276,7 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems,
         <div style={{ width: 32 }}/>
       </div>
 
-      <div className="px-4" style={{ paddingBottom: 8, flexShrink: 0 }}>
+      <div className="px-4" style={{ paddingBottom: 6, flexShrink: 0 }}>
         <h2 style={{
           fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700,
           color: C.navy, lineHeight: 1.15, letterSpacing: '-.01em',
@@ -211,7 +294,7 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems,
               border: `1.3px solid ${C.coral}`,
               borderRadius: 14,
               padding: '10px 12px 12px',
-              marginBottom: 10,
+              marginBottom: 8,
               boxShadow: '0 8px 20px -10px rgba(214,68,106,.35)',
               animation: 'fadeInUp 0.32s ease-out',
               position: 'relative',
@@ -283,47 +366,75 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems,
             </button>
           </div>
         )}
-        {PREVIEW_DATA.map((sec, sIdx) => (
-          <div key={sec.title} style={{ marginTop: sIdx === 0 ? 0 : 8 }}>
-            <div style={{
-              fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
-              letterSpacing: '.12em', color: C.coralDeep, marginBottom: 2,
-            }}>
-              {sec.section}
-            </div>
-            <div className="flex items-baseline justify-between" style={{ marginBottom: 5 }}>
-              <div style={{
-                fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
-                color: C.navy, letterSpacing: '-.01em',
-              }}>
-                {sec.title}
-              </div>
-              {sec.count && (
-                <div style={{
-                  fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 600,
-                  color: C.muted, letterSpacing: '.02em',
-                }}>
-                  {sec.count}
-                </div>
-              )}
-            </div>
 
-            {sec.items.map(item => (
-              <PhotoCard
-                key={item.id}
-                photo={item.photo}
-                title={item.title}
-                sub={item.sub}
-                meta={item.meta}
-                badge={item.badge}
-                saved={localSaved.has(item.id)}
-                onSave={() => toggleSave(item.id)}
-              />
-            ))}
-          </div>
-        ))}
+        {/* ---------- 1 · Connect with other moms ---------- */}
+        <div>
+          <SectionTitle>Connect with other moms</SectionTitle>
+          <SubHead>GROUP MEETUPS THIS WEEK</SubHead>
+          {MEETUPS.map(item => (
+            <CompactRow
+              key={item.id}
+              photo={item.photo} title={item.title} sub={item.sub}
+              chip={matchChip(item, profile, 'for')}
+              saved={localSaved.has(item.id)}
+              onSave={() => toggleSave(item.id)}
+            />
+          ))}
+          <SubHead>MOMS NEARBY</SubHead>
+          {MOMS.map(item => (
+            <CompactRow
+              key={item.id}
+              photo={item.photo} title={item.title} sub={item.sub}
+              chip={matchChip(item, profile, 'kin')}
+              saved={localSaved.has(item.id)}
+              onSave={() => toggleSave(item.id)}
+            />
+          ))}
+        </div>
 
-        <div style={{ height: 4 }}/>
+        {/* ---------- 2 · Things to do this week ---------- */}
+        <div style={{ marginTop: 10 }}>
+          <SectionTitle>Things to do this week</SectionTitle>
+          {ACTIVITIES.map(item => (
+            <CompactRow
+              key={item.id}
+              photo={item.photo} title={item.title} sub={item.sub}
+              chip={matchChip(item, profile, 'for')}
+              saved={localSaved.has(item.id)}
+              onSave={() => toggleSave(item.id)}
+            />
+          ))}
+        </div>
+
+        {/* ---------- 3 · Top local spots ---------- */}
+        <div style={{ marginTop: 10 }}>
+          <SectionTitle>Top local spots</SectionTitle>
+          {PLACES.map(item => (
+            <CompactRow
+              key={item.id}
+              photo={item.photo} title={item.title} sub={item.sub}
+              chip={placeChip(item, location)}
+              saved={localSaved.has(item.id)}
+              onSave={() => toggleSave(item.id)}
+            />
+          ))}
+        </div>
+
+        {/* ---------- 4 · Recommended resources ---------- */}
+        <div style={{ marginTop: 10 }}>
+          <SectionTitle>Recommended resources</SectionTitle>
+          {RESOURCES.map(item => (
+            <CompactRow
+              key={item.id}
+              photo={item.photo} title={item.title} sub={item.sub}
+              chip={matchChip(item, profile, 'for')}
+              saved={localSaved.has(item.id)}
+              onSave={() => toggleSave(item.id)}
+            />
+          ))}
+        </div>
+
+        <div style={{ height: 6 }}/>
       </div>
 
       <div style={{
