@@ -35,7 +35,6 @@ Moms looking for real-life friendship with other moms — not chat pen-pals, not
 | Route | Surface |
 |---|---|
 | `/` | Public waitlist marketing page |
-| `/promo` | Founding-moms dark-mode landing |
 | `/prototype` | The interactive product (Landing → AboutYou → VillagePreview → Account → MainApp) |
 | `/live` | Same prototype, "bare" — no `PhoneFrame`, used for embedding |
 | `/admin` | Admin dashboard (overview, waitlist, moms report, mom profiles, feedback) |
