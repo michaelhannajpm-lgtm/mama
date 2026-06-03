@@ -1,16 +1,15 @@
-// OAuth provider catalogue + env-driven filter.
+// OAuth provider catalogue.
 //
-// The full list of providers we *could* offer. Whether each shows in the UI
-// depends on whether you've configured it in your Supabase project AND set
-// the matching VITE_OAUTH_* env var to a truthy value.
+// Google, Apple, and Facebook are shown by default on Account + Login.
+// Each tap calls supabase.auth.signInWithOAuth(provider) — for the handshake
+// to complete, the matching provider must also be enabled in
+// Supabase Dashboard → Authentication → Providers. If it isn't, the user
+// sees a friendly error and the rest of the email/phone flow still works.
 //
-//   VITE_OAUTH_GOOGLE=1      → "Continue with Google" button
-//   VITE_OAUTH_FACEBOOK=1    → "Continue with Facebook" button
-//   VITE_OAUTH_APPLE=1       → "Continue with Apple" button
-//
-// Default behavior: every flag is OFF, so the OAuth row is hidden and only
-// email/phone + password is shown. As you enable providers in
-// Supabase Dashboard → Authentication → Providers, flip the matching flag.
+// To hide a button without removing it, set VITE_OAUTH_<ID>=0:
+//   VITE_OAUTH_GOOGLE=0    → hide Google
+//   VITE_OAUTH_FACEBOOK=0  → hide Facebook
+//   VITE_OAUTH_APPLE=0     → hide Apple
 
 export const ALL_PROVIDERS = [
   { id: 'google',   label: 'Continue with Google',   bg: '#FFFFFF', fg: '#1F1F1F', border: '#DADCE0', envKey: 'VITE_OAUTH_GOOGLE'   },
@@ -18,6 +17,8 @@ export const ALL_PROVIDERS = [
   { id: 'apple',    label: 'Continue with Apple',    bg: '#000000', fg: '#FFFFFF', border: '#000000', envKey: 'VITE_OAUTH_APPLE'    },
 ];
 
-const truthy = (v) => v === true || v === '1' || v === 'true' || v === 'yes';
+const isExplicitlyDisabled = (v) => v === '0' || v === 'false' || v === 'no' || v === false;
 
-export const ENABLED_PROVIDERS = ALL_PROVIDERS.filter(p => truthy(import.meta.env[p.envKey]));
+export const ENABLED_PROVIDERS = ALL_PROVIDERS.filter(
+  (p) => !isExplicitlyDisabled(import.meta.env[p.envKey])
+);

@@ -79,12 +79,15 @@ export const Landing = ({ onBegin, onSignIn }) => (
   >
     <StatusBar/>
 
-    {/* Logo area — floating hearts + logo + decorative line */}
-    <div style={{ position: 'relative', textAlign: 'center', padding: '10px 20px 0', flexShrink: 0 }}>
+    {/* Decorative floating hearts — container has no height, just provides position context */}
+    <div style={{ position: 'relative', height: 0 }}>
       <span style={{ position: 'absolute', top: 14, left: 16, fontSize: 18, color: '#F5B8C8', opacity: .8 }}>♡</span>
       <span style={{ position: 'absolute', top: 36, left: 30, fontSize: 11, color: '#F5B8C8', opacity: .6 }}>♡</span>
       <span style={{ position: 'absolute', top: 20, right: 22, fontSize: 13, color: '#F5B8C8', opacity: .55 }}>♡</span>
+    </div>
 
+    {/* Centered stack — logo + headline + grid + also share the same 12px gap */}
+    <div className="flex-1 flex flex-col justify-center" style={{ padding: '0 16px', minHeight: 0, gap: 12 }}>
       <img
         src="/gomama-logo.png"
         alt="Go Mama"
@@ -93,10 +96,7 @@ export const Landing = ({ onBegin, onSignIn }) => (
           margin: '0 auto', mixBlendMode: 'multiply',
         }}
       />
-    </div>
 
-    {/* Centered stack — headline sits directly above the hook */}
-    <div className="flex-1 flex flex-col justify-center" style={{ padding: '0 16px', minHeight: 0, gap: 12 }}>
       {/* Headline */}
       <div style={{ textAlign: 'center', padding: '0 6px' }}>
         <div style={{
@@ -141,8 +141,8 @@ export const Landing = ({ onBegin, onSignIn }) => (
 
     {/* CTA */}
     <div style={{
-      padding: '6px 16px 10px',
-      paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
+      padding: '6px 16px 28px',
+      paddingBottom: 'max(28px, env(safe-area-inset-bottom, 0px))',
       flexShrink: 0, position: 'relative',
     }}>
       <span style={{ position: 'absolute', left: 22, top: 14, color: C.coral, fontSize: 11, zIndex: 1 }}>✦</span>
