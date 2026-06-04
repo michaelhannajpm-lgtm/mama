@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Sparkles, ArrowRight, ShieldCheck, MapPin, Users } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
+import { HeroCarousel } from '../components/HeroCarousel';
 
 // ==========================================================================
 // Landing — revamp around an editorial-magazine pattern.
@@ -9,15 +9,14 @@ import { StatusBar } from '../components/StatusBar';
 // Hierarchy (top → bottom):
 //   1. Logo + tiny coral accents
 //   2. Headline + subhead (tight unit)
-//   3. Hero photo as the centerpiece (uncropped, fills leftover space)
-//      with a floating *live activity* pill overlaid on its lower edge:
-//        ● 50 moms meeting this week in Tampa
-//      Coral pulsing dot conveys "this is happening right now."
+//   3. Hero carousel as the centerpiece (fills leftover space) — a swipeable
+//      story of the app's four pillars (Connect · Explore · Top Rated ·
+//      Verified), each slide carrying its own proof point. See HeroCarousel.
 //   4. Compact trust strip: Verified moms · Tampa-local · Real meetups
 //   5. Coral gradient CTA + secondary log-in link
 //
-// Replaces the prior 3-tile stats block — one motion-led proof point reads
-// more confident than three competing pillars, and the trust strip
+// The carousel replaces the prior single static photo + lone stat pill —
+// rotating slides broaden the pitch beyond mom-matching while the trust strip
 // reinforces the moat (verified, local, anti-Tinder) in one quick scan.
 // ==========================================================================
 
@@ -29,25 +28,7 @@ const TRUST_SIGNALS = [
   { Icon: Users,       label: 'Real meetups' },
 ];
 
-// Live-activity stats cycled through the badge — explicitly broadens the
-// pitch beyond mom-matching so users don't read it as a Peanut clone.
-const ACTIVITY_STATS = [
-  { count: '50',     label: 'mom meetups' },
-  { count: '70',     label: 'kid activities' },
-  { count: '1,200+', label: 'local gems' },
-];
-
 export const Landing = ({ onBegin, onSignIn }) => {
-  const [statIdx, setStatIdx] = useState(0);
-  useEffect(() => {
-    const id = setInterval(
-      () => setStatIdx(i => (i + 1) % ACTIVITY_STATS.length),
-      2400,
-    );
-    return () => clearInterval(id);
-  }, []);
-  const stat = ACTIVITY_STATS[statIdx];
-
   return (
   <div
     className="flex flex-col relative"
@@ -121,58 +102,13 @@ export const Landing = ({ onBegin, onSignIn }) => {
         </p>
       </div>
 
-      {/* Hero — flex-1 absorbs leftover space; objectFit contain keeps the
-          original picture visible without cropping. Live-activity pill is
-          overlaid on the lower edge of the photo. */}
+      {/* Hero carousel — flex-1 absorbs leftover space. Swipeable story of the
+          app's four pillars; see HeroCarousel for slide content + interaction. */}
       <div
-        className="flex-1 relative flex items-center justify-center"
+        className="flex-1 relative"
         style={{ padding: '12px 16px 0', minHeight: 0 }}
       >
-        <img
-          src="/hero-moms.png"
-          alt="Two moms with their kids"
-          style={{
-            width: '100%', height: '100%',
-            objectFit: 'contain', display: 'block',
-            borderRadius: 18,
-          }}
-        />
-
-        {/* Floating live-activity pill */}
-        <div
-          style={{
-            position: 'absolute', bottom: 8, left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#fff',
-            padding: '7px 14px 7px 12px',
-            borderRadius: 999,
-            border: `1.3px solid ${C.coralSoft}`,
-            boxShadow: '0 10px 24px -10px rgba(214,68,106,.5), 0 1px 2px rgba(27,42,78,.06)',
-            display: 'flex', alignItems: 'center', gap: 9,
-            animation: 'fadeInUp 0.55s ease-out',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={{
-            width: 8, height: 8, borderRadius: 4,
-            background: C.coral,
-            boxShadow: `0 0 0 3px ${C.coralSoft}`,
-            animation: 'livePulse 1.4s ease-in-out infinite',
-          }}/>
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-            color: C.navy, letterSpacing: '.005em',
-          }}>
-            <span
-              key={statIdx}
-              style={{ display: 'inline-block', animation: 'fadeInUp 0.4s ease-out' }}
-            >
-              <span style={{ color: C.coralDeep }}>{stat.count}</span>{' '}
-              {stat.label}
-            </span>{' '}
-            <span style={{ color: C.muted, fontWeight: 600 }}>· this week in Tampa</span>
-          </span>
-        </div>
+        <HeroCarousel/>
       </div>
 
       {/* Trust strip */}
