@@ -51,12 +51,9 @@ export const Landing = ({ onBegin, onSignIn }) => (
       className="flex-1 flex flex-col"
       style={{ minHeight: 0, position: 'relative', zIndex: 1 }}
     >
-      {/* Spacer — absorbs leftover space above so the whole content block
-          (logo → subhead → hero → banner → CTA) clusters tight at the bottom */}
-      <div style={{ flex: 1, minHeight: 0 }} aria-hidden/>
-
-      {/* Logo + tiny coral accents */}
-      <div style={{ position: 'relative', textAlign: 'center', padding: '0 20px 0', flexShrink: 0 }}>
+      {/* Logo + tiny coral accents — anchored to the top; the hero carousel
+          below grows to absorb all leftover real estate. */}
+      <div style={{ position: 'relative', textAlign: 'center', padding: '10px 20px 0', flexShrink: 0 }}>
         <img
           src="/gomama-logo.png"
           alt="Go Mama"
@@ -82,7 +79,7 @@ export const Landing = ({ onBegin, onSignIn }) => (
           color: C.navy, lineHeight: 1.2, letterSpacing: '-.02em',
         }}>
           Everything a{' '}
-          <span style={{ color: C.coralDeep }}>Tampa mom</span>
+          <span style={{ color: C.coralDeep }}>mom</span>
           {' '}needs. In one place.
         </div>
         <p style={{

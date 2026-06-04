@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Star, ShieldCheck, MapPin } from 'lucide-react';
+import { Star, ShieldCheck, MapPin, Calendar, CalendarCheck, GraduationCap, HeartHandshake } from 'lucide-react';
 import { C } from '../theme';
 
 // ==========================================================================
 // HeroCarousel — the landing hero, reimagined as a swipeable story of the
-// app's four pillars. Each slide is a full-bleed cover photo with a bottom
+// app's surfaces (Connect · This Week · Explore · Meetups · Programs ·
+// Top Rated · Support · Verified). Each slide is a full-bleed cover photo
+// with a bottom
 // scrim and an overlaid caption (eyebrow + title + proof point). Auto-advances
 // every 3.8s, pauses while dragging, supports touch/mouse swipe + tap-to-jump.
 //
@@ -22,14 +24,35 @@ const SLIDES = [
     badge: 'live',
   },
   {
-    img: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop',
+    eyebrow: 'THIS WEEK',
+    title: 'Your whole week, sorted',
+    stat: '38 family ideas picked for you',
+    badge: 'calendar',
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=800&auto=format&fit=crop',
     eyebrow: 'EXPLORE',
     title: 'Kid activities, all sorted',
     stat: '70 playgroups & classes this week',
     badge: 'map',
   },
   {
-    img: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800&auto=format&fit=crop',
+    eyebrow: 'MEETUPS',
+    title: 'Real plans, not endless chats',
+    stat: 'Stroller walks, splash pads & coffee',
+    badge: 'plans',
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&auto=format&fit=crop',
+    eyebrow: 'PROGRAMS',
+    title: 'Schools & programs, vetted',
+    stat: 'Classes, camps & preschools nearby',
+    badge: 'school',
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=800&auto=format&fit=crop',
     eyebrow: 'TOP RATED',
     title: 'Local gems, mom-ranked',
     stat: '4.9 · 1,200+ kid-friendly spots',
@@ -37,6 +60,13 @@ const SLIDES = [
   },
   {
     img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&auto=format&fit=crop',
+    eyebrow: 'SUPPORT',
+    title: 'Support that shows up',
+    stat: 'Pediatric, mental health & more',
+    badge: 'heart',
+  },
+  {
+    img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&auto=format&fit=crop',
     eyebrow: 'VERIFIED',
     title: 'Real moms, always verified',
     stat: 'Instagram + a real photo — no randoms',
@@ -57,8 +87,12 @@ const EyebrowMark = ({ kind }) => {
       }}/>
     );
   }
-  if (kind === 'rating') return <Star size={11} fill={C.saffron} color={C.saffron} strokeWidth={0}/>;
-  if (kind === 'shield') return <ShieldCheck size={11} color="#fff" strokeWidth={2.4}/>;
+  if (kind === 'rating')   return <Star size={11} fill={C.saffron} color={C.saffron} strokeWidth={0}/>;
+  if (kind === 'shield')   return <ShieldCheck size={11} color="#fff" strokeWidth={2.4}/>;
+  if (kind === 'calendar') return <Calendar size={11} color="#fff" strokeWidth={2.4}/>;
+  if (kind === 'plans')    return <CalendarCheck size={11} color="#fff" strokeWidth={2.4}/>;
+  if (kind === 'school')   return <GraduationCap size={11} color="#fff" strokeWidth={2.4}/>;
+  if (kind === 'heart')    return <HeartHandshake size={11} color="#fff" strokeWidth={2.4}/>;
   return <MapPin size={11} color="#fff" strokeWidth={2.4}/>;
 };
 
