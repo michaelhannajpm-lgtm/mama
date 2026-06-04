@@ -1,269 +1,266 @@
 import { useState } from 'react';
-import { Heart, ChevronLeft, Bookmark, X } from 'lucide-react';
+import {
+  Heart, ChevronLeft, ChevronRight, Bell, SlidersHorizontal, Bookmark,
+  Calendar, MapPin, Users, Briefcase, Sparkles,
+} from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
-import { recordStep } from '../../lib/onboarding';
 
 // ==========================================================================
 // VillagePreview — onboarding screen 3.
-// Four sections of curated picks. Each item carries a sage match-chip that
-// explains why it surfaced for *this* user (mom type / kids' ages / area).
-//
-//   1 · Connect with other moms
-//        ↳ Group meetups this week  (1 row)
-//        ↳ Moms nearby              (2 rows)
-//   2 · Things to do this week      (2 rows)
-//   3 · Top local spots             (2 rows)
-//   4 · Recommended resources       (2 rows)
-//
-// First bookmark surfaces a contextual interests prompt (kept from prior
-// progressive-profiling pass — it only fires once per session).
+// V5 layout: "Here's what's waiting for you" with three preview rows
+// (Things to do this week · Moms nearby · Local picks) and a coral
+// "Unlock My Village" CTA.
 // ==========================================================================
 
-const INTEREST_OPTIONS = [
-  '🌳 Outdoors',
-  '☕ Coffee',
-  '🧘‍♀️ Wellness',
-  '🎨 Crafts',
-  '📚 Books',
-];
-
-// Two registers per mom-type — "kin" for moms-like-you cards,
-// "for" for activities / events / resources that serve that type.
-const TYPE_CHIP = {
-  '💛 Solo Mom':      { kin: 'Solo mom too',         for: 'For solo moms'         },
-  '🌍 Multicultural': { kin: 'Multicultural family', for: 'Multicultural focus'   },
-  '💼 Working Mom':   { kin: 'Working mom too',      for: 'Working-mom friendly'  },
-  '🏡 Stay-at-home':  { kin: 'Stay-at-home too',     for: 'For SAHMs'             },
-  '📍 New to area':   { kin: 'New to Tampa too',     for: 'For Tampa newcomers'   },
-  '🤰 Pregnant':      { kin: 'Also pregnant',        for: 'Pregnancy-friendly'    },
-};
-
-// Walk the item's tags in order; return the first one that aligns with
-// the user's profile. Falls back to the item's hard-coded chip.
-const matchChip = (item, profile, mode = 'kin') => {
-  const types = profile?.momTypes || [];
-  for (const tag of item.tags || []) {
-    if (types.includes(tag)) return TYPE_CHIP[tag]?.[mode];
-  }
-  const ages = Object.keys(profile?.kidsAges || {});
-  for (const tag of item.tags || []) {
-    if (ages.includes(tag)) return mode === 'for' ? `Ages ${tag}` : `Kids ${tag}`;
-  }
-  return item.fallbackChip || null;
-};
-
-const placeChip = (item, location) =>
-  location && item.area === location ? `In ${item.area}` : item.fallbackChip;
-
-const MEETUPS = [
-  { id: 'g1', title: 'Saturday Coffee Walk', sub: 'Hyde Park · Sat 10am',
-    tags: ['💛 Solo Mom', '🏡 Stay-at-home', '📍 New to area'],
-    fallbackChip: '4 moms going',
-    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&auto=format&fit=crop' },
-  { id: 'g2', title: 'Bayshore Stroller Group', sub: 'Fri 8am · all paces',
-    tags: ['💼 Working Mom', '🤰 Pregnant', '0–1'],
-    fallbackChip: 'Beginner-friendly',
-    photo: 'https://images.unsplash.com/photo-1483721310020-03333e577078?w=200&auto=format&fit=crop' },
-  { id: 'g3', title: 'Mom Mixer at Armature', sub: 'Wed 7pm · social hour',
-    tags: ['🌍 Multicultural', '📍 New to area', '3–5'],
-    fallbackChip: 'Open RSVP',
-    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=200&auto=format&fit=crop' },
-];
-
-const MOMS = [
-  { id: 'm1', title: 'Sarah M.', sub: '0.4 mi · Curtis Hixon mornings',
-    tags: ['💛 Solo Mom', '🏡 Stay-at-home', '1–3'],
-    fallbackChip: 'Near you',
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop' },
-  { id: 'm2', title: 'Priya K.', sub: '0.7 mi · loves Bayshore walks',
-    tags: ['🌍 Multicultural', '💼 Working Mom', '1–3', '3–5'],
-    fallbackChip: 'Near you',
-    photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=200&auto=format&fit=crop' },
-  { id: 'm3', title: 'Liz B.', sub: '1.1 mi · weekday playdates',
-    tags: ['📍 New to area', '🤰 Pregnant', '0–1'],
-    fallbackChip: 'Near you',
-    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop' },
-];
-
 const ACTIVITIES = [
-  { id: 'a1', title: 'Little Sprouts Music', sub: 'Tue/Thu drop-in · sliding scale',
-    tags: ['1–3', '3–5', '🏡 Stay-at-home'],
-    fallbackChip: 'Drop-in',
-    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=200&auto=format&fit=crop' },
-  { id: 'a2', title: 'Splash & Story Hour', sub: 'Sat 11am · free at library',
-    tags: ['0–1', '1–3', '💼 Working Mom'],
-    fallbackChip: 'Free · family',
-    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&auto=format&fit=crop' },
-  { id: 'a3', title: 'Tampa Toddler Yoga', sub: 'Mon 9am · YMCA',
-    tags: ['1–3', '3–5', '💛 Solo Mom', '🌍 Multicultural'],
-    fallbackChip: 'Beginner-friendly',
-    photo: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&auto=format&fit=crop' },
+  {
+    id: 'a1', kind: 'event', kindLabel: 'EVENT', kindBg: C.coralSoft, kindFg: C.coralDeep,
+    title: 'Storytime at The Yard',
+    when: 'Tomorrow · 10:00 AM',
+    where: 'South Tampa',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'a2', kind: 'meetup', kindLabel: 'MEETUP', kindBg: C.sage, kindFg: C.sageDark,
+    title: 'Mom Coffee Meetup',
+    when: 'Fri, May 10 · 9:30 AM',
+    where: 'Apollo Beach',
+    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'a3', kind: 'class', kindLabel: 'CLASS', kindBg: C.lilac, kindFg: '#5E4A8A',
+    title: 'Soccer Skills Clinic',
+    when: 'Sun, May 12 · 9:30 AM',
+    where: 'Westchase',
+    photo: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&auto=format&fit=crop',
+  },
 ];
 
-const PLACES = [
-  { id: 'p1', title: 'Buddy Brew Coffee', sub: 'Mom-friendly · sidewalk seating',
-    area: 'South Tampa', fallbackChip: 'South Tampa',
-    photo: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=200&auto=format&fit=crop' },
-  { id: 'p2', title: 'Curtis Hixon Park', sub: 'Big lawn · splash fountain',
-    area: 'Downtown', fallbackChip: 'Downtown',
-    photo: 'https://images.unsplash.com/photo-1571086291540-b137111ff5a3?w=200&auto=format&fit=crop' },
-  { id: 'p3', title: 'Armature Works', sub: 'Food hall · stroller-friendly',
-    area: 'Downtown', fallbackChip: 'Downtown',
-    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=200&auto=format&fit=crop' },
+const MOMS_NEARBY = [
+  {
+    id: 'm1', name: 'Sarah', kids: '2 kids', distance: '0.4 mi',
+    tag: 'Solo dad', tagBg: C.coralSoft, tagFg: C.coralDeep, Icon: Heart,
+    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop',
+  },
+  {
+    id: 'm2', name: 'Amanda', kids: '1 kid', distance: '0.7 mi',
+    tag: 'Working mom', tagBg: C.lilac, tagFg: '#5E4A8A', Icon: Briefcase,
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop',
+  },
+  {
+    id: 'm3', name: 'Jessica', kids: '2 kids', distance: '0.8 mi',
+    tag: 'Lives nearby', tagBg: C.sage, tagFg: C.sageDark, Icon: MapPin,
+    photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=200&auto=format&fit=crop',
+  },
 ];
 
-const RESOURCES = [
-  { id: 'r1', title: 'Tampa Solo Mom Network', sub: 'Free support group · meets monthly',
-    tags: ['💛 Solo Mom', '📍 New to area'],
-    fallbackChip: 'Recommended',
-    photo: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200&auto=format&fit=crop' },
-  { id: 'r2', title: 'Mama-friendly therapists', sub: 'Sliding scale · postpartum focus',
-    tags: ['🤰 Pregnant', '💼 Working Mom'],
-    fallbackChip: 'Postpartum focus',
-    photo: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&auto=format&fit=crop' },
-  { id: 'r3', title: 'MOPS Tampa Chapter', sub: 'Mothers of Preschoolers · Tuesdays',
-    tags: ['🏡 Stay-at-home', '🌍 Multicultural', '1–3', '3–5'],
-    fallbackChip: 'Weekly',
-    photo: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=200&auto=format&fit=crop' },
+const LOCAL_PICKS = [
+  {
+    id: 'p1', title: 'Bayshore Playground',
+    distance: '0.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1571086291540-b137111ff5a3?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'p2', title: 'Little Explorers Play Cafe',
+    distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'p3', title: 'Best Daycares Near You',
+    distance: '1.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
+  },
 ];
 
-const StepDots = ({ current, total }) => (
-  <div className="flex items-center gap-1.5">
-    {Array.from({ length: total }, (_, i) => (
-      <div key={i} style={{
-        width: i + 1 === current ? 22 : 7,
-        height: 7,
-        borderRadius: 4,
-        background: i + 1 === current ? C.coral : C.line,
-      }}/>
-    ))}
-  </div>
-);
+// -------------------------- shared bits --------------------------
 
-// Compact list row — 44px thumb, sage match-chip inline with sub, bookmark top-right.
-const CompactRow = ({ photo, title, sub, chip, saved, onSave }) => (
-  <div
-    className="flex items-center relative"
-    style={{
-      background: '#fff',
-      borderRadius: 10,
-      border: `1px solid ${C.line}`,
-      marginBottom: 4,
-      padding: 6,
-      boxShadow: '0 2px 6px -5px rgba(27,42,78,.15)',
-    }}
-  >
-    <img src={photo} alt="" style={{
-      width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0,
-    }}/>
-    <div className="flex-1 min-w-0" style={{ padding: '0 26px 0 8px' }}>
-      <div className="truncate" style={{
-        fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-        color: C.navy, lineHeight: 1.2,
+const SectionHead = ({ Icon, iconBg, iconFg, title, link }) => (
+  <div className="flex items-center justify-between" style={{ marginTop: 14, marginBottom: 8 }}>
+    <div className="flex items-center gap-2">
+      <div style={{
+        width: 22, height: 22, borderRadius: 6,
+        background: iconBg, color: iconFg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={13}/>
+      </div>
+      <div style={{
+        fontFamily: 'Fraunces', fontSize: 15, fontWeight: 700,
+        color: C.navy, letterSpacing: '-.01em',
       }}>
         {title}
       </div>
-      <div className="flex items-center gap-1.5 truncate" style={{ marginTop: 2 }}>
-        {chip && (
-          <span style={{
-            background: C.sage,
-            color: '#3D5E20',
-            fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
-            padding: '1.5px 5px', borderRadius: 4, letterSpacing: '.02em',
-            flexShrink: 0, whiteSpace: 'nowrap',
-          }}>{chip}</span>
-        )}
-        <span className="truncate" style={{
-          fontFamily: 'Albert Sans', fontSize: 9.5, color: C.muted,
-        }}>{sub}</span>
+    </div>
+    <button
+      style={{
+        background: 'transparent', border: 'none', padding: 0,
+        display: 'flex', alignItems: 'center', gap: 1,
+        color: C.coral,
+        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+        cursor: 'pointer',
+      }}
+    >
+      {link} <ChevronRight size={11}/>
+    </button>
+  </div>
+);
+
+const KindPill = ({ label, bg, fg }) => (
+  <span style={{
+    background: bg, color: fg,
+    fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+    padding: '2px 6px', borderRadius: 4,
+    letterSpacing: '.06em',
+    display: 'inline-block', whiteSpace: 'nowrap',
+  }}>
+    {label}
+  </span>
+);
+
+// -------------------------- card primitives --------------------------
+
+const ActivityCard = ({ item }) => (
+  <div style={{
+    background: '#fff', borderRadius: 12,
+    border: `1px solid ${C.line}`,
+    boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
+    overflow: 'hidden',
+  }}>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 64, objectFit: 'cover', display: 'block',
+      }}/>
+      <div style={{
+        position: 'absolute', top: 5, left: 5,
+      }}>
+        <KindPill label={item.kindLabel} bg={item.kindBg} fg={item.kindFg}/>
       </div>
     </div>
-    {onSave && (
-      <button
-        onClick={onSave}
-        aria-label={saved ? 'Unsave' : 'Save'}
-        style={{
-          position: 'absolute', top: 6, right: 6,
-          width: 20, height: 20, borderRadius: 10,
-          background: 'rgba(255,255,255,.92)',
-          border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Bookmark
-          size={11}
-          color={saved ? C.coralDeep : C.muted}
-          fill={saved ? C.coralDeep : 'none'}
-        />
-      </button>
-    )}
+    <div style={{ padding: '6px 7px 7px' }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.2,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        minHeight: 25,
+      }}>
+        {item.title}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 3,
+        fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600,
+        color: C.coralDeep, marginTop: 4,
+      }}>
+        <Calendar size={9}/>
+        <span style={{ lineHeight: 1.1 }}>{item.when}</span>
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 3,
+        fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 2,
+      }}>
+        <MapPin size={9}/>
+        <span>{item.where}</span>
+      </div>
+    </div>
   </div>
 );
 
-const SectionTitle = ({ children }) => (
+const MomCard = ({ item }) => {
+  const Icon = item.Icon;
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 14,
+      border: `1px solid ${C.line}`,
+      boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)',
+      padding: '10px 6px 9px',
+      textAlign: 'center',
+    }}>
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <img src={item.photo} alt="" style={{
+          width: 54, height: 54, borderRadius: 27, objectFit: 'cover',
+          display: 'block',
+        }}/>
+        <div style={{
+          position: 'absolute', top: 1, right: 1,
+          width: 9, height: 9, borderRadius: 5,
+          background: C.sageDark, border: '1.5px solid #fff',
+        }}/>
+      </div>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+        color: C.navy, marginTop: 5, lineHeight: 1.1,
+      }}>
+        {item.name}
+      </div>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 2,
+      }}>
+        {item.kids} · {item.distance}
+      </div>
+      <div style={{ marginTop: 5, display: 'inline-flex' }}>
+        <span style={{
+          background: item.tagBg, color: item.tagFg,
+          fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
+          padding: '2px 6px 2px 5px', borderRadius: 8,
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          whiteSpace: 'nowrap',
+        }}>
+          <Icon size={9}/>
+          {item.tag}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const PlaceCard = ({ item }) => (
   <div style={{
-    fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
-    color: C.navy, letterSpacing: '-.01em', marginBottom: 6,
+    background: '#fff', borderRadius: 12,
+    border: `1px solid ${C.line}`,
+    boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)',
+    overflow: 'hidden',
   }}>
-    {children}
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 60, objectFit: 'cover', display: 'block',
+      }}/>
+    </div>
+    <div style={{ padding: '6px 7px 7px' }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+        color: C.navy, lineHeight: 1.2,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        minHeight: 24,
+      }}>
+        {item.title}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 3,
+        fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3,
+      }}>
+        <MapPin size={9}/>
+        <span>{item.distance}</span>
+      </div>
+    </div>
   </div>
 );
 
-const SubHead = ({ children }) => (
-  <div style={{
-    fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
-    letterSpacing: '.12em', color: C.coralDeep,
-    marginTop: 6, marginBottom: 3,
-  }}>
-    {children}
-  </div>
-);
+// -------------------------- screen --------------------------
 
-export const VillagePreview = ({
-  onNext, onBack, savedItems = [], setSavedItems,
-  profile, setProfile, location,
-}) => {
-  const [localSaved, setLocalSaved] = useState(new Set(savedItems));
-  const initialInterests = profile?.interests || [];
-  const [interestPromptState, setInterestPromptState] = useState(
-    initialInterests.length > 0 ? 'done' : 'hidden',
-  ); // hidden | open | done | dismissed
-  const [selectedInterests, setSelectedInterests] = useState(initialInterests);
-
-  const toggleSave = (id) => {
-    setLocalSaved(prev => {
-      const next = new Set(prev);
-      const wasEmpty = next.size === 0;
-      if (next.has(id)) next.delete(id); else next.add(id);
-      setSavedItems?.([...next]);
-      if (wasEmpty && next.size === 1 && interestPromptState === 'hidden') {
-        setInterestPromptState('open');
-      }
-      return next;
-    });
-  };
-
-  const toggleInterest = (label) => {
-    setSelectedInterests(prev => {
-      const has = prev.includes(label);
-      return has ? prev.filter(x => x !== label) : [...prev, label];
-    });
-  };
-
-  const saveInterests = () => {
-    setProfile?.(p => ({ ...p, interests: selectedInterests }));
-    recordStep(0, { interests: selectedInterests });
-    setInterestPromptState('done');
-  };
-
-  const dismissInterests = () => setInterestPromptState('dismissed');
+export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems }) => {
+  // Preserve bookmark hook for downstream — saving here marks the section
+  // for the post-onboarding Favorites surface.
+  const [localSaved] = useState(new Set(savedItems));
+  void localSaved; void setSavedItems;
 
   return (
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
 
-      <div className="flex items-center justify-between" style={{ padding: '8px 14px' }}>
+      {/* Top bar — back left, bell + filter right */}
+      <div className="flex items-center justify-between" style={{ padding: '6px 14px 4px' }}>
         <button
           onClick={onBack}
           className="rounded-full flex items-center justify-center"
@@ -272,175 +269,104 @@ export const VillagePreview = ({
         >
           <ChevronLeft size={18} color={C.navy}/>
         </button>
-        <StepDots current={3} total={4}/>
-        <div style={{ width: 32 }}/>
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded-full flex items-center justify-center relative"
+            style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
+            aria-label="Notifications"
+          >
+            <Bell size={14} color={C.coralDeep}/>
+            <span style={{
+              position: 'absolute', top: 3, right: 5,
+              width: 6, height: 6, borderRadius: 3, background: C.coralDeep,
+              border: '1.5px solid #fff',
+            }}/>
+          </button>
+          <button
+            className="rounded-full flex items-center justify-center"
+            style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
+            aria-label="Filters"
+          >
+            <SlidersHorizontal size={14} color={C.navy}/>
+          </button>
+        </div>
       </div>
 
-      <div className="px-4" style={{ paddingBottom: 6, flexShrink: 0 }}>
+      {/* Headline */}
+      <div className="px-4" style={{ paddingBottom: 4, flexShrink: 0 }}>
         <h2 style={{
-          fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700,
-          color: C.navy, lineHeight: 1.15, letterSpacing: '-.01em',
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.navy, lineHeight: 1.15, letterSpacing: '-.015em',
         }}>
-          Here's{' '}
-          <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>your village</span>
+          Here's what's
+        </h2>
+        <h2 style={{
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.navy, lineHeight: 1.15, letterSpacing: '-.015em',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          waiting for you
+          <Heart size={16} color={C.coral} fill={C.coral} style={{ transform: 'rotate(-10deg)' }}/>
         </h2>
       </div>
 
-      <div className="flex-1 px-4" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-        {interestPromptState === 'open' && (
-          <div
-            style={{
-              background: '#fff',
-              border: `1.3px solid ${C.coral}`,
-              borderRadius: 14,
-              padding: '10px 12px 12px',
-              marginBottom: 8,
-              boxShadow: '0 8px 20px -10px rgba(214,68,106,.35)',
-              animation: 'fadeInUp 0.32s ease-out',
-              position: 'relative',
-            }}
-          >
-            <button
-              onClick={dismissInterests}
-              aria-label="Dismiss"
-              style={{
-                position: 'absolute', top: 6, right: 6,
-                width: 22, height: 22, borderRadius: 11,
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <X size={13} color={C.muted}/>
-            </button>
-            <div style={{
-              fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
-              letterSpacing: '.12em', color: C.coralDeep, marginBottom: 3,
-            }}>
-              NICE PICK ✦
-            </div>
-            <div style={{
-              fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
-              color: C.navy, marginBottom: 8, letterSpacing: '-.01em', paddingRight: 18,
-            }}>
-              What would you two{' '}
-              <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>do together?</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5" style={{ marginBottom: 8 }}>
-              {INTEREST_OPTIONS.map(i => {
-                const active = selectedInterests.includes(i);
-                return (
-                  <button
-                    key={i}
-                    onClick={() => toggleInterest(i)}
-                    className="rounded-full transition-all active:scale-[.97]"
-                    style={{
-                      padding: '5px 10px',
-                      background: active ? C.sage : '#fff',
-                      border: `1.3px solid ${active ? '#5E7A3B' : C.line}`,
-                      color: active ? '#3D5E20' : C.navy,
-                      fontFamily: 'Albert Sans',
-                      fontSize: 11,
-                      fontWeight: active ? 700 : 600,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {i}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={saveInterests}
-              disabled={selectedInterests.length === 0}
-              className="rounded-full active:scale-[.97] transition-transform"
-              style={{
-                padding: '6px 14px',
-                background: selectedInterests.length === 0 ? C.line : C.coral,
-                color: '#fff',
-                border: 'none',
-                fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
-                cursor: selectedInterests.length === 0 ? 'default' : 'pointer',
-              }}
-            >
-              Save
-            </button>
-          </div>
-        )}
-
-        {/* ---------- 1 · Connect with other moms ---------- */}
-        <div>
-          <SectionTitle>Connect with other moms</SectionTitle>
-          <SubHead>GROUP MEETUPS THIS WEEK</SubHead>
-          {MEETUPS.map(item => (
-            <CompactRow
-              key={item.id}
-              photo={item.photo} title={item.title} sub={item.sub}
-              chip={matchChip(item, profile, 'for')}
-              saved={localSaved.has(item.id)}
-              onSave={() => toggleSave(item.id)}
-            />
-          ))}
-          <SubHead>MOMS NEARBY</SubHead>
-          {MOMS.map(item => (
-            <CompactRow
-              key={item.id}
-              photo={item.photo} title={item.title} sub={item.sub}
-              chip={matchChip(item, profile, 'kin')}
-              saved={localSaved.has(item.id)}
-              onSave={() => toggleSave(item.id)}
-            />
-          ))}
-        </div>
-
-        {/* ---------- 2 · Things to do this week ---------- */}
-        <div style={{ marginTop: 10 }}>
-          <SectionTitle>Things to do this week</SectionTitle>
+      <div className="flex-1 px-4" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+        {/* Things to do this week */}
+        <SectionHead
+          Icon={Calendar} iconBg={C.coralSoft} iconFg={C.coralDeep}
+          title="Things to do this week"
+          link="See all 48 activities"
+        />
+        <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {ACTIVITIES.map(item => (
-            <CompactRow
-              key={item.id}
-              photo={item.photo} title={item.title} sub={item.sub}
-              chip={matchChip(item, profile, 'for')}
-              saved={localSaved.has(item.id)}
-              onSave={() => toggleSave(item.id)}
-            />
+            <ActivityCard key={item.id} item={item}/>
           ))}
         </div>
 
-        {/* ---------- 3 · Top local spots ---------- */}
-        <div style={{ marginTop: 10 }}>
-          <SectionTitle>Top local spots</SectionTitle>
-          {PLACES.map(item => (
-            <CompactRow
-              key={item.id}
-              photo={item.photo} title={item.title} sub={item.sub}
-              chip={placeChip(item, location)}
-              saved={localSaved.has(item.id)}
-              onSave={() => toggleSave(item.id)}
-            />
+        {/* Moms nearby */}
+        <SectionHead
+          Icon={Users} iconBg={C.lilac} iconFg="#5E4A8A"
+          title="Moms nearby"
+          link="See all"
+        />
+        <div className="grid grid-cols-3" style={{ gap: 8 }}>
+          {MOMS_NEARBY.map(item => (
+            <MomCard key={item.id} item={item}/>
+          ))}
+        </div>
+        <button
+          className="w-full"
+          style={{
+            background: 'transparent', border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 4, padding: '8px 0 4px',
+            color: C.coralDeep,
+            fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          <Sparkles size={10}/> 9 more moms like you
+          <ChevronRight size={11}/>
+        </button>
+
+        {/* Local picks */}
+        <SectionHead
+          Icon={MapPin} iconBg={C.sage} iconFg={C.sageDark}
+          title="Local picks"
+          link="See all 23 local picks"
+        />
+        <div className="grid grid-cols-3" style={{ gap: 8 }}>
+          {LOCAL_PICKS.map(item => (
+            <PlaceCard key={item.id} item={item}/>
           ))}
         </div>
 
-        {/* ---------- 4 · Recommended resources ---------- */}
-        <div style={{ marginTop: 10 }}>
-          <SectionTitle>Recommended resources</SectionTitle>
-          {RESOURCES.map(item => (
-            <CompactRow
-              key={item.id}
-              photo={item.photo} title={item.title} sub={item.sub}
-              chip={matchChip(item, profile, 'for')}
-              saved={localSaved.has(item.id)}
-              onSave={() => toggleSave(item.id)}
-            />
-          ))}
-        </div>
-
-        <div style={{ height: 6 }}/>
+        <div style={{ height: 10 }}/>
       </div>
 
+      {/* Coral CTA */}
       <div style={{
-        padding: '8px 16px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-        borderTop: `1px solid ${C.line}`,
+        padding: '8px 16px 6px',
         flexShrink: 0,
       }}>
         <button
@@ -449,14 +375,22 @@ export const VillagePreview = ({
           style={{
             background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
             color: '#fff', height: 48,
-            fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 800,
+            fontFamily: 'Albert Sans', fontSize: 14.5, fontWeight: 800,
             border: 'none', cursor: 'pointer',
             boxShadow: '0 8px 20px -8px rgba(214,68,106,.5)',
           }}
         >
-          <Heart size={15} fill="currentColor"/>
-          Unlock my village
+          <Bookmark size={15} fill="currentColor"/>
+          Unlock My Village
+          <ChevronRight size={16}/>
         </button>
+        <div style={{
+          fontFamily: 'Albert Sans', fontSize: 9.5, color: C.muted,
+          textAlign: 'center', marginTop: 6,
+          paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))',
+        }}>
+          Your village is private and only visible to you.
+        </div>
       </div>
     </div>
   );
