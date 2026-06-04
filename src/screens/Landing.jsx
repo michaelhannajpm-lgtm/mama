@@ -1,109 +1,244 @@
-import { Heart, Users, Calendar, MapPin, Leaf, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, ArrowRight, ShieldCheck, MapPin, Users } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
 
 // ==========================================================================
-// Landing — composed hero (logo + headline + subhead + moms photo) on top,
-// 4 pastel feature rows + coral "Find My Village" CTA below. Sized to fit
-// iPhone SE (375x667) with no scroll; flex spacer + safe-area-aware CTA
-// padding handle larger phones and the iOS home indicator.
+// Landing — revamp around an editorial-magazine pattern.
+//
+// Hierarchy (top → bottom):
+//   1. Logo + tiny coral accents
+//   2. Headline + subhead (tight unit)
+//   3. Hero photo as the centerpiece (uncropped, fills leftover space)
+//      with a floating *live activity* pill overlaid on its lower edge:
+//        ● 50 moms meeting this week in Tampa
+//      Coral pulsing dot conveys "this is happening right now."
+//   4. Compact trust strip: Verified moms · Tampa-local · Real meetups
+//   5. Coral gradient CTA + secondary log-in link
+//
+// Replaces the prior 3-tile stats block — one motion-led proof point reads
+// more confident than three competing pillars, and the trust strip
+// reinforces the moat (verified, local, anti-Tinder) in one quick scan.
 // ==========================================================================
 
-const BG = '#FBEEEA';
+const BG = '#FAF3F0';
 
-export const Landing = ({ onBegin, onSignIn }) => (
+const TRUST_SIGNALS = [
+  { Icon: ShieldCheck, label: 'Verified moms' },
+  { Icon: MapPin,      label: 'Tampa-local' },
+  { Icon: Users,       label: 'Real meetups' },
+];
+
+// Live-activity stats cycled through the badge — explicitly broadens the
+// pitch beyond mom-matching so users don't read it as a Peanut clone.
+const ACTIVITY_STATS = [
+  { count: '50',     label: 'mom meetups' },
+  { count: '70',     label: 'kid activities' },
+  { count: '1,200+', label: 'local gems' },
+];
+
+export const Landing = ({ onBegin, onSignIn }) => {
+  const [statIdx, setStatIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setStatIdx(i => (i + 1) % ACTIVITY_STATS.length),
+      2400,
+    );
+    return () => clearInterval(id);
+  }, []);
+  const stat = ACTIVITY_STATS[statIdx];
+
+  return (
   <div
     className="flex flex-col relative"
     style={{
-      height: '100%',
-      minHeight: 0,
-      width: '100%',
-      background: BG,
-      boxSizing: 'border-box',
-      overflow: 'hidden',
+      height: '100%', minHeight: 0, width: '100%',
+      background: BG, boxSizing: 'border-box', overflow: 'hidden',
     }}
   >
     <StatusBar/>
 
-    <img
-      src="/landing-top.png"
-      alt="Go Mama — Your kid needs a friend, and so do you."
-      style={{
-        width: '100%',
-        height: 'auto',
-        maxHeight: 'min(42dvh, 280px)',
-        objectFit: 'contain',
-        objectPosition: 'center top',
-        display: 'block',
-        flexShrink: 0,
-      }}
-    />
+    {/* Soft pink corner blobs — atmospheric decoration */}
+    <div style={{
+      position: 'absolute', top: 0, left: 0, width: 140, height: 120,
+      background: 'radial-gradient(120% 100% at 0% 0%, #F8D2DC 0%, rgba(248,210,220,0) 65%)',
+      pointerEvents: 'none', zIndex: 0,
+    }}/>
+    <div style={{
+      position: 'absolute', top: 0, right: 0, width: 120, height: 100,
+      background: 'radial-gradient(120% 100% at 100% 0%, #F8D2DC 0%, rgba(248,210,220,0) 65%)',
+      pointerEvents: 'none', zIndex: 0,
+    }}/>
 
-    <div style={{ padding: 'clamp(8px, 1.2dvh, 14px) 22px 0' }}>
-      <FeatureRow icon={Users}    iconBg={C.coralSoft} iconColor={C.coral}    title="Meet Moms Like You"     body="Find local moms who get your stage of life."/>
-      <FeatureRow icon={Calendar} iconBg={C.peach}     iconColor={C.saffron}  title="Fun Things To Do"       body="Activities, classes, and events for kids."/>
-      <FeatureRow icon={MapPin}   iconBg={C.lilac}     iconColor="#7E5BAE"    title="Best Local Spots"       body="Discover places moms and kids love."/>
-      <FeatureRow icon={Leaf}     iconBg={C.sage}      iconColor={C.sageDark} title="Support Made For You"   body="Resources matched to your family's needs."/>
+    {/* Content stack */}
+    <div
+      className="flex-1 flex flex-col"
+      style={{ minHeight: 0, position: 'relative', zIndex: 1 }}
+    >
+      {/* Logo + tiny coral accents — PNG was cropped tight to content
+          (1024×1536 → 661×613), so a much smaller box now shows the same
+          visual size while freeing vertical room for the hero. */}
+      <div style={{ position: 'relative', textAlign: 'center', padding: '10px 20px 0', flexShrink: 0 }}>
+        <img
+          src="/gomama-logo.png"
+          alt="Go Mama"
+          style={{
+            height: 132, width: 'auto', display: 'block',
+            margin: '0 auto', mixBlendMode: 'multiply',
+          }}
+        />
+        <span style={{
+          position: 'absolute', top: 22, right: 78,
+          color: C.coral, fontSize: 18, opacity: .78,
+        }}>♡</span>
+        <span style={{
+          position: 'absolute', top: 44, right: 64,
+          color: C.coral, fontSize: 11, opacity: .5,
+        }}>✦</span>
+      </div>
+
+      {/* Headline + subhead — tight unit under the logo */}
+      <div style={{ textAlign: 'center', padding: '4px 24px 0', flexShrink: 0 }}>
+        <div style={{
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.navy, lineHeight: 1.15, letterSpacing: '-.02em',
+        }}>
+          Your kid needs a friend.
+        </div>
+        <div style={{
+          fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
+          color: C.coralDeep, lineHeight: 1.15, letterSpacing: '-.02em',
+          marginTop: 2,
+        }}>
+          So do you.{' '}
+          <span style={{ color: C.coral, fontSize: 15 }}>♡</span>
+        </div>
+        <p style={{
+          fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
+          lineHeight: 1.4, marginTop: 6, padding: '0 6px',
+        }}>
+          Meet local moms, find kid activities &amp; local gems — all in one app.
+        </p>
+      </div>
+
+      {/* Hero — flex-1 absorbs leftover space; objectFit contain keeps the
+          original picture visible without cropping. Live-activity pill is
+          overlaid on the lower edge of the photo. */}
+      <div
+        className="flex-1 relative flex items-center justify-center"
+        style={{ padding: '12px 16px 0', minHeight: 0 }}
+      >
+        <img
+          src="/hero-moms.png"
+          alt="Two moms with their kids"
+          style={{
+            width: '100%', height: '100%',
+            objectFit: 'contain', display: 'block',
+            borderRadius: 18,
+          }}
+        />
+
+        {/* Floating live-activity pill */}
+        <div
+          style={{
+            position: 'absolute', bottom: 8, left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#fff',
+            padding: '7px 14px 7px 12px',
+            borderRadius: 999,
+            border: `1.3px solid ${C.coralSoft}`,
+            boxShadow: '0 10px 24px -10px rgba(214,68,106,.5), 0 1px 2px rgba(27,42,78,.06)',
+            display: 'flex', alignItems: 'center', gap: 9,
+            animation: 'fadeInUp 0.55s ease-out',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: 4,
+            background: C.coral,
+            boxShadow: `0 0 0 3px ${C.coralSoft}`,
+            animation: 'livePulse 1.4s ease-in-out infinite',
+          }}/>
+          <span style={{
+            fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
+            color: C.navy, letterSpacing: '.005em',
+          }}>
+            <span
+              key={statIdx}
+              style={{ display: 'inline-block', animation: 'fadeInUp 0.4s ease-out' }}
+            >
+              <span style={{ color: C.coralDeep }}>{stat.count}</span>{' '}
+              {stat.label}
+            </span>{' '}
+            <span style={{ color: C.muted, fontWeight: 600 }}>· this week in Tampa</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Trust strip */}
+      <div
+        className="flex items-center justify-center"
+        style={{ padding: '14px 16px 0', flexShrink: 0 }}
+      >
+        {TRUST_SIGNALS.map(({ Icon, label }, i) => (
+          <span key={label} className="flex items-center" style={{ gap: 5 }}>
+            {i > 0 && (
+              <span style={{ color: C.line, fontSize: 12, margin: '0 10px' }}>•</span>
+            )}
+            <Icon size={12} color={C.coralDeep} strokeWidth={2.3}/>
+            <span style={{
+              fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+              color: C.navySoft, whiteSpace: 'nowrap', letterSpacing: '.01em',
+            }}>
+              {label}
+            </span>
+          </span>
+        ))}
+      </div>
     </div>
 
-    <div className="flex-1" style={{ minHeight: 4 }}/>
-
-    <div
-      style={{
-        padding: '10px 22px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-        position: 'relative',
-      }}
-    >
-      <Heart size={10} style={{ position: 'absolute', left: 14, top: 18, color: C.coralSoft }} fill="currentColor"/>
-      <Heart size={10} style={{ position: 'absolute', right: 14, top: 18, color: C.coralSoft }} fill="currentColor"/>
+    {/* CTA */}
+    <div style={{
+      padding: '14px 16px 14px',
+      paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+      flexShrink: 0, position: 'relative', zIndex: 1,
+    }}>
+      <span style={{ position: 'absolute', left: 22, top: 24, color: C.coral, fontSize: 11 }}>✦</span>
+      <span style={{ position: 'absolute', right: 22, top: 24, color: C.coral, fontSize: 11 }}>✦</span>
 
       <button
         onClick={onBegin}
-        className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+        className="w-full rounded-full flex items-center justify-center active:scale-[.98] transition-transform"
         style={{
-          background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
-          color: '#fff', padding: '13px 24px',
-          fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 700,
-          boxShadow: '0 14px 28px -12px rgba(214,68,106,.7)',
+          height: 54, gap: 10,
+          background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+          color: '#fff',
+          fontFamily: 'Albert Sans', fontSize: 15.5, fontWeight: 800,
+          letterSpacing: '.005em',
+          boxShadow: '0 12px 24px -10px rgba(214,68,106,.55), inset 0 -2px 0 rgba(0,0,0,.06)',
           border: 'none', cursor: 'pointer',
         }}
       >
-        <Search size={17} strokeWidth={2.4}/>
+        <Sparkles size={16} fill="currentColor"/>
         Find My Village
+        <ArrowRight size={17} strokeWidth={2.4}/>
       </button>
 
-      <button
-        onClick={onSignIn}
-        className="w-full text-center"
-        style={{
-          background: 'transparent', border: 'none',
-          fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navySoft,
-          padding: '8px 6px 0', cursor: 'pointer',
-        }}
-      >
-        Already have an account?{' '}
-        <span style={{ color: C.coral, fontWeight: 700 }}>Log in</span>
-      </button>
-    </div>
-  </div>
-);
-
-const FeatureRow = ({ icon: Icon, iconBg, iconColor, title, body }) => (
-  <div className="flex items-center" style={{ gap: 12, padding: 'clamp(4px, 0.6dvh, 7px) 0' }}>
-    <div
-      className="flex items-center justify-center flex-shrink-0"
-      style={{ width: 38, height: 38, borderRadius: 12, background: iconBg }}
-    >
-      <Icon size={19} style={{ color: iconColor }} strokeWidth={2}/>
-    </div>
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700, color: C.navy, lineHeight: 1.2 }}>
-        {title}
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, lineHeight: 1.35, color: C.navySoft, marginTop: 2 }}>
-        {body}
+      <div className="text-center" style={{
+        marginTop: 8, fontSize: 11, color: C.muted, fontFamily: 'Albert Sans',
+      }}>
+        Already a mom?{' '}
+        <button
+          onClick={onSignIn}
+          style={{
+            background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+            color: C.coralDeep, fontWeight: 700, fontSize: 11, fontFamily: 'Albert Sans',
+          }}
+        >
+          Log in
+        </button>
       </div>
     </div>
   </div>
-);
+  );
+};

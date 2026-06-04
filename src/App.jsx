@@ -46,7 +46,7 @@ function PrototypeApp({ bare = false }) {
   const [splashShown, setSplashShown] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
-  const [location, setLocation] = useState('Tampa, FL');
+  const [location, setLocation] = useState('');
   const [distance, setDistance] = useState(null);
   const [prefs, setPrefs] = useState({ slots:[], places:[] });
   const [savedItems, setSavedItems] = useState([]); // ids of bookmarked meetups + places (Favorites)
@@ -60,6 +60,11 @@ function PrototypeApp({ bare = false }) {
   // Lifted state — shared across Screen 7 (1:1) and Screen 8 (groups) for conflict awareness
   const [scheduled1to1, setScheduled1to1] = useState({});
   const [joinedEvents, setJoinedEvents] = useState([]);
+  // Activities-tab lightweight presence + ratings. `goingItems` is the "I'm
+  // going" social signal across both events and places; `ratings` is a 1–5
+  // star map keyed by item id.
+  const [goingItems, setGoingItems] = useState([]);
+  const [ratings, setRatings] = useState({});
   // Message history per mom: { [momId]: [{ text, fromUser, ts }, ...] }
   const [messageHistory, setMessageHistory] = useState({});
 
@@ -126,13 +131,15 @@ function PrototypeApp({ bare = false }) {
   const restart = async () => {
     setStep(0);
     setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
-    setLocation('Tampa, FL');
+    setLocation('');
     setDistance(null);
     setPrefs({ slots:[], places:[] });
     setSavedItems([]);
     setAccount(null);
     setScheduled1to1({});
     setJoinedEvents([]);
+    setGoingItems([]);
+    setRatings({});
     setPendingAction(null);
     setMessageHistory({});
     setSplashShown(false);
@@ -199,21 +206,22 @@ function PrototypeApp({ bare = false }) {
           {step===0 && <AboutYou
             onNext={()=>advance(0, {
               location,
+              distance_miles: distance,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
-              interests: profile.interests,
-              slots: prefs.slots,
             })}
             onBack={()=>{ setSplashShown(false); }}
             profile={profile} setProfile={setProfile}
             location={location} setLocation={setLocation}
-            prefs={prefs} setPrefs={setPrefs}
+            distance={distance} setDistance={setDistance}
           />}
           {step===1 && <VillagePreview
             onNext={()=>advance(1, {})}
             onBack={()=>setStep(0)}
             savedItems={savedItems}
             setSavedItems={setSavedItems}
+            profile={profile} setProfile={setProfile}
+            location={location}
           />}
           {step===2 && <Account
             onBack={()=>setStep(1)}
@@ -223,10 +231,13 @@ function PrototypeApp({ bare = false }) {
           />}
           {step===3 && <MainApp
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
-            location={location} distance={distance}
+            location={location} setLocation={setLocation}
+            distance={distance} setDistance={setDistance}
             scheduled1to1={scheduled1to1}
             joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
             savedItems={savedItems} setSavedItems={setSavedItems}
+            goingItems={goingItems} setGoingItems={setGoingItems}
+            ratings={ratings} setRatings={setRatings}
             account={account} requestAccount={requestAccount}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}
@@ -238,6 +249,7 @@ function PrototypeApp({ bare = false }) {
 
           {scheduleMom && <ScheduleSheet mom={scheduleMom}
             hasAccount={!!account}
+            prefs={prefs} setPrefs={setPrefs}
             onClose={()=>setScheduleMom(null)}
             onContinue={(slot)=>{
               if (account) {

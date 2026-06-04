@@ -15,7 +15,7 @@ export const MatchCardFull = ({ mom, profile, onSchedule, onMessage, onProfile }
 
   return (
     <div className="rounded-[28px] overflow-hidden h-full flex flex-col relative" style={{
-      background: C.cream, border: `1px solid ${C.divider}`, boxShadow: '0 6px 24px rgba(42,30,34,.06)',
+      background: C.paper, border: `1px solid ${C.divider}`, boxShadow: '0 6px 24px rgba(42,30,34,.06)',
     }}>
       {/* Hero — photo with bottom gradient overlay */}
       <div className="relative" style={{ flex: '0 0 60%', backgroundImage: `url('${mom.photo}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
