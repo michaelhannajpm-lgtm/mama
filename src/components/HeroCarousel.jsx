@@ -4,73 +4,40 @@ import { C } from '../theme';
 
 // ==========================================================================
 // HeroCarousel — the landing hero, reimagined as a swipeable story of the
-// app's surfaces (Connect · This Week · Explore · Meetups · Programs ·
-// Top Rated · Support · Verified). Each slide is a full-bleed cover photo
-// with a bottom
-// scrim and an overlaid caption (eyebrow + title + proof point). Auto-advances
-// every 3.8s, pauses while dragging, supports touch/mouse swipe + tap-to-jump.
-//
-// This replaces the old single static photo + lone cycling stat pill — every
-// slide now carries its own proof point, so the layout height is unchanged and
-// the landing still fits without scroll.
+// app's surfaces (This Week · Connect · Programs · Trusted Picks). Each slide
+// is a full-bleed cover photo with a bottom scrim and an overlaid caption
+// (eyebrow + title + subtext). Auto-advances every 3.8s, pauses while
+// dragging, supports touch/mouse swipe + tap-to-jump.
 // ==========================================================================
 
 const SLIDES = [
   {
-    img: '/hero-moms.png',
-    eyebrow: 'CONNECT',
-    title: 'Moms who actually get it',
-    stat: '50 moms meeting this week in Tampa',
-    badge: 'live',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&auto=format&fit=crop',
+    img: '/Hero%201%20V3.png',
     eyebrow: 'THIS WEEK',
-    title: 'Your whole week, sorted',
-    stat: '38 family ideas picked for you',
+    title: 'Things to do this week',
+    stat: 'Family days out, picked for Tampa moms',
     badge: 'calendar',
   },
   {
-    img: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=800&auto=format&fit=crop',
-    eyebrow: 'EXPLORE',
-    title: 'Kid activities, all sorted',
-    stat: '70 playgroups & classes this week',
-    badge: 'map',
+    img: '/hero-moms.png',
+    eyebrow: 'CONNECT',
+    title: 'Meet other moms nearby',
+    stat: 'Real moms in your neighborhood who get it',
+    badge: 'live',
   },
   {
-    img: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800&auto=format&fit=crop',
-    eyebrow: 'MEETUPS',
-    title: 'Real plans, not endless chats',
-    stat: 'Stroller walks, splash pads & coffee',
-    badge: 'plans',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&auto=format&fit=crop',
+    img: '/Hero%203.png',
     eyebrow: 'PROGRAMS',
-    title: 'Schools & programs, vetted',
-    stat: 'Classes, camps & preschools nearby',
+    title: 'Kids programs',
+    stat: 'Swim, sports, music & classes your kids will love',
     badge: 'school',
   },
   {
-    img: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=800&auto=format&fit=crop',
-    eyebrow: 'TOP RATED',
-    title: 'Local gems, mom-ranked',
-    stat: '4.9 · 1,200+ kid-friendly spots',
+    img: '/hero%204.png',
+    eyebrow: 'TRUSTED PICKS',
+    title: 'Trusted local picks',
+    stat: 'Schools, sitters & services other moms swear by',
     badge: 'rating',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&auto=format&fit=crop',
-    eyebrow: 'SUPPORT',
-    title: 'Support that shows up',
-    stat: 'Pediatric, mental health & more',
-    badge: 'heart',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&auto=format&fit=crop',
-    eyebrow: 'VERIFIED',
-    title: 'Real moms, always verified',
-    stat: 'Instagram + a real photo — no randoms',
-    badge: 'shield',
   },
 ];
 
@@ -133,10 +100,11 @@ export const HeroCarousel = () => {
     const threshold = widthRef.current * 0.18;
     if (dragDx > threshold) go(idx - 1);
     else if (dragDx < -threshold) go(idx + 1);
+    else go(idx + 1); // tap with no drag = advance to next
     draggingRef.current = false;
     setDragDx(0);
     // Resume auto-advance shortly after the gesture ends.
-    setTimeout(() => { pausedRef.current = false; }, 700);
+    setTimeout(() => { pausedRef.current = false; }, 4000);
   };
 
   return (
@@ -217,6 +185,8 @@ export const HeroCarousel = () => {
                   <button
                     key={d.eyebrow}
                     aria-label={`Go to slide ${di + 1}: ${d.eyebrow}`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); pausedRef.current = true; go(di); setTimeout(() => { pausedRef.current = false; }, 4000); }}
                     style={{
                       width: di === idx ? 16 : 6, height: 6, borderRadius: 999,

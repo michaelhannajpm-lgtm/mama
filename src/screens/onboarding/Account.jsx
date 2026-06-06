@@ -50,11 +50,11 @@ const ProviderGlyph = ({ id, size = 16 }) => {
 export const Account = ({ onBack, account, onComplete, flash }) => {
   void account;
 
-  const [firstName, setFirstName] = useState('');
+  const [firstName, setFirstName] = useState('Sana');
   const [method, setMethod] = useState('phone');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('(813) 956-2058');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('12345678');
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +72,7 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contactOk = method === 'phone' ? phoneOk : emailOk;
   const passwordOk = password.length >= 8;
-  const canSubmit = !submitting && firstName.trim().length >= 2 && contactOk && passwordOk && agreed;
+  const canSubmit = !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;

@@ -6,10 +6,10 @@ import { TIME_WINDOWS } from '../data/taxonomy';
 
 export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
   const [method, setMethod] = useState('phone'); // 'phone' or 'email'
-  const [firstName, setFirstName] = useState('');
+  const [firstName, setFirstName] = useState('Sana');
   const [phone, setPhone] = useState('(813) 956-2058');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('123456');
+  const [password, setPassword] = useState('12345678');
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(true);
 
@@ -26,7 +26,7 @@ export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contactOk = method === 'phone' ? phoneOk : emailOk;
   const passwordOk = password.length >= 8;
-  const canSubmit = firstName.trim().length >= 2 && contactOk && passwordOk && agreed;
+  const canSubmit = true;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
