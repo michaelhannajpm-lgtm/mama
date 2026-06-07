@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import {
-  MapPin, Calendar, Users, GraduationCap, Gift, ChevronRight,
+  MapPin, Calendar, Users, GraduationCap, ChevronRight,
   Star, Palette, Music, Sparkles, SlidersHorizontal, Clock,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { ActivitiesFilterSheet, ACTIVITIES_FILTER_DEFAULT } from '../../sheets/ActivitiesFilterSheet';
+import { EventDetailSheet } from '../../sheets/EventDetailSheet';
+import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 
 // ==========================================================================
 // ThisWeekTab — curated weekly discovery surface (V5 layout).
@@ -19,7 +22,6 @@ const PILL_FILTERS = [
   { id: 'events',   label: 'Events',   icon: Calendar,      fg: C.coralDeep, bg: C.coralSoft },
   { id: 'meetups',  label: 'Meetups',  icon: Users,         fg: '#5E4A8A',   bg: C.lilac     },
   { id: 'programs', label: 'Programs', icon: GraduationCap, fg: C.sageDark,  bg: C.sage      },
-  { id: 'free',     label: 'Free',     icon: Gift,          fg: '#8A6610',   bg: '#FFF4D6'   },
 ];
 
 const TODAY_ITEMS = [
@@ -135,12 +137,13 @@ const TodayLine = () => (
   </div>
 );
 
-const TodayCard = ({ item }) => (
-  <div style={{
+const TodayCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
   }}>
     <div style={{ position: 'relative' }}>
       <img src={item.photo} alt="" style={{
@@ -195,15 +198,16 @@ const TodayCard = ({ item }) => (
         </span>
       </div>
     </div>
-  </div>
+  </button>
 );
 
-const WeekendCard = ({ item }) => (
-  <div style={{
+const WeekendCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
   }}>
     <div style={{ position: 'relative' }}>
       <img src={item.photo} alt="" style={{
@@ -258,15 +262,16 @@ const WeekendCard = ({ item }) => (
         </span>
       </div>
     </div>
-  </div>
+  </button>
 );
 
-const PopularCard = ({ item }) => (
-  <div style={{
+const PopularCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
   }}>
     <img src={item.photo} alt="" style={{
       width: '100%', height: 62, objectFit: 'cover', display: 'block',
@@ -300,18 +305,19 @@ const PopularCard = ({ item }) => (
         {item.tag}
       </div>
     </div>
-  </div>
+  </button>
 );
 
-const AgeTile = ({ item }) => {
+const AgeTile = ({ item, onClick }) => {
   const Icon = item.icon;
   return (
-    <div style={{
+    <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
       background: '#fff', borderRadius: 12,
       border: `1px solid ${C.line}`,
       boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)',
       padding: '10px 6px',
       textAlign: 'center',
+      cursor: 'pointer',
     }}>
       <div style={{
         width: 30, height: 30, borderRadius: 9,
@@ -332,7 +338,7 @@ const AgeTile = ({ item }) => {
       }}>
         {item.count}
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -341,13 +347,41 @@ const AgeTile = ({ item }) => {
 export const ThisWeekTab = ({
   savedItems = [], setSavedItems,
   goingItems = [], setGoingItems,
+  joinedEvents = [], setJoinedEvents,
   ratings = {}, setRatings,
   location, flash,
+  filterOpen, setFilterOpen,
 }) => {
-  void savedItems; void setSavedItems;
-  void goingItems; void setGoingItems;
   void ratings; void setRatings;
-  void flash;
+
+  // Detail-sheet state — only one open at a time.
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+
+  const isSaved      = (id) => savedItems.includes(id);
+  const isGoing      = (id) => goingItems.includes(id);
+  const isJoined     = (id) => joinedEvents.includes(id);
+  const toggleSave   = (id) => setSavedItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleGoing  = (id) => setGoingItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleJoined = (id) => setJoinedEvents?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  // Normalize per-section card shapes into the common EventDetailSheet shape.
+  const openTodayEvent = (item) => setSelectedEvent({
+    id: item.id, title: item.title, photo: item.photo,
+    when: `Today · ${item.time}`, place: item.place, distance: item.distance,
+    tags: item.tag ? [item.tag] : [], kind: 'Event today',
+  });
+  const openWeekendEvent = (item) => setSelectedEvent({
+    id: item.id, title: item.title, photo: item.photo,
+    when: `${item.dow} · May ${item.day}`, place: item.place, distance: item.distance,
+    tags: item.meta ? [item.meta] : [], kind: 'Weekend event',
+  });
+  const openPopularPlace = (item) => setSelectedPlace({
+    id: item.id, title: item.title, photo: item.photo,
+    rating: item.rating, reviews: item.reviews,
+    tag: item.tag, distance: 'Near you',
+    kind: 'Place',
+  });
 
   const [activeFilters, setActiveFilters] = useState(new Set());
   const toggleFilter = (id) => setActiveFilters(prev => {
@@ -355,6 +389,15 @@ export const ThisWeekTab = ({
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+
+  // Advanced filters — Cost/Setting/Day/Time/Ages/Distance/Type/Amenities.
+  // Sheet is opened by the inline filter button (next to the pill row) and
+  // also by the header sliders icon (which lifts `filterOpen` from MainApp).
+  const [filters, setFilters] = useState(ACTIVITIES_FILTER_DEFAULT);
+  const advCount =
+    filters.cost.length + filters.setting.length + filters.days.length +
+    filters.times.length + filters.ages.length + filters.types.length +
+    filters.amenities.length + (filters.distance != null ? 1 : 0);
 
   const locationLabel = location ? location.split(',')[0] + ', FL' : 'Tampa, FL';
 
@@ -370,29 +413,36 @@ export const ThisWeekTab = ({
         }}>
           <MapPin size={11}/> {locationLabel}
         </div>
-        <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-          {PILL_FILTERS.map(f => {
-            const Icon = f.icon;
-            const active = activeFilters.has(f.id);
-            return (
-              <button
-                key={f.id}
-                onClick={() => toggleFilter(f.id)}
-                style={{
-                  flexShrink: 0,
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 11px', borderRadius: 16,
-                  background: active ? f.fg : f.bg,
-                  color: active ? '#fff' : f.fg,
-                  border: 'none', cursor: 'pointer',
-                  fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
-                }}
-              >
-                <Icon size={12}/>
-                {f.label}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2" style={{ paddingBottom: 2 }}>
+          <div className="flex-1 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {PILL_FILTERS.map(f => {
+              const Icon = f.icon;
+              const active = activeFilters.has(f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => toggleFilter(f.id)}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '6px 11px', borderRadius: 16,
+                    background: active ? f.fg : f.bg,
+                    color: active ? '#fff' : f.fg,
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+                  }}
+                >
+                  <Icon size={12}/>
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+          <FilterIconBtn
+            count={advCount}
+            onClick={() => setFilterOpen?.(true)}
+            accent={C.coral}
+          />
         </div>
       </div>
 
@@ -400,29 +450,42 @@ export const ThisWeekTab = ({
         {/* Today */}
         <TodayLine/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {TODAY_ITEMS.map(item => <TodayCard key={item.id} item={item}/>)}
+          {TODAY_ITEMS.map(item => (
+            <TodayCard key={item.id} item={item} onClick={() => openTodayEvent(item)}/>
+          ))}
         </div>
 
         {/* This Weekend */}
         <SectionHead title="This Weekend"/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {WEEKEND_ITEMS.map(item => <WeekendCard key={item.id} item={item}/>)}
+          {WEEKEND_ITEMS.map(item => (
+            <WeekendCard key={item.id} item={item} onClick={() => openWeekendEvent(item)}/>
+          ))}
         </div>
 
         {/* Popular with moms near you */}
         <SectionHead title="Popular with moms near you"/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {POPULAR_PLACES.map(item => <PopularCard key={item.id} item={item}/>)}
+          {POPULAR_PLACES.map(item => (
+            <PopularCard key={item.id} item={item} onClick={() => openPopularPlace(item)}/>
+          ))}
         </div>
 
         {/* Because your child is 0–3 years old */}
         <SectionHead title="Because your child is 0–3 years old"/>
         <div className="grid grid-cols-4" style={{ gap: 6 }}>
-          {AGE_CATEGORIES.map(item => <AgeTile key={item.id} item={item}/>)}
+          {AGE_CATEGORIES.map(item => (
+            <AgeTile
+              key={item.id}
+              item={item}
+              onClick={() => flash?.(`✦ ${item.label} · ${item.count} ideas near you`)}
+            />
+          ))}
         </div>
 
         {/* More filters */}
         <button
+          onClick={() => setFilterOpen?.(true)}
           style={{
             marginTop: 16, width: '100%',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -437,6 +500,95 @@ export const ThisWeekTab = ({
           More filters
         </button>
       </div>
+
+      {filterOpen && (
+        <ActivitiesFilterSheet
+          filters={filters}
+          setFilters={setFilters}
+          onClose={() => setFilterOpen?.(false)}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailSheet
+          event={selectedEvent}
+          saved={isSaved(selectedEvent.id)}
+          joined={isJoined(selectedEvent.id)}
+          interested={isGoing(selectedEvent.id)}
+          onJoin={() => {
+            toggleJoined(selectedEvent.id);
+            flash?.(isJoined(selectedEvent.id)
+              ? `Removed RSVP · ${selectedEvent.title}`
+              : `✦ You're going · ${selectedEvent.title}`);
+          }}
+          onInterested={() => {
+            toggleGoing(selectedEvent.id);
+            flash?.(isGoing(selectedEvent.id)
+              ? 'Removed interest'
+              : '✦ Marked as interested');
+          }}
+          onSave={() => {
+            toggleSave(selectedEvent.id);
+            flash?.(isSaved(selectedEvent.id) ? 'Removed from saved' : '✦ Saved');
+          }}
+          onShare={() => flash?.('Link copied · share with another mom')}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+
+      {selectedPlace && (
+        <PlaceDetailSheet
+          place={selectedPlace}
+          saved={isSaved(selectedPlace.id)}
+          interested={isGoing(selectedPlace.id)}
+          onSave={() => {
+            toggleSave(selectedPlace.id);
+            flash?.(isSaved(selectedPlace.id) ? 'Removed from saved' : '✦ Saved');
+          }}
+          onInterested={() => {
+            toggleGoing(selectedPlace.id);
+            flash?.(isGoing(selectedPlace.id) ? 'Removed interest' : '✦ Marked as interested');
+          }}
+          onShare={() => flash?.('Link copied · share with another mom')}
+          onDirections={() => flash?.('Opening directions…')}
+          onClose={() => setSelectedPlace(null)}
+        />
+      )}
     </div>
   );
 };
+
+// Round filter icon button — matches the AdvancedFilterBtn pattern in
+// MatchesTab. Accent fills when at least one filter is active; the
+// count badge mirrors selections so the UI stays honest.
+const FilterIconBtn = ({ count = 0, onClick, accent = C.navy }) => (
+  <button
+    onClick={onClick}
+    aria-label="Open advanced filters"
+    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
+    style={{
+      width: 34, height: 34,
+      background: count > 0 ? accent : C.paper,
+      color: count > 0 ? '#fff' : C.navy,
+      border: `1px solid ${count > 0 ? accent : C.divider}`,
+    }}
+  >
+    <SlidersHorizontal size={14}/>
+    {count > 0 && (
+      <span
+        className="absolute"
+        style={{
+          top: -3, right: -3,
+          minWidth: 16, height: 16, padding: '0 4px',
+          borderRadius: 8,
+          background: C.coralDeep, color: '#fff',
+          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: `1.5px solid ${C.cream}`,
+        }}
+      >
+        {count > 9 ? '9+' : count}
+      </span>
+    )}
+  </button>
+);

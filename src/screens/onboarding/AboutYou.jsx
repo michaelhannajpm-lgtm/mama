@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Heart, ChevronLeft, MapPin, Search, X, Check, Sparkles } from 'lucide-react';
+import { ChevronLeft, Check, Sparkles, Navigation, Lock } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { SUGGESTED_EVENTS } from '../../data/events';
@@ -15,12 +15,12 @@ import { SAMPLE_MOMS } from '../../data/moms';
 // ==========================================================================
 
 const AREA_BUCKETS = [
-  { label: 'Apollo Beach & Ruskin',     lat: 27.77, lng: -82.40 },
-  { label: 'Riverview & Brandon',       lat: 27.90, lng: -82.30 },
-  { label: 'South Tampa',               lat: 27.90, lng: -82.49 },
-  { label: 'Downtown Tampa',            lat: 27.95, lng: -82.46 },
-  { label: 'Wesley Chapel & New Tampa', lat: 28.24, lng: -82.36 },
-  { label: 'Clearwater & St. Pete',     lat: 27.87, lng: -82.72 },
+  { label: 'South Tampa',                lat: 27.90, lng: -82.49 },
+  { label: 'Westchase & West Tampa',     lat: 28.05, lng: -82.58 },
+  { label: 'North Tampa & Wesley Chapel', lat: 28.24, lng: -82.36 },
+  { label: 'Brandon & Riverview',        lat: 27.90, lng: -82.30 },
+  { label: 'St. Pete & Clearwater',      lat: 27.87, lng: -82.72 },
+  { label: 'Apollo Beach & Ruskin',      lat: 27.77, lng: -82.40 },
 ];
 
 const DISTANCE_STOPS = [1, 3, 5, 10, 15, 25];
@@ -37,12 +37,10 @@ const STAGE_OPTS = [
 ];
 
 const LOOKING_FOR_OPTS = [
-  { emoji: '👯', label: 'Moms nearby',   sub: 'Real friendships'       },
-  { emoji: '📅', label: 'Things to do',  sub: 'Events + classes'       },
-  { emoji: '📍', label: 'Places',        sub: 'Mom-vetted spots'       },
-  { emoji: '💛', label: 'Resources',     sub: 'Pediatricians, sitters' },
-  { emoji: '🎈', label: 'Kids programs', sub: 'Camps, sports, lessons' },
-  { emoji: '🌿', label: 'Just browsing', sub: 'Take your time'         },
+  { emoji: '👯', label: 'Mom friends',  sub: 'Real friendships nearby'   },
+  { emoji: '📅', label: 'Things to do', sub: 'Events + meetups'          },
+  { emoji: '📍', label: 'Local picks',  sub: 'Trusted places + services' },
+  { emoji: '🎈', label: 'Kid programs', sub: 'Classes, camps, sports'    },
 ];
 
 // Stage → kid-age bucket used by events + mom-year matching.
@@ -141,18 +139,18 @@ const ProgressBanner = ({ step, total, onBack }) => (
 const OptionCard = ({ active, onClick, emoji, label, sub, span = 1 }) => (
   <button
     onClick={onClick}
-    className="rounded-2xl flex flex-col items-center justify-center transition-all active:scale-[.96]"
+    className="rounded-2xl flex flex-col items-center justify-center transition-all active:scale-[.97]"
     style={{
-      padding: '7px 6px 6px',
+      padding: '14px 10px 12px',
       background: active ? C.lilac : '#fff',
       border: `1.5px solid ${active ? C.navySoft : C.line}`,
       cursor: 'pointer',
-      gap: 2,
+      gap: 6,
       position: 'relative',
-      minHeight: 70,
+      minHeight: 92,
       boxShadow: active
-        ? '0 6px 14px -8px rgba(27,42,78,.28)'
-        : '0 1px 2px rgba(27,42,78,.04)',
+        ? '0 10px 22px -10px rgba(27,42,78,.28)'
+        : '0 2px 6px -2px rgba(27,42,78,.06)',
       gridColumn: span === 2 ? 'span 2' : undefined,
     }}
   >
@@ -160,27 +158,28 @@ const OptionCard = ({ active, onClick, emoji, label, sub, span = 1 }) => (
       <div
         aria-hidden
         style={{
-          position: 'absolute', top: 5, right: 5,
-          width: 15, height: 15, borderRadius: 999,
+          position: 'absolute', top: 7, right: 7,
+          width: 18, height: 18, borderRadius: 999,
           background: C.coral, color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           animation: 'popBadge 240ms cubic-bezier(.4,1.5,.5,1)',
         }}
       >
-        <Check size={9} strokeWidth={3.5}/>
+        <Check size={11} strokeWidth={3.5}/>
       </div>
     )}
-    <div style={{ fontSize: 21, lineHeight: 1 }}>{emoji}</div>
+    <div style={{ fontSize: 30, lineHeight: 1 }}>{emoji}</div>
     <div style={{
-      fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+      fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
       color: C.navy, textAlign: 'center', lineHeight: 1.15,
+      letterSpacing: '-.005em',
     }}>
       {label}
     </div>
     {sub && (
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 500,
-        color: C.muted, lineHeight: 1.15, textAlign: 'center',
+        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 500,
+        color: C.muted, lineHeight: 1.2, textAlign: 'center',
       }}>
         {sub}
       </div>
@@ -191,15 +190,15 @@ const OptionCard = ({ active, onClick, emoji, label, sub, span = 1 }) => (
 const QuestionHeader = ({ children, why }) => (
   <>
     <h2 style={{
-      fontFamily: 'Fraunces', fontSize: 20, fontWeight: 700,
-      color: C.navy, lineHeight: 1.15, letterSpacing: '-.02em',
+      fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
+      color: C.navy, lineHeight: 1.12, letterSpacing: '-.02em',
       marginTop: 2,
     }}>
       {children}
     </h2>
     <p style={{
-      fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft,
-      marginTop: 4, lineHeight: 1.35,
+      fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft,
+      marginTop: 6, lineHeight: 1.4,
     }}>
       {why}
     </p>
@@ -297,6 +296,23 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     );
   };
 
+  // Bottom CTA on the location screen: detect location and advance once we
+  // have a value. If a value was already detected on mount, just advance.
+  const handleUseLocation = () => {
+    if (location && location.trim()) { onNext(); return; }
+    if (!navigator.geolocation) { setGeoStatus('unsupported'); onNext(); return; }
+    setGeoStatus('detecting');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation(nearestBucket(pos.coords.latitude, pos.coords.longitude));
+        setGeoStatus('ok');
+        setTimeout(() => onNext(), 500);
+      },
+      () => { setGeoStatus('denied'); onNext(); },
+      { timeout: 6000, maximumAge: 5 * 60 * 1000 },
+    );
+  };
+
   useEffect(() => {
     if (distance == null) setDistance(DEFAULT_DISTANCE);
     if (!location) detectLocation();
@@ -329,19 +345,18 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
   // Compute curation preview — 4 fixed buckets mirroring the Landing promise:
   // Things to do · Group Meetups · Moms · Local Spots. Stage filters
-  // age-relevant categories; location + radius gate everything at step 3.
+  // age-relevant categories; location + radius filter whenever a neighborhood
+  // is set (location is now step 1, so we key off data rather than step).
   const preview = useMemo(() => {
     const stageBuckets = stage.flatMap(s => STAGE_TO_BUCKETS[s] || []);
     const stageYears = new Set(stageBuckets.flatMap(b => BUCKET_TO_YEARS[b] || []));
     const hasStage = stage.length > 0;
 
     const filterByLocation = (places) => {
-      if (step < 3) return places;
+      if (!hasLocation) return places;
       let result = places;
-      if (hasLocation) {
-        const local = result.filter(p => p.area === location);
-        if (local.length) result = local;
-      }
+      const local = result.filter(p => p.area === location);
+      if (local.length) result = local;
       return result.filter(p => (p.dist || 0) <= radius);
     };
 
@@ -352,7 +367,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
         return e.kidAges.some(b => (BUCKET_TO_YEARS[b] || []).some(y => stageYears.has(y)));
       });
     }
-    if (step >= 3) meetups = meetups.filter(e => (e.mi || 0) <= radius);
+    if (hasLocation) meetups = meetups.filter(e => (e.mi || 0) <= radius);
 
     const thingsToDo = filterByLocation(ALL_ACTIVITIES);
     const spots = filterByLocation(ALL_SPOTS);
@@ -364,10 +379,10 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
         return ys.some(y => stageYears.has(y));
       });
     }
-    if (step >= 3) moms = moms.filter(m => parseFloat(m.distance) <= radius);
+    if (hasLocation) moms = moms.filter(m => parseFloat(m.distance) <= radius);
 
     return { thingsToDo, meetups, moms, spots };
-  }, [stage, location, hasLocation, radius, step]);
+  }, [stage, location, hasLocation, radius]);
 
   // Shared 4-bucket items array — order matches Landing promise.
   const previewItems = [
@@ -397,6 +412,166 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
 
+      {step === 3 ? (
+        <div className="flex flex-col flex-1" style={{ minHeight: 0, overflow: 'hidden' }}>
+          {/* Top bar — small back + "go mama" logo · Skip */}
+          <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '10px 14px 0' }}>
+            <div className="flex items-center" style={{ gap: 4 }}>
+              <button
+                onClick={handleBack}
+                aria-label="Back"
+                style={{
+                  background: 'transparent', border: 'none', padding: 4, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <ChevronLeft size={20} color={C.navy}/>
+              </button>
+              <span style={{
+                fontFamily: 'Fraunces', fontStyle: 'italic', fontSize: 18, fontWeight: 600,
+                color: C.navy, letterSpacing: '-.01em',
+              }}>
+                go mama
+              </span>
+              <span style={{ color: C.coral, fontSize: 11 }}>♥</span>
+            </div>
+            <button
+              onClick={onNext}
+              style={{
+                background: 'transparent', border: 'none', padding: '6px 8px',
+                color: C.navy, fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Skip
+            </button>
+          </div>
+
+          {/* Main content — flex column that vertically distributes 4 sections */}
+          <div className="flex-1 flex flex-col justify-center" style={{ minHeight: 0, padding: '0 16px' }}>
+            {/* Headline — centered */}
+            <div style={{ textAlign: 'center', padding: '0 6px' }}>
+              <h2 style={{
+                fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
+                color: C.navy, lineHeight: 1.1, letterSpacing: '-.02em',
+              }}>
+                Where are you joining from?
+              </h2>
+              <p style={{
+                fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 500,
+                color: C.muted, lineHeight: 1.4, marginTop: 8,
+              }}>
+                We'll show moms, events, and activities close to you.
+              </p>
+            </div>
+
+            {/* Dark sage CTA */}
+            <button
+              onClick={handleUseLocation}
+              disabled={geoStatus === 'detecting'}
+              className="w-full flex items-center justify-center gap-3 active:scale-[.98] transition-transform"
+              style={{
+                marginTop: 22,
+                padding: '14px 18px',
+                borderRadius: 16,
+                background: C.sageDark,
+                color: '#fff',
+                border: 'none', cursor: 'pointer',
+                boxShadow: '0 12px 24px -10px rgba(94,122,59,.5)',
+                opacity: geoStatus === 'detecting' ? 0.78 : 1,
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 999,
+                background: 'rgba(255,255,255,.22)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Navigation size={14} color="#fff" strokeWidth={2.5}/>
+              </div>
+              <div className="flex flex-col" style={{ alignItems: 'flex-start' }}>
+                <span style={{
+                  fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 800,
+                  lineHeight: 1.1,
+                }}>
+                  {geoStatus === 'detecting' ? 'Finding you…' : 'Use My Location'}
+                </span>
+                <span style={{
+                  fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
+                  opacity: 0.92, lineHeight: 1.2, marginTop: 2,
+                }}>
+                  Find moms and activities near you
+                </span>
+              </div>
+            </button>
+
+            {/* OR · Choose My Area divider */}
+            <div className="flex items-center" style={{ marginTop: 22, padding: '0 8px', gap: 12 }}>
+              <div style={{ flex: 1, height: 1, background: C.line }}/>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700,
+                  color: C.muted, letterSpacing: '.16em',
+                }}>OR</div>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
+                  color: C.navy, marginTop: 1, letterSpacing: '-.005em',
+                }}>Choose My Area</div>
+              </div>
+              <div style={{ flex: 1, height: 1, background: C.line }}/>
+            </div>
+
+            {/* 3 × 2 area grid — uniform chips */}
+            <div className="grid grid-cols-2" style={{ marginTop: 16, gap: 10 }}>
+              {AREA_BUCKETS.map((area) => {
+                const active = location === area.label;
+                return (
+                  <button
+                    key={area.label}
+                    onClick={() => {
+                      setLocation(area.label);
+                      setTimeout(() => onNext(), 220);
+                    }}
+                    className="rounded-2xl flex items-center justify-center active:scale-[.98] transition-transform"
+                    style={{
+                      padding: '14px 10px',
+                      background: active ? C.coralSoft : '#FAF1E2',
+                      border: `1.5px solid ${active ? C.coral : '#EFE3D0'}`,
+                      cursor: 'pointer',
+                      minHeight: 58,
+                      boxShadow: active
+                        ? '0 6px 14px -8px rgba(214,68,106,.3)'
+                        : '0 1px 2px rgba(27,42,78,.04)',
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+                      color: C.navy, textAlign: 'center', lineHeight: 1.2,
+                    }}>
+                      {area.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bottom info — anchored */}
+          <div className="flex-shrink-0 flex items-start justify-center" style={{
+            padding: '12px 24px',
+            paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+            gap: 6,
+          }}>
+            <Lock size={11} color={C.muted} style={{ marginTop: 2, flexShrink: 0 }}/>
+            <p style={{
+              fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
+              color: C.muted, lineHeight: 1.4, textAlign: 'center',
+            }}>
+              Your location helps us show you only relevant local content. You can change this anytime in settings.
+            </p>
+          </div>
+        </div>
+      ) : (<>
       <ProgressBanner step={step} total={3} onBack={handleBack}/>
 
       <div
@@ -409,11 +584,13 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
       >
         {/* -------- Q1 · Stage -------- */}
         {step === 1 && (
-          <>
-            <QuestionHeader why="Your week bends around your kid's stage.">
-              Tell us your <Emph>stage</Emph>
-            </QuestionHeader>
-            <div className="grid grid-cols-2" style={{ gap: 6, marginTop: 8 }}>
+          <div className="flex flex-col justify-center" style={{ minHeight: '100%', paddingBottom: 12 }}>
+            <div style={{ textAlign: 'center' }}>
+              <QuestionHeader why="Match with moms living the same season.">
+                What <Emph>stage</Emph> are you in?
+              </QuestionHeader>
+            </div>
+            <div className="grid grid-cols-2" style={{ gap: 10, marginTop: 18 }}>
               {STAGE_OPTS.map((opt, i) => (
                 <OptionCard
                   key={opt.label}
@@ -426,26 +603,18 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                 />
               ))}
             </div>
-            <PreviewBanner
-              title="For your stage"
-              items={previewItems}
-              snippet={
-                stage.length > 0 && preview.meetups.length > 0
-                  ? preview.meetups.slice(0, 2).map(e => e.name).join(' · ')
-                  : null
-              }
-              hint={stage.length === 0 ? 'Pick a stage to see your curation tighten.' : null}
-            />
-          </>
+          </div>
         )}
 
         {/* -------- Q2 · Looking for -------- */}
         {step === 2 && (
-          <>
-            <QuestionHeader why="What should we surface first in your feed?">
-              What are you <Emph>looking for</Emph>?
-            </QuestionHeader>
-            <div className="grid grid-cols-2" style={{ gap: 8, marginTop: 12 }}>
+          <div className="flex flex-col justify-center" style={{ minHeight: '100%', paddingBottom: 12 }}>
+            <div style={{ textAlign: 'center' }}>
+              <QuestionHeader why="Pick a few. We'll tune your feed around it.">
+                What do you <Emph>need most</Emph>?
+              </QuestionHeader>
+            </div>
+            <div className="grid grid-cols-2" style={{ gap: 12, marginTop: 18 }}>
               {LOOKING_FOR_OPTS.map(opt => (
                 <OptionCard
                   key={opt.label}
@@ -457,112 +626,8 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                 />
               ))}
             </div>
-            <PreviewBanner
-              title="In your feed"
-              items={previewItems}
-              snippet={
-                preview.thingsToDo.length > 0
-                  ? preview.thingsToDo.slice(0, 3).map(p => p.name).join(' · ')
-                  : null
-              }
-              hint={lookingFor.length === 0 ? 'Pick what you want to see first.' : null}
-            />
-          </>
+          </div>
         )}
-
-        {/* -------- Q3 · Location + radius -------- */}
-        {step === 3 && (
-          <>
-            <QuestionHeader why="So we keep your village within easy reach.">
-              Where in <Emph>Tampa</Emph> are you?
-            </QuestionHeader>
-
-            <div
-              className="flex items-center gap-2 rounded-full"
-              style={{
-                marginTop: 12,
-                height: 38,
-                padding: '0 4px 0 12px',
-                background: '#fff',
-                border: `1.3px solid ${hasLocation ? C.coral : C.line}`,
-              }}
-            >
-              <Search size={14} color={hasLocation ? C.coralDeep : C.muted}/>
-              <input
-                ref={inputRef}
-                type="text"
-                value={location || ''}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={geoStatus === 'detecting' ? 'Detecting your location…' : 'Type your neighborhood…'}
-                className="flex-1 bg-transparent outline-none min-w-0"
-                style={{
-                  fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 600,
-                  color: C.navy,
-                }}
-              />
-              {hasLocation && (
-                <button
-                  onClick={() => setLocation('')}
-                  aria-label="Clear"
-                  className="rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ width: 18, height: 18, background: C.line, border: 'none', cursor: 'pointer' }}
-                >
-                  <X size={10} color={C.navy}/>
-                </button>
-              )}
-              <button
-                onClick={detectLocation}
-                aria-label="Use my location"
-                disabled={geoStatus === 'detecting'}
-                className="rounded-full flex items-center justify-center flex-shrink-0 active:scale-[.95] transition-transform"
-                style={{
-                  width: 30, height: 30, background: C.coral, border: 'none', cursor: 'pointer',
-                  opacity: geoStatus === 'detecting' ? 0.6 : 1,
-                }}
-              >
-                <MapPin size={14} color="#fff"/>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3" style={{ marginTop: 14 }}>
-              <div style={{
-                fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-                color: C.navySoft, whiteSpace: 'nowrap',
-              }}>
-                Within
-              </div>
-              <input
-                type="range"
-                className="range-coral flex-1"
-                min={0}
-                max={DISTANCE_STOPS.length - 1}
-                step={1}
-                value={radiusIdx}
-                onChange={(e) => setDistance(DISTANCE_STOPS[parseInt(e.target.value, 10)])}
-                aria-label="Match radius in miles"
-              />
-              <div style={{
-                fontFamily: 'Fraunces', fontSize: 15, fontWeight: 600,
-                color: C.coralDeep, minWidth: 56, textAlign: 'right',
-              }}>
-                {radiusLabel}
-              </div>
-            </div>
-
-            <PreviewBanner
-              title={hasLocation ? `Near ${location}` : 'Near you'}
-              items={previewItems}
-              snippet={
-                hasLocation && preview.spots.length > 0
-                  ? preview.spots.slice(0, 3).map(p => p.name).join(' · ')
-                  : null
-              }
-              hint={!hasLocation ? 'Add your neighborhood to localize the list.' : null}
-            />
-          </>
-        )}
-
-        <div style={{ height: 8 }}/>
       </div>
 
       <div style={{
@@ -583,14 +648,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
             boxShadow: '0 8px 18px -8px rgba(214,68,106,.55)',
           }}
         >
-          {step === 3 ? (
-            <>
-              <Heart size={14} fill="currentColor"/>
-              Find My Village
-            </>
-          ) : (
-            'Next'
-          )}
+          Next
         </button>
         <p style={{
           fontFamily: 'Albert Sans', fontSize: 9.5, color: C.muted,
@@ -599,6 +657,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           Your information stays private and is only used to personalize recommendations.
         </p>
       </div>
+      </>)}
     </div>
   );
 };

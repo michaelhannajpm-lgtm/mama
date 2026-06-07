@@ -78,15 +78,15 @@ export const Landing = ({ onBegin, onSignIn }) => (
           fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
           color: C.navy, lineHeight: 1.2, letterSpacing: '-.02em',
         }}>
-          Everything a{' '}
-          <span style={{ color: C.coralDeep }}>mom</span>
-          {' '}needs. In one place.
+          Your{' '}
+          <span style={{ color: C.coralDeep }}>mom village</span>,
+          {' '}made real.
         </div>
         <p style={{
           fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
           lineHeight: 1.4, marginTop: 6, padding: '0 6px',
         }}>
-          Find activities, events, places, support and moms who get it — all near you.
+          Verified moms, curated places, and meetups worth the calendar invite — all near you.
         </p>
       </div>
 

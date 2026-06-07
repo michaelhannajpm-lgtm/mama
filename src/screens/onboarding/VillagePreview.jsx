@@ -13,6 +13,8 @@ import { StatusBar } from '../../components/StatusBar';
 // "Unlock My Village" CTA.
 // ==========================================================================
 
+// Meetups have their own "Group Meetups nearby" section below, so they're
+// excluded here to avoid duplication.
 const ACTIVITIES = [
   {
     id: 'a1', kind: 'event', kindLabel: 'EVENT', kindBg: C.coralSoft, kindFg: C.coralDeep,
@@ -22,18 +24,28 @@ const ACTIVITIES = [
     photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
   },
   {
-    id: 'a2', kind: 'meetup', kindLabel: 'MEETUP', kindBg: C.sage, kindFg: C.sageDark,
-    title: 'Mom Coffee Meetup',
-    when: 'Fri, May 10 · 9:30 AM',
-    where: 'Apollo Beach',
-    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop',
-  },
-  {
     id: 'a3', kind: 'class', kindLabel: 'CLASS', kindBg: C.lilac, kindFg: '#5E4A8A',
     title: 'Soccer Skills Clinic',
     when: 'Sun, May 12 · 9:30 AM',
     where: 'Westchase',
     photo: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&auto=format&fit=crop',
+  },
+];
+
+const GROUP_MEETUPS = [
+  {
+    id: 'g1', kind: 'meetup', kindLabel: 'MEETUP', kindBg: C.sage, kindFg: C.sageDark,
+    title: 'Stroller Walk @ Bayshore',
+    when: 'Sat, May 11 · 8:30 AM',
+    where: 'Bayshore Blvd',
+    photo: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'g2', kind: 'meetup', kindLabel: 'MEETUP', kindBg: C.sage, kindFg: C.sageDark,
+    title: 'Mom + Tots Picnic',
+    when: 'Sun, May 12 · 11:00 AM',
+    where: 'Hyde Park',
+    photo: 'https://images.unsplash.com/photo-1526635467535-09354c1bdd66?w=400&auto=format&fit=crop',
   },
 ];
 
@@ -298,14 +310,14 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems 
           fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
           color: C.navy, lineHeight: 1.15, letterSpacing: '-.015em',
         }}>
-          Here's what's
+          Meet <span style={{ fontStyle: 'italic', color: C.coral, fontWeight: 500 }}>your</span>
         </h2>
         <h2 style={{
           fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
           color: C.navy, lineHeight: 1.15, letterSpacing: '-.015em',
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          waiting for you
+          village
           <Heart size={16} color={C.coral} fill={C.coral} style={{ transform: 'rotate(-10deg)' }}/>
         </h2>
       </div>
@@ -317,8 +329,20 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems 
           title="Things to do this week"
           link="See all 48 activities"
         />
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {ACTIVITIES.map(item => (
+        <div className="grid grid-cols-2" style={{ gap: 8 }}>
+          {ACTIVITIES.slice(0, 2).map(item => (
+            <ActivityCard key={item.id} item={item}/>
+          ))}
+        </div>
+
+        {/* Group Meetups nearby */}
+        <SectionHead
+          Icon={Users} iconBg={C.sage} iconFg={C.sageDark}
+          title="Group Meetups nearby"
+          link="See all"
+        />
+        <div className="grid grid-cols-2" style={{ gap: 8 }}>
+          {GROUP_MEETUPS.slice(0, 2).map(item => (
             <ActivityCard key={item.id} item={item}/>
           ))}
         </div>
@@ -329,8 +353,8 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems 
           title="Moms nearby"
           link="See all"
         />
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {MOMS_NEARBY.map(item => (
+        <div className="grid grid-cols-2" style={{ gap: 8 }}>
+          {MOMS_NEARBY.slice(0, 2).map(item => (
             <MomCard key={item.id} item={item}/>
           ))}
         </div>
@@ -355,8 +379,8 @@ export const VillagePreview = ({ onNext, onBack, savedItems = [], setSavedItems 
           title="Local picks"
           link="See all 23 local picks"
         />
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {LOCAL_PICKS.map(item => (
+        <div className="grid grid-cols-2" style={{ gap: 8 }}>
+          {LOCAL_PICKS.slice(0, 2).map(item => (
             <PlaceCard key={item.id} item={item}/>
           ))}
         </div>

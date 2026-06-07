@@ -45,6 +45,19 @@ export const MainApp = ({
   const [tab, setTab] = useState('thisweek');
   const [plansOpen, setPlansOpen] = useState(false);
 
+  // Filter-sheet open state per tab. Lifted here so the header sliders
+  // button can open the active tab's sheet (each tab also exposes an
+  // inline filter button next to its category row).
+  const [thisWeekFilterOpen,   setThisWeekFilterOpen]   = useState(false);
+  const [connectFilterOpen,    setConnectFilterOpen]    = useState(false);
+  const [localPicksFilterOpen, setLocalPicksFilterOpen] = useState(false);
+
+  const openFilterForActiveTab = () => {
+    if (tab === 'thisweek')   setThisWeekFilterOpen(true);
+    if (tab === 'connect')    setConnectFilterOpen(true);
+    if (tab === 'localpicks') setLocalPicksFilterOpen(true);
+  };
+
   const activeTab = TABS.find(t => t.id === tab);
   const activeLabel = activeTab?.headerLabel || activeTab?.label || '';
   const savedCount = savedItems?.length || 0;
@@ -101,6 +114,7 @@ export const MainApp = ({
               )}
             </button>
             <button
+              onClick={isProfile ? undefined : openFilterForActiveTab}
               aria-label={isProfile ? 'Settings' : 'Filters'}
               className="rounded-full flex items-center justify-center"
               style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}` }}
@@ -116,17 +130,21 @@ export const MainApp = ({
       {tab === 'thisweek' && <ThisWeekTab
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
+        joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         ratings={ratings} setRatings={setRatings}
-        location={location} flash={flash}/>}
+        location={location} flash={flash}
+        filterOpen={thisWeekFilterOpen} setFilterOpen={setThisWeekFilterOpen}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         savedItems={savedItems} setSavedItems={setSavedItems}
-        account={account} requestAccount={requestAccount} flash={flash}/>}
+        account={account} requestAccount={requestAccount} flash={flash}
+        filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}/>}
       {tab === 'localpicks' && <LocalPicksTab
         savedItems={savedItems} setSavedItems={setSavedItems}
-        location={location} flash={flash}/>}
+        location={location} flash={flash}
+        filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
         account={account} prefs={prefs}

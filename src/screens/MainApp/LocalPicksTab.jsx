@@ -3,8 +3,11 @@ import {
   Search, MapPin, GraduationCap, School, Brain, Star,
   Music, Activity, Sparkles, ChevronRight,
   HeartHandshake, Scale, Wallet, Stethoscope, Smile, Users,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
+import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 
 // ==========================================================================
 // LocalPicksTab — V5 "Local Picks" surface.
@@ -114,10 +117,11 @@ const SectionHead = ({ title, link = 'See all' }) => (
   </div>
 );
 
-const QuickTile = ({ item }) => {
+const QuickTile = ({ item, onClick }) => {
   const Icon = item.icon;
   return (
     <button
+      onClick={onClick}
       style={{
         flexShrink: 0,
         background: '#fff', border: `1px solid ${C.line}`,
@@ -145,12 +149,13 @@ const QuickTile = ({ item }) => {
   );
 };
 
-const PhotoCard = ({ item }) => (
-  <div style={{
+const PhotoCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
   }}>
     <img src={item.photo} alt="" style={{
       width: '100%', height: 62, objectFit: 'cover', display: 'block',
@@ -179,17 +184,18 @@ const PhotoCard = ({ item }) => (
         </span>
       </div>
     </div>
-  </div>
+  </button>
 );
 
-const ProgramCard = ({ item }) => {
+const ProgramCard = ({ item, onClick }) => {
   const Icon = item.Icon;
   return (
-    <div style={{
+    <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
       background: '#fff', borderRadius: 12,
       border: `1px solid ${C.line}`,
       boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
       overflow: 'hidden',
+      padding: 0, cursor: 'pointer',
     }}>
       <div style={{
         height: 62, background: item.bg, color: item.fg,
@@ -216,16 +222,17 @@ const ProgramCard = ({ item }) => {
           <MapPin size={8}/> {item.distance}
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
-const SchoolCard = ({ item }) => (
-  <div style={{
+const SchoolCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
   }}>
     <img src={item.photo} alt="" style={{
       width: '100%', height: 60, objectFit: 'cover', display: 'block',
@@ -262,13 +269,14 @@ const SchoolCard = ({ item }) => (
         {item.tag}
       </div>
     </div>
-  </div>
+  </button>
 );
 
-const SupportChip = ({ item }) => {
+const SupportChip = ({ item, onClick }) => {
   const Icon = item.icon;
   return (
     <button
+      onClick={onClick}
       style={{
         flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 5,
@@ -286,9 +294,46 @@ const SupportChip = ({ item }) => {
 
 // -------------------------- screen --------------------------
 
-export const LocalPicksTab = ({ savedItems, setSavedItems, location, flash }) => {
-  void savedItems; void setSavedItems; void location; void flash;
+export const LocalPicksTab = ({
+  savedItems = [], setSavedItems, location, flash,
+  filterOpen, setFilterOpen,
+}) => {
+  void location;
   const [query, setQuery] = useState('');
+
+  // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
+  const [selectedPlace, setSelectedPlace] = useState(null);
+
+  const isSaved = (id) => savedItems.includes(id);
+  const isInterested = (id) => savedItems.includes(`int-${id}`);
+  const toggleSave = (id) => setSavedItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  // Normalize each card shape into the common PlaceDetailSheet input.
+  const openTopPlace = (item) => setSelectedPlace({
+    id: item.id, title: item.title, photo: item.photo,
+    rating: item.rating, distance: item.distance,
+    kind: 'Place',
+  });
+  const openProgram = (item) => setSelectedPlace({
+    id: item.id, title: item.title,
+    Icon: item.Icon, iconBg: item.bg, iconFg: item.fg,
+    ages: item.ages, distance: item.distance,
+    kind: 'Program',
+  });
+  const openSchool = (item) => setSelectedPlace({
+    id: item.id, title: item.title, photo: item.photo,
+    rating: item.rating, distance: item.distance,
+    tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg,
+    kind: 'School',
+  });
+
+  // Advanced place filters — distance, cost, amenities (stroller-friendly,
+  // changing table, nursing room, …), parking, kid ages, visit style.
+  const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
+  const advCount =
+    (filters.distance != null ? 1 : 0) + filters.cost.length +
+    filters.amenities.length + filters.parking.length +
+    filters.ages.length + filters.visit.length;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -312,10 +357,22 @@ export const LocalPicksTab = ({ savedItems, setSavedItems, location, flash }) =>
         </div>
       </div>
 
-      {/* Quick tiles */}
+      {/* Quick tiles + advanced filter button. */}
       <div className="px-5" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 4 }}>
-          {QUICK_TILES.map(item => <QuickTile key={item.id} item={item}/>)}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 4 }}>
+            {QUICK_TILES.map(item => (
+              <QuickTile
+                key={item.id}
+                item={item}
+                onClick={() => flash?.(`Jumping to ${item.label}`)}
+              />
+            ))}
+          </div>
+          <LocalPicksFilterIconBtn
+            count={advCount}
+            onClick={() => setFilterOpen?.(true)}
+          />
         </div>
       </div>
 
@@ -323,27 +380,104 @@ export const LocalPicksTab = ({ savedItems, setSavedItems, location, flash }) =>
         {/* Top Places */}
         <SectionHead title="Top Places"/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {TOP_PLACES.map(item => <PhotoCard key={item.id} item={item}/>)}
+          {TOP_PLACES.map(item => (
+            <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>
+          ))}
         </div>
 
         {/* Programs For Your Child */}
         <SectionHead title="Programs For Your Child"/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {PROGRAMS.map(item => <ProgramCard key={item.id} item={item}/>)}
+          {PROGRAMS.map(item => (
+            <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>
+          ))}
         </div>
 
         {/* Schools Near You */}
         <SectionHead title="Schools Near You"/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {SCHOOLS.map(item => <SchoolCard key={item.id} item={item}/>)}
+          {SCHOOLS.map(item => (
+            <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>
+          ))}
         </div>
 
         {/* Support You Can Count On */}
         <SectionHead title="Support You Can Count On"/>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {SUPPORT.map(item => <SupportChip key={item.id} item={item}/>)}
+          {SUPPORT.map(item => (
+            <SupportChip
+              key={item.id}
+              item={item}
+              onClick={() => flash?.(`${item.label} · resources coming soon`)}
+            />
+          ))}
         </div>
       </div>
+
+      {filterOpen && (
+        <PlacesFilterSheet
+          filters={filters}
+          setFilters={setFilters}
+          onClose={() => setFilterOpen?.(false)}
+        />
+      )}
+
+      {selectedPlace && (
+        <PlaceDetailSheet
+          place={selectedPlace}
+          saved={isSaved(selectedPlace.id)}
+          interested={isInterested(selectedPlace.id)}
+          onSave={() => {
+            toggleSave(selectedPlace.id);
+            flash?.(isSaved(selectedPlace.id) ? 'Removed from saved' : '✦ Saved');
+          }}
+          onInterested={() => {
+            toggleSave(`int-${selectedPlace.id}`);
+            flash?.(isInterested(selectedPlace.id) ? 'Removed interest' : '✦ Marked as interested');
+          }}
+          onShare={(_, action) => {
+            if (action === 'call') flash?.('Opening dialer…');
+            else if (action === 'web') flash?.('Opening website…');
+            else flash?.('Link copied · share with another mom');
+          }}
+          onDirections={() => flash?.('Opening directions…')}
+          onClose={() => setSelectedPlace(null)}
+        />
+      )}
     </div>
   );
 };
+
+// Round filter icon button. Coral accent + count badge when any filter
+// is active. Matches the pattern in ThisWeekTab / ConnectTab.
+const LocalPicksFilterIconBtn = ({ count = 0, onClick }) => (
+  <button
+    onClick={onClick}
+    aria-label="Open advanced filters"
+    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
+    style={{
+      width: 34, height: 34,
+      background: count > 0 ? C.coral : C.paper,
+      color: count > 0 ? '#fff' : C.navy,
+      border: `1px solid ${count > 0 ? C.coral : C.divider}`,
+    }}
+  >
+    <SlidersHorizontal size={14}/>
+    {count > 0 && (
+      <span
+        className="absolute"
+        style={{
+          top: -3, right: -3,
+          minWidth: 16, height: 16, padding: '0 4px',
+          borderRadius: 8,
+          background: C.coralDeep, color: '#fff',
+          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: `1.5px solid ${C.cream}`,
+        }}
+      >
+        {count > 9 ? '9+' : count}
+      </span>
+    )}
+  </button>
+);

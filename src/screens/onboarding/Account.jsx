@@ -121,10 +121,10 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
       <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <div style={{ marginTop: 2 }}>
           <h2 style={{ fontFamily:'Fraunces', fontWeight:700, fontSize: 24, lineHeight:1.15, color: C.navy, letterSpacing:'-.01em' }}>
-            Create your <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>account</span>
+            Save your <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>spot</span>
           </h2>
           <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.muted, lineHeight:1.4 }}>
-            One tap and you're in.
+            One tap unlocks your village.
           </p>
         </div>
 
