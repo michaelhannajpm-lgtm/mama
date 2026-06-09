@@ -138,6 +138,7 @@ function PrototypeApp({ bare = false }) {
     setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
     setLocation('');
     setDistance(null);
+    setLocationGeo(null);
     setPrefs({ slots:[], places:[] });
     setSavedItems([]);
     setAccount(null);
