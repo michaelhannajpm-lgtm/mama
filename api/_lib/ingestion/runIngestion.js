@@ -21,57 +21,81 @@ export async function runIngestion({ sourceId, limit = 20, dryRun = false, logge
 
   let runId = null;
   if (!dryRun) { await upsertSource(sb, source); runId = await startRun(sb, source.id); }
-  let existing = dryRun ? [] : await loadExistingPlaces(sb);
 
-  for (const { q, category } of source.queries) {
-    try {
-      const raw = await fetchRaw({ query: q, bias: source.bias, limit, apiKey, logger });
+  // Wrap the whole run so an unexpected throw (e.g. loadExistingPlaces) never
+  // strands the ingestion_runs row in 'running'.
+  try {
+    const existing = dryRun ? [] : await loadExistingPlaces(sb);
+
+    for (const { q, category } of source.queries) {
+      let raw;
+      try {
+        raw = await fetchRaw({ query: q, bias: source.bias, limit, apiKey, logger });
+      } catch (e) {
+        counts.errors++;
+        logger.error?.(`query "${q}" fetch failed: ${e.message}`);
+        continue;
+      }
       counts.fetched += raw.length;
+
       for (const gp of raw) {
-        const cand = normalizeGooglePlace(gp, { category, city: source.city });
-        counts.normalized++;
-        const verdict = classifyCandidate(cand, existing);
+        // Isolate per-candidate failures (e.g. a slug unique-index collision)
+        // so one bad row doesn't drop the rest of the query's batch.
+        try {
+          const cand = normalizeGooglePlace(gp, { category, city: source.city });
+          counts.normalized++;
+          const verdict = classifyCandidate(cand, existing);
 
-        if (dryRun) {
-          if (verdict.action === 'create') counts.created++;
-          else if (verdict.action === 'update') counts.updated++;
-          else { counts.review++; reviewItems.push(cand.name); }
-          continue;
-        }
-
-        if (verdict.action === 'update') {
-          await refreshPlace(sb, verdict.matchId, cand);
-          await linkCategory(sb, verdict.matchId, category);
-          await recordSource(sb, { sourceId: source.id, externalId: cand.externalId, placeId: verdict.matchId, sourceUrl: cand.sourceUrl, raw: gp });
-          counts.updated++;
-        } else if (verdict.action === 'create' || verdict.action === 'review') {
-          const placeId = await createPlace(sb, cand);
-          await linkCategory(sb, placeId, category);
-          // Photos: Google refs first; gradient fallback when none.
-          if (cand.photos.length) {
-            for (let i = 0; i < cand.photos.length; i++) {
-              await addPhoto(sb, placeId, { googleRef: cand.photos[i].googleRef, source: 'google', attribution: cand.photos[i].attribution, isHero: i === 0, sortOrder: i });
-            }
-          } else {
-            const png = await makeGradientPng(cand.name);
-            const url = await uploadGeneratedPng({ supabaseUrl: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY, slug: cand.slug, buffer: png });
-            await addPhoto(sb, placeId, { url, source: 'generated', isHero: true });
+          if (dryRun) {
+            if (verdict.action === 'create') counts.created++;
+            else if (verdict.action === 'update') counts.updated++;
+            else { counts.review++; reviewItems.push(cand.name); }
+            continue;
           }
-          await recordSource(sb, { sourceId: source.id, externalId: cand.externalId, placeId, sourceUrl: cand.sourceUrl, raw: gp });
-          existing.push({ id: placeId, google_place_id: cand.googlePlaceId, name: cand.name, city: cand.city, lat: cand.lat, lng: cand.lng });
-          if (verdict.action === 'review') counts.review++;
-          counts.created++;
+
+          if (verdict.action === 'update') {
+            await refreshPlace(sb, verdict.matchId, cand);
+            await linkCategory(sb, verdict.matchId, category);
+            await recordSource(sb, { sourceId: source.id, externalId: cand.externalId, placeId: verdict.matchId, sourceUrl: cand.sourceUrl, raw: gp });
+            counts.updated++;
+          } else { // 'create' or 'review' — both insert a new staged row
+            const placeId = await createPlace(sb, cand);
+            await linkCategory(sb, placeId, category);
+            // Photos: Google refs first; gradient fallback when none.
+            if (cand.photos.length) {
+              for (let i = 0; i < cand.photos.length; i++) {
+                await addPhoto(sb, placeId, { googleRef: cand.photos[i].googleRef, source: 'google', attribution: cand.photos[i].attribution, isHero: i === 0, sortOrder: i });
+              }
+            } else {
+              const png = await makeGradientPng(cand.name);
+              const url = await uploadGeneratedPng({ supabaseUrl: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY, slug: cand.slug, buffer: png });
+              await addPhoto(sb, placeId, { url, source: 'generated', isHero: true });
+            }
+            await recordSource(sb, { sourceId: source.id, externalId: cand.externalId, placeId, sourceUrl: cand.sourceUrl, raw: gp });
+            existing.push({ id: placeId, google_place_id: cand.googlePlaceId, name: cand.name, city: cand.city, lat: cand.lat, lng: cand.lng });
+            // Count clean creates and review-flagged inserts separately and
+            // mutually exclusively, so dry-run and live accounting agree.
+            if (verdict.action === 'review') { counts.review++; reviewItems.push(cand.name); }
+            else counts.created++;
+          }
+        } catch (e) {
+          counts.errors++;
+          logger.error?.(`candidate failed in query "${q}": ${e.message}`);
         }
       }
-    } catch (e) {
-      counts.errors++;
-      logger.error?.(`query "${q}" failed: ${e.message}`);
     }
-  }
 
-  if (!dryRun) {
-    const status = counts.errors === 0 ? 'succeeded' : (counts.created || counts.updated ? 'partial' : 'failed');
-    await finishRun(sb, runId, status, { ...counts, summary: { review: counts.review } });
+    if (!dryRun) {
+      const wrote = counts.created || counts.updated || counts.review;
+      const status = counts.errors === 0 ? 'succeeded' : (wrote ? 'partial' : 'failed');
+      await finishRun(sb, runId, status, { ...counts, summary: { review: counts.review } });
+    }
+    return { ...counts, reviewItems };
+  } catch (e) {
+    if (!dryRun && runId) {
+      try { await finishRun(sb, runId, 'failed', { ...counts, summary: { review: counts.review, error: e.message } }); }
+      catch { /* best effort — don't mask the original error */ }
+    }
+    throw e;
   }
-  return { ...counts, reviewItems };
 }
