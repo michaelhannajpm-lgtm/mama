@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, Settings } from 'lucide-react';
+import { CalendarDays, Users, MapPin, User, Settings, Bell, LayoutGrid } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { ThisWeekTab } from './ThisWeekTab';
@@ -7,6 +7,9 @@ import { ConnectTab } from './ConnectTab';
 import { LocalPicksTab } from './LocalPicksTab';
 import { YouTab } from './YouTab';
 import { MyVillageSheet } from '../../sheets/MyVillageSheet';
+import { MamaHubSheet } from '../../sheets/MamaHubSheet';
+import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
+import { GROUP_DISCUSSIONS } from '../../data/discussions';
 
 // ====================================================================
 // MAIN APP — 4 tabs (V5 layout):
@@ -45,6 +48,15 @@ export const MainApp = ({
   void setPrefs;
   const [tab, setTab] = useState('thisweek');
   const [villageOpen, setVillageOpen] = useState(false);
+  // Mama Hub (launcher) + notifications popover state. Notifications uses
+  // a coral dot when there's anything unread; the dot is the only signal
+  // we surface in-app (no badge count to keep the header quiet).
+  const [hubOpen, setHubOpen] = useState(false);
+  const [notifsUnread, setNotifsUnread] = useState(true);
+  // Group discussion opened from inside the Mama Hub. Local to MainApp so
+  // it can stack above the hub.
+  const [hubDiscussion, setHubDiscussion] = useState(null);
+  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
 
   // Filter-sheet open state per tab. Each tab still exposes an inline
   // filter button next to its category row — the header filter icon was
@@ -80,6 +92,44 @@ export const MainApp = ({
             </div>
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+            {/* Notifications bell — coral dot when unread, dot clears on tap */}
+            <button
+              aria-label="Notifications"
+              onClick={() => {
+                setNotifsUnread(false);
+                setHubOpen(true);
+              }}
+              className="relative rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
+              style={{
+                width: 36, height: 36, background: C.paper,
+                border: `1px solid ${C.divider}`, cursor: 'pointer',
+              }}
+            >
+              <Bell size={15} color={C.navy}/>
+              {notifsUnread && (
+                <span
+                  className="absolute"
+                  style={{
+                    top: 7, right: 8, width: 8, height: 8, borderRadius: 4,
+                    background: C.coralDeep, border: `1.5px solid ${C.cream}`,
+                  }}
+                />
+              )}
+            </button>
+            {/* Mama Hub launcher — LayoutGrid icon, opens MamaHubSheet */}
+            <button
+              aria-label="Open Mama Hub"
+              onClick={() => setHubOpen(true)}
+              className="rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
+              style={{
+                width: 36, height: 36,
+                background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+                color: '#fff', border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 12px -6px rgba(214,68,106,.55)',
+              }}
+            >
+              <LayoutGrid size={15}/>
+            </button>
             {isProfile && (
               <button
                 aria-label="Settings"
@@ -104,8 +154,11 @@ export const MainApp = ({
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
+        openPremium={openPremium}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
+        scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
+        messageHistory={messageHistory}
         account={account} requestAccount={requestAccount} flash={flash}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}/>}
       {tab === 'localpicks' && <LocalPicksTab
@@ -171,6 +224,41 @@ export const MainApp = ({
           openMessage={openMessage}
           flash={flash}
           onClose={() => setVillageOpen(false)}
+        />
+      )}
+
+      {hubOpen && (
+        <MamaHubSheet
+          groupDiscussions={GROUP_DISCUSSIONS}
+          joinedDiscussionIds={joinedDiscussions}
+          onOpenMessage={openMessage}
+          onOpenDiscussion={(d) => setHubDiscussion(d)}
+          flash={flash}
+          onClose={() => setHubOpen(false)}
+        />
+      )}
+
+      {hubDiscussion && (
+        <GroupDiscussionSheet
+          discussion={hubDiscussion}
+          joined={joinedDiscussions.has(hubDiscussion.id)}
+          onToggleJoin={() => {
+            setJoinedDiscussions(prev => {
+              const next = new Set(prev);
+              if (next.has(hubDiscussion.id)) {
+                next.delete(hubDiscussion.id);
+                flash?.(`Left ${hubDiscussion.title}`);
+              } else {
+                next.add(hubDiscussion.id);
+                flash?.(`✦ Joined ${hubDiscussion.title}`);
+              }
+              return next;
+            });
+          }}
+          onMessageMom={(mom) => { openMessage?.(mom); setHubDiscussion(null); }}
+          onScheduleMom={(mom) => { openSchedule?.(mom); setHubDiscussion(null); }}
+          flash={flash}
+          onClose={() => setHubDiscussion(null)}
         />
       )}
     </div>

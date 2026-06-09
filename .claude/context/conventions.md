@@ -5,13 +5,13 @@
 - **CSS keyframes (`slideUp`, `fadeIn`, `fadeInUp`, `popBadge`)** live in `src/index.css` — never inline keyframes inside JSX or duplicate them elsewhere.
 - **Google Fonts `@import`** is at the top of `src/index.css` — never re-add a runtime `useEffect` for font loading.
 - **`PhoneFrame`** — wraps the `/prototype` app in a centered ~375×740 phone container. `/live` skips the frame for embedding. Must remain the outermost layout for `/prototype`.
-- **25-message free chat limit** — intentional monetization friction.
+- **3-message free chat limit** — intentional monetization friction (tightened from 25 on 2026-06-08).
 - **Partial profile blur on free tier** — converts to Plus; don't simplify away.
 - **Verified-only positioning** — Instagram or Facebook + a real photo. Even though it slows signup, it's the moat.
 
 ## Things NOT to change for ease-of-use
 
-- 25-message free limit on chat.
+- 3-message free limit on chat.
 - Partial profile blur with full reveal in Plus.
 - Verified-only signup gate (social + real photo).
 
