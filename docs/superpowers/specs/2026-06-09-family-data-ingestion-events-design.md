@@ -82,16 +82,59 @@ Backfill curated rows: `update public.events set kind='recurring', review_status
 
 ```sql
 insert into public.categories (id, label, icon, kind, sort_order) values
+  -- Learning & enrichment
   ('storytime','Storytime','BookOpen','event',1),
   ('class','Class','Palette','event',2),
-  ('camp','Camp','Tent','event',3),
-  ('festival','Festival','PartyPopper','event',4),
-  ('playgroup','Playgroup','Users','event',5),
-  ('workshop','Workshop','Wrench','event',6),
-  ('performance','Performance','Drama','event',7),
-  ('sports-event','Sports Event','Trophy','event',8),
-  ('seasonal','Seasonal','Sparkles','event',9),
-  ('support-group','Support Group','Heart','event',10)
+  ('workshop','Workshop','Wrench','event',3),
+  ('stem','STEM','FlaskConical','event',4),
+  ('art-class','Art','Brush','event',5),
+  ('music-class','Music','Music','event',6),
+  ('dance-class','Dance','Music2','event',7),
+  ('cooking-class','Cooking','ChefHat','event',8),
+  ('language-class','Language','Languages','event',9),
+  ('tutoring','Academic','GraduationCap','event',10),
+  -- Active & sports
+  ('sports-event','Sports','Trophy','event',11),
+  ('swim','Swim','Waves','event',12),
+  ('gymnastics','Gymnastics','PersonStanding','event',13),
+  ('martial-arts','Martial Arts','Swords','event',14),
+  ('kids-fitness','Kids Fitness','Dumbbell','event',15),
+  ('family-yoga','Family Yoga','Flower2','event',16),
+  -- Camps
+  ('camp','Camp','Tent','event',17),
+  ('break-camp','Break Camp','TreePalm','event',18),
+  -- Play & social
+  ('playgroup','Playgroup','Users','event',19),
+  ('open-play','Open Play','Blocks','event',20),
+  ('parent-meetup','Parent Meetup','Coffee','event',21),
+  ('support-group','Support Group','Heart','event',22),
+  -- Entertainment & culture
+  ('performance','Performance','Drama','event',23),
+  ('movie','Movie','Film','event',24),
+  ('concert','Concert','Mic2','event',25),
+  ('museum-program','Museum Program','Landmark','event',26),
+  ('library-program','Library Program','Library','event',27),
+  ('animal-encounter','Animal Encounter','PawPrint','event',28),
+  -- Seasonal & community
+  ('festival','Festival','PartyPopper','event',29),
+  ('fair','Fair','FerrisWheel','event',30),
+  ('seasonal','Seasonal','Sparkles','event',31),
+  ('farmers-market','Farmers Market','ShoppingBasket','event',32),
+  ('community-event','Community','Megaphone','event',33),
+  ('outdoor-adventure','Outdoor','Mountain','event',34),
+  -- Parent & baby
+  ('prenatal-class','Prenatal','Baby','event',35),
+  ('new-parent','New Parent','HeartHandshake','event',36),
+  ('parenting-class','Parenting','UsersRound','event',37),
+  ('breastfeeding','Lactation Support','Milk','event',38),
+  -- Inclusive
+  ('sensory-friendly','Sensory-Friendly','Sparkle','event',39),
+  ('special-needs','Special Needs','Accessibility','event',40),
+  -- Civic & faith
+  ('fundraiser','Fundraiser','HandHeart','event',41),
+  ('religious','Faith / VBS','Church','event',42),
+  -- Catch-all (never leaves an event uncategorized)
+  ('other','Other','CircleDot','event',99)
 on conflict (id) do nothing;
 
 create table if not exists public.event_categories (
@@ -102,7 +145,16 @@ create table if not exists public.event_categories (
 create index if not exists event_categories_cat_idx on public.event_categories (category_id);
 ```
 
-`events.event_type` is the PRIMARY type (fast path); `event_categories` allows multi-type. `categories.kind='event'` keeps event types separate from place categories. **`categories.id` is a shared PK across both kinds**, so any event-type id that already exists as a place category must be distinct — the place category `sports` already exists (`kind='place'`), so the event type uses `sports-event`. All other event-type ids above are unique to events.
+`events.event_type` is the PRIMARY type (fast path); `event_categories` allows multi-type (an event can be both `stem` and `camp`). `categories.kind='event'` keeps event types separate from place categories.
+
+**Full coverage is guaranteed three ways, so no event is ever uncategorizable:**
+1. **Comprehensive enumerated taxonomy** (42 types above) spanning learning/enrichment, active/sports, camps, play/social, entertainment/culture, seasonal/community, parent & baby, inclusive, and civic/faith.
+2. **`other` catch-all** — `mapEventType()` falls back to `other` whenever no keyword matches, so `event_type` is always set (never null).
+3. **Multi-type membership** — when an event fits several types, the best match becomes `event_type` and the rest are added to `event_categories`; ambiguous-but-low-confidence events get `event_type='other'`, explanatory `tags`, and stay `review_status='needs_review'` for an admin to retype (per the data-contract low-confidence rule).
+
+This list is **extensible** — adding a type is a one-row `insert` (idempotent `on conflict do nothing`) plus a keyword entry in `mapEventType()`; no code-path change. Admins can also retype any event in `EventEditModal` (the type selector reads `categories where kind='event'`, so new types appear automatically).
+
+**`categories.id` is a shared PK across both kinds**, so any event-type id that already exists as a place category must be distinct — the place category `sports` already exists (`kind='place'`), so the event type uses `sports-event` (and `camp` ≠ the place category `camps`). All other event-type ids above are unique to events.
 
 Provenance: **reuse** `ingestion_sources`, `ingestion_runs`, `source_records` from the places slice — `source_records.record_type='event'` and `source_records.event_id` already exist. No new provenance tables.
 
@@ -134,7 +186,7 @@ Same shape as `google-places.js`: a pure `parseX(body|text)` (fixture-tested, ne
   - `kind='dated'`; `recurring` from source recurrence text or `'One-time'`.
   - `hue` gradient fallback via `images.js` `gradientForName` when no photo.
   - **slug** = `<sourcePrefix>-<normalized name>-<local YYYY-MM-DD>`, namespaced by source id so it can never collide with curated `e-*` ids.
-  - `eventType` mapped from source category/query via a `mapEventType()` table (data-contract category mapping).
+  - `eventType` mapped from source category/query via a `mapEventType(keywords)` lookup over the full event taxonomy (matches source category + title/description keywords against per-type keyword lists); **always returns a value, defaulting to `'other'`** so `event_type` is never null. Secondary matches are emitted as `eventCategories[]` for the `event_categories` join. Low-confidence maps keep `review_status='needs_review'` + explanatory tags.
 - **`linkEventToPlace(candidate, existingPlaces)`** (new, in `dedupe.js` or a `place-link.js`): match `placeName`/geo against `places` — exact normalized name + same city → match; geo ~75 m + name-similar → match (reuse `haversineMeters`). On match set `placeId`. On miss leave `placeId` null, keep `placeName`. **Never auto-creates a place.**
 - **`classifyEventCandidate(cand, existingEvents)`** (in `dedupe.js`), per data-contract:
   1. exact `source_records(source_id, external_id, 'event')` → `update`.
