@@ -37,6 +37,8 @@ import { resolveArea } from './lib/places.js';
 import { fetchPlaces } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
 import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-moms';
+import { fetchNearbyMoms } from './lib/nearby-moms';
+import { decorateMom } from './lib/mom-card';
 import { SUGGESTED_EVENTS as FALLBACK_EVENTS } from './data/events';
 
 // ====================================================================
@@ -52,6 +54,8 @@ function PrototypeApp({ bare = false }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [seededLoginOpen, setSeededLoginOpen] = useState(false);
   const [seededMoms, setSeededMoms] = useState([]);
+  const [nearbyMoms, setNearbyMoms] = useState([]);
+  const [nearbyVerifiedOnly, setNearbyVerifiedOnly] = useState(true);
   const [seededLoginLoading, setSeededLoginLoading] = useState(false);
   const [seededLoginError, setSeededLoginError] = useState(null);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
@@ -147,6 +151,41 @@ function PrototypeApp({ bare = false }) {
     setStep(3);
     flash(`Welcome back, ${next.account.firstName} ✦`);
   };
+
+  // Build the matching payload from the user's current profile/prefs/location.
+  // `account` may be a real signed-in user or a dev-seed mom (isSeed).
+  const buildMatchUser = () => ({
+    auth_user_id: account?.auth_user_id || null,
+    seed_mom_id: account?.seedMomId || null,
+    kids_ages: profile?.kidsAges || {},
+    interests: profile?.interests || [],
+    values: profile?.values || [],
+    mom_types: profile?.momTypes || [],
+    places: prefs?.places || [],
+    free_slots: prefs?.slots || [],
+    lat: locationGeo?.lat ?? null,
+    lng: locationGeo?.lng ?? null,
+  });
+
+  const loadNearbyMoms = async (verifiedOnly = nearbyVerifiedOnly) => {
+    setNearbyVerifiedOnly(verifiedOnly);
+    try {
+      const { moms } = await fetchNearbyMoms(buildMatchUser(), { limit: 24, verifiedOnly });
+      setNearbyMoms(moms.map(decorateMom));
+    } catch (e) {
+      console.error('loadNearbyMoms failed', e);
+      setNearbyMoms([]);
+    }
+  };
+
+  // Load once the user reaches the main app. Re-runs if the matching inputs
+  // change. `locationGeo?.id` keys on location without sending coords as deps.
+  useEffect(() => {
+    if (step < 3) return;
+    loadNearbyMoms(nearbyVerifiedOnly);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, account?.auth_user_id, account?.seedMomId, locationGeo?.id,
+      JSON.stringify(profile?.interests), JSON.stringify(profile?.kidsAges)]);
 
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
@@ -335,6 +374,9 @@ function PrototypeApp({ bare = false }) {
             ratings={ratings} setRatings={setRatings}
             messageHistory={messageHistory}
             account={account} requestAccount={requestAccount}
+            nearbyMoms={nearbyMoms}
+            nearbyVerifiedOnly={nearbyVerifiedOnly}
+            onSetVerifiedOnly={loadNearbyMoms}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}
             openMessage={setMessageMom}
