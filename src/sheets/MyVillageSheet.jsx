@@ -15,7 +15,20 @@ import { findResource, RESOURCE_CATEGORIES } from '../data/resources';
 
 // Resolve a saved/interested id into a display shape. Mirrors MyPlansSheet
 // but lifted here so we don't double-import a private helper.
-const resolve = (id) => {
+const resolve = (id, moms = []) => {
+  if (typeof id === 'string' && id.startsWith('mom-')) {
+    const m = moms.find(x => String(x.id) === id.slice(4));
+    if (!m) return null;
+    return {
+      kind: 'mom',
+      photo: m.photo,
+      title: m.name,
+      sub:   `${m.type} · ${m.kids}`,
+      meta:  m.distance ? `${m.distance} · ${m.overlap}% match` : `${m.overlap}% match`,
+      accent: C.coralDeep,
+    };
+  }
+
   const ev = SUGGESTED_EVENTS.find(e => e.id === id);
   if (ev) return {
     kind: 'event',
@@ -185,12 +198,13 @@ export const MyVillageSheet = ({
   goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents,
   messageHistory = {},
+  moms = [],
   openMessage,
   flash,
   onClose,
 }) => {
-  const savedResolved   = savedItems.map(id   => ({ id, item: resolve(id) })).filter(x => x.item);
-  const interestedResolved = goingItems.map(id => ({ id, item: resolve(id) })).filter(x => x.item);
+  const savedResolved   = savedItems.map(id   => ({ id, item: resolve(id, moms) })).filter(x => x.item);
+  const interestedResolved = goingItems.map(id => ({ id, item: resolve(id, moms) })).filter(x => x.item);
   const joiningResolved = joinedEvents
     .map(id => SUGGESTED_EVENTS.find(e => e.id === id))
     .filter(Boolean);
@@ -200,7 +214,7 @@ export const MyVillageSheet = ({
     .map(([momId, msgs]) => {
       if (!msgs || !msgs.length) return null;
       const numericId = Number(momId);
-      const mom = SAMPLE_MOMS.find(m => m.id === numericId);
+      const mom = moms.find(m => String(m.id) === String(momId)) || SAMPLE_MOMS.find(m => m.id === numericId);
       if (!mom) return null;
       const last = msgs[msgs.length - 1];
       return { mom, last, count: msgs.length };
