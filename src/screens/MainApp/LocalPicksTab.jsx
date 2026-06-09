@@ -11,6 +11,7 @@ import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFil
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
+import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
 
 // ==========================================================================
 // LocalPicksTab — V5 "Local Picks" surface.
@@ -119,7 +120,7 @@ const SCHOOLS_CHILDCARE = [
   },
   {
     id: 's2', title: 'Primrose School of South Tampa',
-    rating: 4.8, distance: '2.1 mi away', tag: 'Waitlist',
+    rating: 4.8, distance: '2.1 mi away', tag: 'Availability varies',
     tagBg: '#FFF4D6', tagFg: '#8A6610',
     photo: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&auto=format&fit=crop',
   },
@@ -147,7 +148,7 @@ const SCHOOLS_CHILDCARE_ALL = [
   },
   {
     id: 's6', title: 'KinderCare South Tampa',
-    rating: 4.6, distance: '1.8 mi away', tag: 'Waitlist',
+    rating: 4.6, distance: '1.8 mi away', tag: 'Availability varies',
     tagBg: '#FFF4D6', tagFg: '#8A6610',
     photo: 'https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?w=400&auto=format&fit=crop',
   },
@@ -350,7 +351,7 @@ const QUICK_FILTERS_BY_SECTION = {
   ],
   schools: [
     { id: 'enrolling',label: 'Open enrollment', icon: ShieldCheck },
-    { id: 'waitlist', label: 'Waitlist'                           },
+    { id: 'availability', label: 'Availability'                    },
     { id: 'tour',     label: 'Tour available',  icon: School      },
     { id: 'preschool',label: 'Preschool'                          },
     { id: 'vpk',      label: 'VPK'                                },
@@ -534,13 +535,10 @@ const SchoolCard = ({ item, onClick }) => (
 
 // ---------------------- live data adapter ----------------------
 // Map live DB place rows (from /api/places, grouped by category) into the card
-// shapes this tab already renders. Live rows win when present; each section
-// independently falls back to its curated hardcoded list when live data is
-// empty/unavailable, so the surface never regresses.
-//
-// NOTE: ingested rows may lack hero_photo (Google photos live in place_photos
-// and are not yet joined into /api/places), so we fall back to a per-category
-// stock image — wiring real Google imagery via /api/places/photo is a follow-up.
+// shapes this tab renders, AND carry the source row (`_live`) so the detail
+// sheet can show the enriched data (description, amenities, hours, address,
+// age, tags, …). Photos use the real hero_photo (Google/blob) with a
+// per-category stock image only as a fallback when hero_photo is null.
 
 const LIVE_FALLBACK_PHOTO = {
   fun:       'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
@@ -565,12 +563,14 @@ const liveAgeLabel = (min, max) => {
 
 const cardId = (row) => row.slug || row.id;
 const cardDistance = (row) => row.area || row.city || 'Tampa';
+const livePhoto = (row) => row.hero_photo || LIVE_FALLBACK_PHOTO[row.category] || LIVE_FALLBACK_PHOTO.fun;
 
 const livePhotoCard = (row) => ({
   id: cardId(row), title: row.name,
   rating: typeof row.rating === 'number' && row.rating > 0 ? row.rating : undefined,
   distance: cardDistance(row),
-  photo: row.hero_photo || LIVE_FALLBACK_PHOTO[row.category] || LIVE_FALLBACK_PHOTO.fun,
+  photo: livePhoto(row),
+  _live: row,
 });
 
 const liveSchoolCard = (row) => ({
@@ -586,27 +586,104 @@ const liveProgramCard = (row) => {
     ages: liveAgeLabel(row.age_min, row.age_max),
     distance: cardDistance(row),
     Icon: style.Icon, bg: style.bg, fg: style.fg,
+    _live: row,
   };
 };
 
-// Subtitle override so "See all" counts reflect the live list, not the
-// hardcoded constants embedded at module load.
+// amenities jsonb { parking:true, … } → labeled array for PlaceDetailSheet.
+const AMENITY_LABELS = {
+  parking: 'Parking', restrooms: 'Restrooms', stroller_friendly: 'Stroller-friendly',
+  nursing_room: 'Nursing room', food: 'Café', indoor: 'Indoor', outdoor: 'Outdoor',
+};
+const amenitiesToArray = (am) =>
+  am && typeof am === 'object' ? Object.keys(AMENITY_LABELS).filter(k => am[k] === true).map(k => AMENITY_LABELS[k]) : [];
+
+// Rich PlaceDetailSheet input built from a live row (+ kind-specific extras).
+const liveDetail = (row, kind, extra = {}) => {
+  const amen = amenitiesToArray(row.amenities);
+  return {
+    id: cardId(row), title: row.name, kind,
+    photo: livePhoto(row),
+    rating: typeof row.rating === 'number' && row.rating > 0 ? row.rating : undefined,
+    reviews: row.review_count || undefined,
+    distance: cardDistance(row),
+    address: row.address || undefined,
+    description: row.description || undefined,
+    ages: liveAgeLabel(row.age_min, row.age_max),
+    amenities: amen.length ? amen : undefined,
+    website: row.website || undefined,
+    phone: row.phone || undefined,
+    ...extra,
+  };
+};
+
+// Subtitle override so "See all" counts reflect the live list.
 const liveSubtitle = (key, n) => {
   if (key === 'schools') return `${n} options within 5 mi`;
   if (key === 'extras')  return `${n} programs & camps`;
   return null;
 };
 
-// Build per-section card lists from the grouped live payload. Returns null when
-// no live data is available (caller then uses the curated hardcoded sections).
-const buildLiveSections = (places) => {
-  if (!places || typeof places !== 'object') return null;
-  const g = (k) => (Array.isArray(places[k]) ? places[k] : []);
+// ---- advanced filters applied to live rows ----
+const AGE_BUCKETS = { 'Under 1': [0, 1], '1–3': [1, 3], '3–5': [3, 5], '5–8': [5, 8], '8+': [8, 18] };
+const AMENITY_FILTER_KEY = {
+  'Stroller-friendly': 'stroller_friendly', 'Nursing room': 'nursing_room', 'Restrooms': 'restrooms',
+  'Café': 'food', 'Indoor': 'indoor', 'Outdoor': 'outdoor',
+};
+
+const haversineMi = (la1, lo1, la2, lo2) => {
+  const R = 3958.8, toRad = d => (d * Math.PI) / 180;
+  const dLat = toRad(la2 - la1), dLng = toRad(lo2 - lo1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(la1)) * Math.cos(toRad(la2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+};
+
+// Resolve the user's coordinates from their selected area (for distance filter).
+const resolveUserCoords = (location) => {
+  if (!location) return null;
+  const key = String(location).trim().toLowerCase();
+  const a = TAMPA_BAY_AREAS.find(x =>
+    x.id === key || x.label.toLowerCase() === key || (x.neighborhood || '').toLowerCase() === key);
+  return a ? { lat: a.lat, lng: a.lng } : null;
+};
+
+// True when any non-category advanced filter is set (category is section-level).
+export const advancedFiltersActive = (f) =>
+  !!(f && ((f.ages?.length) || (f.amenities?.length) || (f.parking?.length) || (f.cost?.length) || (f.distance != null)));
+
+const matchesFilters = (row, f, userCoords) => {
+  if (f.ages?.length) {
+    const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
+    if (!f.ages.some(b => { const [lo, hi] = AGE_BUCKETS[b] || [0, 18]; return rmax >= lo && rmin <= hi; })) return false;
+  }
+  if (f.amenities?.length) {
+    const am = row.amenities || {};
+    if (!f.amenities.every(label => { const k = AMENITY_FILTER_KEY[label]; return !k || am[k] === true; })) return false;
+  }
+  if (f.parking?.length && !(row.amenities && row.amenities.parking === true)) return false;
+  if (f.cost?.length) {
+    const pl = row.price_level;
+    // Unknown price (null) is not excluded.
+    if (pl != null && !f.cost.some(c => (c === 'Free' && pl === 0) || (c === 'Paid' && pl >= 1))) return false;
+  }
+  if (f.distance != null && userCoords && row.lat != null && row.lng != null) {
+    if (haversineMi(userCoords.lat, userCoords.lng, row.lat, row.lng) > f.distance) return false;
+  }
+  return true;
+};
+
+export const anyLive = (places) =>
+  !!places && typeof places === 'object' && Object.values(places).some(v => Array.isArray(v) && v.length);
+
+// Build per-section card lists from the grouped live payload, applying the
+// advanced (non-category) filters to each row first.
+const buildLiveSections = (places, filters, userCoords) => {
+  const f = filters || {};
+  const g = (k) => (Array.isArray(places?.[k]) ? places[k] : []).filter(r => matchesFilters(r, f, userCoords));
   const everything = [
     ...g('fun'), ...g('sports'), ...g('wellness'), ...g('schools'),
     ...g('childcare'), ...g('extracurricular'), ...g('camps'), ...g('health'),
   ];
-  if (everything.length === 0) return null;
   const topNearby = [...everything].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   return {
     places:  topNearby.map(livePhotoCard),
@@ -624,26 +701,24 @@ export const LocalPicksTab = ({
   savedItems = [], setSavedItems, location, flash,
   filterOpen, setFilterOpen,
 }) => {
-  void location;
+  const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
+  const userCoords = useMemo(() => resolveUserCoords(location), [location]);
 
-  // Live-or-curated sections: when /api/places returns rows for a section,
-  // show the mapped live cards; otherwise keep that section's curated list.
+  // Live-or-curated sections. With live data, show live (filtered) rows; a
+  // section with no live results falls back to its curated list ONLY when no
+  // advanced filter is active (a filter may legitimately empty a section).
   const effectiveSections = useMemo(() => {
-    const live = buildLiveSections(places);
-    if (!live) return SECTIONS;
+    if (!anyLive(places)) return SECTIONS;
+    const live = buildLiveSections(places, filters, userCoords);
+    const filtersOn = advancedFiltersActive(filters);
     return SECTIONS.map(s => {
-      const items = live[s.key];
-      if (items && items.length) {
-        return {
-          ...s,
-          items: items.slice(0, 3),
-          allItems: items,
-          seeAllSubtitle: liveSubtitle(s.key, items.length) || s.seeAllSubtitle,
-        };
+      const items = live[s.key] || [];
+      if (items.length) {
+        return { ...s, items: items.slice(0, 3), allItems: items, seeAllSubtitle: liveSubtitle(s.key, items.length) || s.seeAllSubtitle };
       }
-      return s;
+      return filtersOn ? { ...s, items: [], allItems: [] } : s;
     });
-  }, [places]);
+  }, [places, filters, userCoords]);
 
   // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -653,33 +728,23 @@ export const LocalPicksTab = ({
   const isInterested = (id) => savedItems.includes(`int-${id}`);
   const toggleSave = (id) => setSavedItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  // Normalize each card shape into the common PlaceDetailSheet input.
-  const openTopPlace = (item) => setSelectedPlace({
-    id: item.id, title: item.title, photo: item.photo,
-    rating: item.rating, distance: item.distance,
-    kind: 'Place',
-  });
-  const openProgram = (item) => setSelectedPlace({
-    id: item.id, title: item.title,
-    Icon: item.Icon, iconBg: item.bg, iconFg: item.fg,
-    ages: item.ages, distance: item.distance,
-    kind: 'Program',
-  });
-  const openSchool = (item) => setSelectedPlace({
-    id: item.id, title: item.title, photo: item.photo,
-    rating: item.rating, distance: item.distance,
-    tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg,
-    kind: 'School',
-  });
+  // Build the PlaceDetailSheet input — rich live detail when the card came from
+  // /api/places (it carries `_live`), else the minimal hardcoded card fields.
+  const openTopPlace = (item) => setSelectedPlace(item._live
+    ? liveDetail(item._live, 'Place')
+    : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, kind: 'Place' });
+  const openProgram = (item) => setSelectedPlace(item._live
+    ? liveDetail(item._live, 'Program', { photo: undefined, Icon: item.Icon, iconBg: item.bg, iconFg: item.fg })
+    : { id: item.id, title: item.title, Icon: item.Icon, iconBg: item.bg, iconFg: item.fg, ages: item.ages, distance: item.distance, kind: 'Program' });
+  const openSchool = (item) => setSelectedPlace(item._live
+    ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg })
+    : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg, kind: 'School' });
 
-  // Advanced place filters — category, distance, cost, amenities, parking,
-  // kid ages, visit style.
-  const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
+  // Advanced filter badge count (category + the live-backed filters).
   const advCount =
     (filters.categories?.length || 0) +
     (filters.distance != null ? 1 : 0) + filters.cost.length +
-    filters.amenities.length + filters.parking.length +
-    filters.ages.length + filters.visit.length;
+    filters.amenities.length + filters.parking.length + filters.ages.length;
 
   // When category chips are picked, hide non-matching sections. Empty = show all.
   const activeCats = filters.categories || [];

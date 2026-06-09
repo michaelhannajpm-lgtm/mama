@@ -24,17 +24,18 @@ const CATEGORY_OPTS = [
   'Extracurricular & camps',
   'Health & wellness',
 ];
-const COST_OPTS    = ['Free', 'Paid', 'Membership', 'Sliding scale'];
+// Only filters backed by real place data are shown. (Highchairs / Changing
+// table / Free WiFi / Membership / Sliding scale / Visit-style were removed —
+// no DB field backs them yet.)
+const COST_OPTS    = ['Free', 'Paid'];
 const AMENITY_OPTS = [
-  'Stroller-friendly','Highchairs','Changing table','Nursing room',
-  'Restrooms','Café','Free WiFi','Indoor','Outdoor',
+  'Stroller-friendly', 'Nursing room', 'Restrooms', 'Café', 'Indoor', 'Outdoor',
 ];
 const PARKING_OPTS = ['Free lot', 'Paid lot', 'Street parking'];
 const AGE_OPTS     = ['Under 1','1–3','3–5','5–8','8+'];
-const VISIT_OPTS   = ['Drop-off welcome','Parent-required','Open weekends','Mom-vetted'];
 
 export const PLACES_FILTER_DEFAULT = {
-  categories: [], distance: null, cost: [], amenities: [], parking: [], ages: [], visit: [],
+  categories: [], distance: null, cost: [], amenities: [], parking: [], ages: [],
 };
 
 const Chip = ({ active, onClick, children, accent = C.navy }) => (
@@ -163,15 +164,6 @@ export const PlacesFilterSheet = ({ filters, setFilters, onClose }) => {
           <div className="flex flex-wrap gap-1.5">
             {AGE_OPTS.map(a => (
               <Chip key={a} active={draft.ages.includes(a)} onClick={() => toggleArr('ages', a)} accent={C.coral}>{a}</Chip>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <SectionLabel>Visit style</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {VISIT_OPTS.map(v => (
-              <Chip key={v} active={draft.visit.includes(v)} onClick={() => toggleArr('visit', v)} accent={C.sageDark}>{v}</Chip>
             ))}
           </div>
         </div>
