@@ -38,7 +38,7 @@ export const bucketActivities = (thisWeek = [], recurring = [], now = new Date()
   };
 
   return {
-    today:  rankActivities(dated.filter(e => sameDay(new Date(e.startsAt), now))),
+    today:  rankActivities(dated.filter(e => sameDay(new Date(e.startsAt), startOfToday))),
     week:   rankActivities(dated.filter(e => inRange(e, weekEnd))),
     month:  rankActivities(dated.filter(e => inRange(e, monthEnd))),
     others: rankActivities((recurring || []).filter(e => e.kind !== 'dated')),
@@ -69,9 +69,9 @@ export const pickTrendingPlaces = (places, limit = 8) => {
   const featured = all
     .filter(r => r.is_featured)
     .sort((a, b) => (a.top_rank ?? 1e9) - (b.top_rank ?? 1e9) || (b.rating || 0) - (a.rating || 0));
-  const featuredIds = new Set(featured.map(r => r.id));
+  const featuredSet = new Set(featured);
   const rest = all
-    .filter(r => !featuredIds.has(r.id))
+    .filter(r => !featuredSet.has(r))
     .sort((a, b) => placeScore(b) - placeScore(a));
   return [...featured, ...rest].slice(0, limit);
 };
