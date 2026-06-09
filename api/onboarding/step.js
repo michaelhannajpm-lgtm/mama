@@ -3,7 +3,7 @@ import {
 } from '../_lib/supabase.js';
 
 const ALLOWED_PATCH_KEYS = new Set([
-  'location', 'distance_miles',
+  'location', 'distance_miles', 'places_radius_miles',
   'location_place_id', 'location_city', 'location_neighborhood', 'location_county',
   'location_lat', 'location_lng',
   'kids_ages', 'mom_types', 'values', 'interests',
@@ -29,7 +29,7 @@ const sanitizePatch = (raw) => {
       const okLat = k === 'location_lat' && n >= 24 && n <= 31;
       const okLng = k === 'location_lng' && n >= -88 && n <= -79;
       if (Number.isFinite(n) && (okLat || okLng)) out[k] = Math.round(n * 1e6) / 1e6;
-    } else if (k === 'distance_miles') {
+    } else if (k === 'distance_miles' || k === 'places_radius_miles') {
       const n = Number(v);
       if (Number.isFinite(n) && n >= 0 && n <= 500) out[k] = Math.round(n);
     } else if (k === 'kids_ages') {

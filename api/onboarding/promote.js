@@ -131,6 +131,7 @@ const hydratedShape = (row, momProfile) => {
       lng:          row.location_lng ?? null,
     } : null,
     distance: mp.distance_miles ?? row.distance_miles ?? null,
+    places_radius_miles: row.places_radius_miles ?? null,
     profile: {
       kidsAges:  mp.kids_ages || row.kids_ages || {},
       momTypes:  mp.mom_types || row.mom_types || [],

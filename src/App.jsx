@@ -102,6 +102,8 @@ function PrototypeApp({ bare = false }) {
   useEffect(() => { fetchConfig().then(setAppConfig); }, []);
   const [placesRadius, setPlacesRadius] = useState(null); // null = use app default
   const effectivePlacesRadius = placesRadius ?? appConfig.defaultPlacesRadiusMiles ?? 50;
+  // Set + persist the user's radius override to onboarding_profiles.
+  const changePlacesRadius = (r) => { setPlacesRadius(r); recordStep(3, { places_radius_miles: r }); };
 
   const [liveEvents, setLiveEvents] = useState(null); // { recurring, thisWeek } | null
 
@@ -228,6 +230,7 @@ function PrototypeApp({ bare = false }) {
           setLocationGeo(resolveArea(result.locationGeo.id) || result.locationGeo);
         }
         if (result.distance != null) setDistance(result.distance);
+        if (result.places_radius_miles != null) setPlacesRadius(result.places_radius_miles);
         setAccount({
           firstName: result.first_name,
           username: result.username,
@@ -375,7 +378,7 @@ function PrototypeApp({ bare = false }) {
             events={eventsData}
             thisWeek={thisWeekData}
             locationGeo={locationGeo}
-            placesRadius={effectivePlacesRadius} setPlacesRadius={setPlacesRadius}
+            placesRadius={effectivePlacesRadius} setPlacesRadius={changePlacesRadius}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}

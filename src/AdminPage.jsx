@@ -2,13 +2,14 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database,
+  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database, Settings,
 } from 'lucide-react';
 import { C } from './theme';
 import { PlacesManager } from './admin/PlacesManager';
 import { EventsManager } from './admin/EventsManager';
 import { IngestionManager } from './admin/IngestionManager';
 import { SourcesManager } from './admin/SourcesManager';
+import { ConfigManager } from './admin/ConfigManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -1730,6 +1731,7 @@ export const AdminPage = () => {
             { id: 'events',       icon: Calendar,      label: 'Events' },
             { id: 'ingestion',    icon: Server,        label: 'Ingestion' },
             { id: 'sources',      icon: Database,      label: 'Sources' },
+            { id: 'config',       icon: Settings,      label: 'Config' },
             { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
@@ -1780,6 +1782,7 @@ export const AdminPage = () => {
             {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'ingestion'    && <IngestionManager adminFetch={adminFetch} />}
             {tab === 'sources'      && <SourcesManager rows={sources || []} adminFetch={adminFetch} onReload={load} />}
+            {tab === 'config'       && <ConfigManager adminFetch={adminFetch} />}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} momProfilesCount={momProfiles.length} placesCount={places.length} eventsCount={events.length}/>}
           </>
         )}
