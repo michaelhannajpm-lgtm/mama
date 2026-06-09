@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, LayoutGrid, Home } from 'lucide-react';
+import { Users, MapPin, User, LayoutGrid, Home } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { HomeTab } from './HomeTab';
@@ -13,7 +13,7 @@ import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 
 // ====================================================================
 // MAIN APP — 4 tabs (V5 layout):
-//   This Week · Connect · Local Picks · Profile
+//   Home · Local Picks · Connect · My Hub
 //
 // Shared header surfaces the tab title (Fraunces, large) and two round
 // icon buttons on the right: notifications (bell) + filters (sliders).
