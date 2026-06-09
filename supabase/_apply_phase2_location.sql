@@ -14,3 +14,6 @@ alter table public.onboarding_profiles
 alter table public.mom_profiles
   add column if not exists place_id text,
   add column if not exists county   text;
+
+comment on column public.mom_profiles.place_id is
+  'External area/place id from the neighborhood picker (Tampa Bay dataset slug today, Google Places place_id later) — NOT a FK to public.places.';
