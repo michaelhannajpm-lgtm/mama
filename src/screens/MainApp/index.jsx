@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, LayoutGrid } from 'lucide-react';
+import { CalendarDays, Users, MapPin, User, LayoutGrid, Home } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
-import { ThisWeekTab } from './ThisWeekTab';
+import { HomeTab } from './HomeTab';
 import { ConnectTab } from './ConnectTab';
 import { LocalPicksTab } from './LocalPicksTab';
 import { YouTab } from './YouTab';
 import { MyVillageSheet } from '../../sheets/MyVillageSheet';
 import { MamaHubSheet } from '../../sheets/MamaHubSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
-import { GROUP_DISCUSSIONS } from '../../data/discussions';
+import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 
 // ====================================================================
 // MAIN APP — 4 tabs (V5 layout):
@@ -23,14 +23,14 @@ import { GROUP_DISCUSSIONS } from '../../data/discussions';
 // Bottom tab bar. 'hub' is a launcher (opens MamaHubSheet) rather than a
 // content tab. Profile lives in the top-right header button instead.
 const TABS = [
-  { id: 'thisweek',   icon: CalendarDays, label: 'This Week',   headerLabel: 'This Week'   },
-  { id: 'connect',    icon: Users,        label: 'Connect',     headerLabel: 'Connect'     },
-  { id: 'localpicks', icon: MapPin,       label: 'Go-To Spots', headerLabel: 'Go-To Spots' },
-  { id: 'hub',        icon: LayoutGrid,   label: 'My Hub',      headerLabel: 'My Hub'      },
+  { id: 'home',       icon: Home,    label: 'Home',        headerLabel: 'Home'        },
+  { id: 'localpicks', icon: MapPin,  label: 'Local Picks', headerLabel: 'Local Picks' },
+  { id: 'connect',    icon: Users,   label: 'Connect',     headerLabel: 'Connect'     },
+  { id: 'hub',        icon: LayoutGrid, label: 'My Hub',   headerLabel: 'My Hub'      },
 ];
 
 const HEADER_SUBTITLES = {
-  thisweek:   '38 ideas picked for your family',
+  home:       'Things to do, near you',
   connect:    'Meet moms who get it',
   localpicks: 'The best places, programs, schools, and resources near you.',
   hub:        'Your village, all in one place',
@@ -40,7 +40,7 @@ const HEADER_SUBTITLES = {
 // Header title for the active content view (profile is reached via the
 // top-right button, so it isn't in the bottom TABS list).
 const HEADER_LABELS = {
-  thisweek: 'This Week', connect: 'Connect', localpicks: 'Go-To Spots',
+  home: 'Home', connect: 'Connect', localpicks: 'Local Picks',
   hub: 'My Hub', profile: 'My Profile',
 };
 
@@ -61,7 +61,7 @@ export const MainApp = ({
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
 }) => {
   void setPrefs;
-  const [tab, setTab] = useState('thisweek');
+  const [tab, setTab] = useState('home');
   const [villageOpen, setVillageOpen] = useState(false);
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
@@ -71,13 +71,17 @@ export const MainApp = ({
   // Filter-sheet open state per tab. Each tab still exposes an inline
   // filter button next to its category row — the header filter icon was
   // removed in favor of My Village, so this is the only entry point.
-  const [thisWeekFilterOpen,   setThisWeekFilterOpen]   = useState(false);
   const [connectFilterOpen,    setConnectFilterOpen]    = useState(false);
   const [localPicksFilterOpen, setLocalPicksFilterOpen] = useState(false);
 
   const activeLabel = HEADER_LABELS[tab] || '';
   const savedCount = savedItems?.length || 0;
   const isProfile = tab === 'profile';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const headerTitle = tab === 'home'
+    ? `${greeting}${account?.firstName ? `, ${account.firstName}` : ''}`
+    : activeLabel;
 
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
@@ -91,7 +95,7 @@ export const MainApp = ({
               fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
               color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
             }}>
-              {activeLabel}
+              {headerTitle}
             </div>
             <div style={{
               fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
@@ -136,13 +140,18 @@ export const MainApp = ({
         </div>
       </div>
 
-      {tab === 'thisweek' && <ThisWeekTab
+      {tab === 'home' && <HomeTab
+        thisWeek={thisWeek} events={events}
+        places={places} nearbyMoms={nearbyMoms} groups={TOP_DISCUSSIONS}
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
-        ratings={ratings} setRatings={setRatings}
-        location={location} flash={flash}
-        filterOpen={thisWeekFilterOpen} setFilterOpen={setThisWeekFilterOpen}/>}
+        profile={profile} flash={flash}
+        goToPlaces={() => setTab('localpicks')}
+        goToConnect={() => setTab('connect')}
+        goToHub={() => setTab('hub')}
+        onVerify={() => setTab('profile')}
+        openVillage={() => setVillageOpen(true)}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
