@@ -24,6 +24,10 @@ These files are auto-loaded as context — read them before making changes:
 
 Dispatch them via the Task tool when their description matches the work.
 
+## Project skills
+
+- **`family-data-ingestion`** — read `.claude/skills/family-data-ingestion/SKILL.md` when building background jobs that import Tampa-area family places/events from Google Places, Eventbrite, public social APIs, civic calendars, libraries, museums, attractions, local media, YMCA, kids gyms, or similar sources.
+
 ## Quick reference
 
 | Command | Purpose |
