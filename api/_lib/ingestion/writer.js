@@ -115,9 +115,17 @@ const eventCandidateToRow = (c, placeId) => ({
 });
 
 export const createEvent = async (sb, candidate, placeId) => {
-  const { data, error } = await sb.from('events').insert(eventCandidateToRow(candidate, placeId)).select('id').single();
-  if (error) throw new Error(`create event failed: ${error.message}`);
-  return data.id;
+  const base = eventCandidateToRow(candidate, placeId);
+  // Slug is unique. Distinct events can derive the same name+date slug; per the
+  // data-contract, disambiguate with a numeric suffix only on collision.
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const row = attempt === 0 ? base : { ...base, slug: `${base.slug}-${attempt + 1}` };
+    const { data, error } = await sb.from('events').insert(row).select('id').single();
+    if (!error) return data.id;
+    const isSlugCollision = error.code === '23505' && /slug/i.test(error.message || '');
+    if (!isSlugCollision) throw new Error(`create event failed: ${error.message}`);
+  }
+  throw new Error(`create event failed: slug ${base.slug} collided 25 times`);
 };
 
 // Refresh source-of-truth facts only; never flip visible/review_status.
