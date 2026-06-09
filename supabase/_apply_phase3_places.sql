@@ -80,3 +80,80 @@ on conflict (id) do nothing;
 drop trigger if exists categories_updated_at on public.categories;
 create trigger categories_updated_at before update on public.categories
   for each row execute function public.touch_updated_at();
+
+-- 4. Multi-category join (places.category stays the PRIMARY).
+create table if not exists public.place_categories (
+  place_id    uuid not null references public.places(id) on delete cascade,
+  category_id text not null references public.categories(id) on delete cascade,
+  primary key (place_id, category_id)
+);
+create index if not exists place_categories_cat_idx on public.place_categories (category_id);
+
+-- Backfill: every existing place's primary category becomes a membership.
+insert into public.place_categories (place_id, category_id)
+select id, category from public.places
+on conflict do nothing;
+
+-- 5. Photos: gallery + attribution + provenance.
+create table if not exists public.place_photos (
+  id          uuid primary key default gen_random_uuid(),
+  place_id    uuid not null references public.places(id) on delete cascade,
+  url         text,
+  google_ref  text,
+  source      text not null check (source in ('google','generated','manual')),
+  attribution text,
+  width       integer,
+  height      integer,
+  is_hero     boolean not null default false,
+  sort_order  integer not null default 0,
+  created_at  timestamptz not null default now()
+);
+create index if not exists place_photos_place_idx on public.place_photos (place_id);
+create unique index if not exists place_photos_one_hero
+  on public.place_photos (place_id) where is_hero;
+
+-- 6. Ingestion provenance.
+create table if not exists public.ingestion_sources (
+  id text primary key,
+  name text not null,
+  source_type text not null,
+  url text,
+  city text,
+  county text,
+  enabled boolean not null default true,
+  cadence_hours integer not null default 24,
+  parser_version text not null default 'v1',
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.ingestion_runs (
+  id uuid primary key default gen_random_uuid(),
+  source_id text references public.ingestion_sources(id) on delete set null,
+  status text not null check (status in ('running','succeeded','failed','partial')),
+  started_at timestamptz not null default now(),
+  finished_at timestamptz,
+  fetched_count integer not null default 0,
+  normalized_count integer not null default 0,
+  created_count integer not null default 0,
+  updated_count integer not null default 0,
+  skipped_count integer not null default 0,
+  error_count integer not null default 0,
+  summary jsonb not null default '{}'::jsonb
+);
+
+create table if not exists public.source_records (
+  id uuid primary key default gen_random_uuid(),
+  source_id text not null references public.ingestion_sources(id) on delete cascade,
+  external_id text,
+  source_url text,
+  record_type text not null check (record_type in ('place','event')),
+  place_id uuid references public.places(id) on delete set null,
+  event_id uuid references public.events(id) on delete set null,
+  content_hash text,
+  raw jsonb,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  unique (source_id, external_id, record_type)
+);
