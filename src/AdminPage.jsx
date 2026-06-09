@@ -2,11 +2,12 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MessageSquare, MapPin, Calendar,
+  ChevronLeft, ChevronRight, MessageSquare, MapPin, Calendar, Server,
 } from 'lucide-react';
 import { C } from './theme';
 import { PlacesManager } from './admin/PlacesManager';
 import { EventsManager } from './admin/EventsManager';
+import { IngestionManager } from './admin/IngestionManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -1932,6 +1933,7 @@ export const AdminPage = () => {
             { id: 'feedback',     icon: MessageSquare, label: 'Feedback' },
             { id: 'places',       icon: MapPin,        label: 'Places' },
             { id: 'events',       icon: Calendar,      label: 'Events' },
+            { id: 'ingestion',    icon: Server,        label: 'Ingestion' },
             { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
@@ -1982,6 +1984,7 @@ export const AdminPage = () => {
             {tab === 'feedback'     && <FeedbackTab rows={feedback}/>}
             {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
+            {tab === 'ingestion'    && <IngestionManager adminFetch={adminFetch} />}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>
         )}
