@@ -159,9 +159,12 @@ const SETTINGS_FLASH = {
   about: 'Go Mama · v0.1 prototype',
 };
 
+const RADIUS_OPTS = [10, 20, 30, 50, 100, 150];
+
 export const YouTab = ({
   profile, setProfile, account, prefs,
   location, setLocation, distance, setDistance,
+  placesRadius = 50, setPlacesRadius,
   scheduled1to1 = {}, joinedEvents = [], goToMeetups,
   openPlans, openPremium, savedCount = 0,
   restart, flash,
@@ -301,6 +304,35 @@ export const YouTab = ({
             />
           </div>
         ))}
+      </div>
+
+      {/* Top-places radius preference */}
+      <div style={{
+        marginTop: 14, background: '#fff', border: `1px solid ${C.line}`,
+        borderRadius: 16, padding: '14px 16px',
+      }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>
+          How far for top places?
+        </div>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 2 }}>
+          We’ll surface the best-rated spots within this radius.
+        </div>
+        <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
+          {RADIUS_OPTS.map(r => {
+            const active = placesRadius === r;
+            return (
+              <button key={r} onClick={() => setPlacesRadius?.(r)} style={{
+                padding: '7px 12px', borderRadius: 999,
+                background: active ? C.coral : C.paper,
+                color: active ? '#fff' : C.navy,
+                border: `1px solid ${active ? C.coral : C.divider}`,
+                fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}>
+                {r} mi
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Refer a friend */}

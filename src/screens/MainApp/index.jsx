@@ -38,6 +38,7 @@ export const MainApp = ({
   places,
   events, thisWeek,
   locationGeo,
+  placesRadius = 50, setPlacesRadius,
   profile, setProfile, prefs, setPrefs,
   location, setLocation, distance, setDistance,
   scheduled1to1, joinedEvents, setJoinedEvents,
@@ -171,6 +172,7 @@ export const MainApp = ({
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}
+        placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}
         flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
@@ -179,6 +181,7 @@ export const MainApp = ({
         account={account} prefs={prefs}
         location={location} setLocation={setLocation}
         distance={distance} setDistance={setDistance}
+        placesRadius={placesRadius} setPlacesRadius={setPlacesRadius}
         scheduled1to1={scheduled1to1} joinedEvents={joinedEvents}
         goToMeetups={() => setTab('connect')}
         openPlans={() => setVillageOpen(true)}

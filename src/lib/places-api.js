@@ -24,6 +24,16 @@ export const fetchCategories = async () => {
   return Array.isArray(body.rows) ? body.rows : [];
 };
 
+// App-level config (e.g. { defaultPlacesRadiusMiles: 50 }). Returns {} on error.
+export const fetchConfig = async () => {
+  try {
+    const res = await fetch('/api/config', { headers: { Accept: 'application/json' } });
+    if (!res.ok) return {};
+    const body = await res.json();
+    return body.config || {};
+  } catch { return {}; }
+};
+
 // Look up a place by slug/id across a grouped PLACES object (live or fallback).
 export const findPlaceIn = (grouped, id) => {
   for (const cat of Object.keys(grouped || {})) {

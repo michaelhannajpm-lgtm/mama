@@ -283,11 +283,11 @@ const HEALTH_WELLNESS_ALL = [
 const SECTIONS = [
   {
     key: 'places',
-    title: 'Top places nearby',
+    title: 'Top places',
     kind: 'photo',
     items: TOP_PLACES_NEARBY,
     allItems: TOP_PLACES_NEARBY_ALL,
-    seeAllSubtitle: 'Curated near you',
+    seeAllSubtitle: 'Top rated near you',
   },
   {
     key: 'fun',
@@ -325,7 +325,7 @@ const SECTIONS = [
 
 // Map section keys to filter Category labels for filtering visibility.
 const SECTION_CATEGORY = {
-  places:  'Top places nearby',
+  places:  'Top places',
   fun:     'Fun & entertainment',
   schools: 'Schools & childcare',
   extras:  'Extracurricular & camps',
@@ -336,8 +336,6 @@ const SECTION_CATEGORY = {
 // like Rainy day / Live events / Waitlist / Mental / Postpartum were removed.
 const QUICK_FILTERS_BY_SECTION = {
   places: [
-    { id: 'top',      label: 'Top rated',         icon: Star       },
-    { id: 'near',     label: 'Near me',           icon: MapPin      },
     { id: 'free',     label: 'Free'                                 },
     { id: 'indoor',   label: 'Indoor'                               },
     { id: 'outdoor',  label: 'Outdoor'                              },
@@ -446,12 +444,18 @@ const ProgramCard = ({ item, onClick }) => {
       overflow: 'hidden',
       padding: 0, cursor: 'pointer',
     }}>
-      <div style={{
-        height: 62, background: item.bg, color: item.fg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={26}/>
-      </div>
+      {item.photo ? (
+        <img src={item.photo} alt="" style={{
+          width: '100%', height: 62, objectFit: 'cover', display: 'block',
+        }}/>
+      ) : (
+        <div style={{
+          height: 62, background: item.bg, color: item.fg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon size={26}/>
+        </div>
+      )}
       <div style={{ padding: '6px 7px 8px' }}>
         <div style={{
           fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
@@ -599,6 +603,7 @@ const liveProgramCard = (row, userCoords) => {
     id: cardId(row), title: row.name,
     ages: liveAgeLabel(row.age_min, row.age_max),
     distance: cardDistanceStr(row, userCoords),
+    photo: livePhoto(row),
     Icon: style.Icon, bg: style.bg, fg: style.fg,
     _live: row,
   };
@@ -692,18 +697,36 @@ const matchesFilters = (row, f, userCoords) => {
 export const anyLive = (places) =>
   !!places && typeof places === 'object' && Object.values(places).some(v => Array.isArray(v) && v.length);
 
+// Popularity score for the auto-top tier: quality weighted by review volume.
+const topScore = (r) => (r.rating || 0) * Math.log10((r.review_count || 0) + 1);
+
+// "Top places": admin-featured (by top_rank) first, then auto-top (rating ≥ 4.3
+// & ≥ 50 reviews by score), all within `radiusMiles` of the user (when known).
+const topPlacesFrom = (rows, userCoords, radiusMiles) => {
+  const within = (userCoords && radiusMiles)
+    ? rows.filter(r => r.lat != null && r.lng != null &&
+        haversineMi(userCoords.lat, userCoords.lng, r.lat, r.lng) <= radiusMiles)
+    : rows;
+  const featured = within.filter(r => r.is_featured)
+    .sort((a, b) => (a.top_rank ?? 1e9) - (b.top_rank ?? 1e9) || (b.rating || 0) - (a.rating || 0));
+  const featuredIds = new Set(featured.map(r => r.id));
+  const autoTop = within
+    .filter(r => !featuredIds.has(r.id) && (r.rating || 0) >= 4.3 && (r.review_count || 0) >= 50)
+    .sort((a, b) => topScore(b) - topScore(a));
+  return [...featured, ...autoTop];
+};
+
 // Build per-section card lists from the grouped live payload, applying the
 // advanced (non-category) filters to each row first.
-const buildLiveSections = (places, filters, userCoords) => {
+const buildLiveSections = (places, filters, userCoords, radiusMiles) => {
   const f = filters || {};
   const g = (k) => (Array.isArray(places?.[k]) ? places[k] : []).filter(r => matchesFilters(r, f, userCoords));
   const everything = [
     ...g('fun'), ...g('sports'), ...g('wellness'), ...g('schools'),
     ...g('childcare'), ...g('extracurricular'), ...g('camps'), ...g('health'),
   ];
-  const topNearby = [...everything].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   return {
-    places:  topNearby.map(r => livePhotoCard(r, userCoords)),
+    places:  topPlacesFrom(everything, userCoords, radiusMiles).map(r => livePhotoCard(r, userCoords)),
     fun:     g('fun').map(r => livePhotoCard(r, userCoords)),
     schools: [...g('schools'), ...g('childcare')].map(r => liveSchoolCard(r, userCoords)),
     extras:  [...g('extracurricular'), ...g('camps')].map(r => liveProgramCard(r, userCoords)),
@@ -744,6 +767,7 @@ const quickFilterMatch = (item, ids, userCoords) => {
 export const LocalPicksTab = ({
   places,
   location, locationGeo,
+  placesRadius = 50,
   savedItems = [], setSavedItems, flash,
   filterOpen, setFilterOpen,
 }) => {
@@ -760,18 +784,22 @@ export const LocalPicksTab = ({
   // Live-or-curated sections. With live data, show live (filtered) rows; a
   // section with no live results falls back to its curated list ONLY when no
   // advanced filter is active (a filter may legitimately empty a section).
+  // The "Top places" section is radius-bounded (featured + auto-top).
   const effectiveSections = useMemo(() => {
     if (!anyLive(places)) return SECTIONS;
-    const live = buildLiveSections(places, filters, userCoords);
+    const live = buildLiveSections(places, filters, userCoords, placesRadius);
     const filtersOn = advancedFiltersActive(filters);
     return SECTIONS.map(s => {
       const items = live[s.key] || [];
+      const subtitle = s.key === 'places'
+        ? `Top rated within ${placesRadius} mi`
+        : (liveSubtitle(s.key, items.length) || s.seeAllSubtitle);
       if (items.length) {
-        return { ...s, items: items.slice(0, 3), allItems: items, seeAllSubtitle: liveSubtitle(s.key, items.length) || s.seeAllSubtitle };
+        return { ...s, items: items.slice(0, 3), allItems: items, seeAllSubtitle: subtitle };
       }
-      return filtersOn ? { ...s, items: [], allItems: [] } : s;
+      return filtersOn ? { ...s, items: [], allItems: [], seeAllSubtitle: subtitle } : s;
     });
-  }, [places, filters, userCoords]);
+  }, [places, filters, userCoords, placesRadius]);
 
   // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
   const [selectedPlace, setSelectedPlace] = useState(null);

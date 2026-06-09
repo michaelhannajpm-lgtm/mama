@@ -34,7 +34,7 @@ import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 import { resolveArea } from './lib/places.js';
-import { fetchPlaces } from './lib/places-api';
+import { fetchPlaces, fetchConfig } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
 import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-moms';
 import { fetchNearbyMoms } from './lib/nearby-moms';
@@ -95,6 +95,13 @@ function PrototypeApp({ bare = false }) {
     return () => { alive = false; };
   }, []);
   const placesData = livePlaces?.places || null;
+
+  // App-level config + the user's top-places radius override. Effective radius
+  // is the user's choice, else the app default, else 50 mi.
+  const [appConfig, setAppConfig] = useState({});
+  useEffect(() => { fetchConfig().then(setAppConfig); }, []);
+  const [placesRadius, setPlacesRadius] = useState(null); // null = use app default
+  const effectivePlacesRadius = placesRadius ?? appConfig.defaultPlacesRadiusMiles ?? 50;
 
   const [liveEvents, setLiveEvents] = useState(null); // { recurring, thisWeek } | null
 
@@ -368,6 +375,7 @@ function PrototypeApp({ bare = false }) {
             events={eventsData}
             thisWeek={thisWeekData}
             locationGeo={locationGeo}
+            placesRadius={effectivePlacesRadius} setPlacesRadius={setPlacesRadius}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}

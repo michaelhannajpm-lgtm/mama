@@ -18,7 +18,7 @@ const DISTANCE_PRESETS = [
 ];
 
 const CATEGORY_OPTS = [
-  'Top places nearby',
+  'Top places',
   'Fun & entertainment',
   'Schools & childcare',
   'Extracurricular & camps',

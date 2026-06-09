@@ -12,6 +12,7 @@ const EDITABLE = new Set([
   'name','category','area','city','address','description','tags','website','reference_url',
   'phone','amenities','good_for','age_min','age_max','hero_photo','rating','badge',
   'lat','lng','business_status','price_level',
+  'is_featured','top_rank',
   'review_status','visible',
 ]);
 

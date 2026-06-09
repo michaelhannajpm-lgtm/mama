@@ -54,6 +54,8 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
     business_status: place.business_status || '',
     review_status: place.review_status || 'needs_review',
     visible: !!place.visible,
+    is_featured: !!place.is_featured,
+    top_rank: place.top_rank == null ? '' : String(place.top_rank),
     amenities: initAmenities(),
   });
   const [busy, setBusy] = useState(false);
@@ -137,6 +139,8 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
       business_status: form.business_status || null,
       review_status: form.review_status,
       visible: form.visible,
+      is_featured: form.is_featured,
+      top_rank: form.is_featured ? num(form.top_rank) : null,
       amenities: AMENITY_KEYS.reduce((o, k) => { o[k] = !!form.amenities[k]; return o; }, {}),
     };
     if (await post({ id: place.id, patch }, 'Save')) await onSaved();
@@ -284,6 +288,14 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6, paddingTop: 18 }}>
             <input type="checkbox" checked={form.visible} onChange={e => set('visible', e.target.checked)} /> visible in app
           </label>
+          <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6, paddingTop: 18 }}>
+            <input type="checkbox" checked={form.is_featured} onChange={e => set('is_featured', e.target.checked)} /> ⭐ Feature as top place
+          </label>
+          {form.is_featured && (
+            <label style={labelStyle}>Top rank (lower = higher)
+              <input type="number" min={1} value={form.top_rank} onChange={e => set('top_rank', e.target.value)} placeholder="e.g. 1" style={inputStyle} />
+            </label>
+          )}
         </div>
 
         {/* 7. Amenities */}
