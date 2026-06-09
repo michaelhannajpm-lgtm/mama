@@ -632,7 +632,7 @@ test('miss => Google create path (dryRun reports, no writes)', async () => {
   const google = async () => ([{ id: 'G1', displayName: { text: 'New Play Cafe' }, location: { latitude: 28.0, longitude: -82.5 }, formattedAddress: '1 Main St, Tampa, FL' }]);
   const out = await resolveEventPlace(
     { placeName: 'New Play Cafe', city: 'Tampa, FL', eventType: 'open-play' },
-    { existingPlaces: [], venueCache: new Map(), googleSearch: google, dryRun: true });
+    { existingPlaces: [], venueCache: new Map(), googleSearch: google, apiKey: 'test-key', dryRun: true });
   assert.equal(out.action, 'create');
   assert.equal(out.placeId, null); // dryRun: nothing written
 });
