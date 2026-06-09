@@ -16,15 +16,6 @@ import { nearestArea } from '../../lib/places.js';
 // support and moms — recomputed live as the user makes selections.
 // ==========================================================================
 
-const AREA_BUCKETS = [
-  { label: 'South Tampa',                lat: 27.90, lng: -82.49 },
-  { label: 'Westchase & West Tampa',     lat: 28.05, lng: -82.58 },
-  { label: 'North Tampa & Wesley Chapel', lat: 28.24, lng: -82.36 },
-  { label: 'Brandon & Riverview',        lat: 27.90, lng: -82.30 },
-  { label: 'St. Pete & Clearwater',      lat: 27.87, lng: -82.72 },
-  { label: 'Apollo Beach & Ruskin',      lat: 27.77, lng: -82.40 },
-];
-
 const DISTANCE_STOPS = [1, 3, 5, 10, 15, 25];
 const DEFAULT_DISTANCE = 5;
 
@@ -82,15 +73,6 @@ const momYearsFromKidsStr = (s = '') => {
     out.push(months >= 12 ? 1 : 0);
   });
   return out;
-};
-
-const nearestBucket = (lat, lng) => {
-  let best = AREA_BUCKETS[0], bestD = Infinity;
-  for (const a of AREA_BUCKETS) {
-    const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
-    if (d < bestD) { bestD = d; best = a; }
-  }
-  return best.label;
 };
 
 // Carousel progress banner — back button + full-width 3-segment bar.
