@@ -37,6 +37,7 @@ const HEADER_SUBTITLES = {
 export const MainApp = ({
   places,
   events, thisWeek,
+  locationGeo,
   profile, setProfile, prefs, setPrefs,
   location, setLocation, distance, setDistance,
   scheduled1to1, joinedEvents, setJoinedEvents,
@@ -165,8 +166,9 @@ export const MainApp = ({
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
+        location={location} locationGeo={locationGeo}
         savedItems={savedItems} setSavedItems={setSavedItems}
-        location={location} flash={flash}
+        flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}

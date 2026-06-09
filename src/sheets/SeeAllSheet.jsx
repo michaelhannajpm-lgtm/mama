@@ -26,6 +26,9 @@ export const SeeAllSheet = ({
   gap = 10,
   layout = 'grid', // 'grid' | 'wrap' | 'list'
   quickFilters = [],
+  // (item, activeIds[]) => boolean — applies the active quick-filter chips.
+  // Defaults to a no-op so callers that don't pass it keep all items.
+  matchQuickFilter = () => true,
   onOpenAdvancedFilter,
   advancedFilterCount = 0,
   sortLabel = 'Best match',
@@ -38,6 +41,9 @@ export const SeeAllSheet = ({
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+
+  const activeIds = [...active];
+  const shown = activeIds.length ? items.filter(it => matchQuickFilter(it, activeIds)) : items;
 
   return (
     <div
@@ -131,7 +137,7 @@ export const SeeAllSheet = ({
       >
         <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, fontWeight: 600 }}>
-            {items.length} {items.length === 1 ? 'result' : 'results'}
+            {shown.length} {shown.length === 1 ? 'result' : 'results'}
           </div>
           <button
             onClick={() => {}}
@@ -144,20 +150,24 @@ export const SeeAllSheet = ({
             <ArrowUpDown size={11}/> {sortLabel}
           </button>
         </div>
-        {layout === 'wrap' ? (
+        {shown.length === 0 ? (
+          <div className="text-center" style={{ paddingTop: 28, fontFamily: 'Albert Sans', fontSize: 12.5, color: C.muted }}>
+            No results match these filters.
+          </div>
+        ) : layout === 'wrap' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap }}>
-            {items.map(item => renderItem(item))}
+            {shown.map(item => renderItem(item))}
           </div>
         ) : layout === 'list' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-            {items.map(item => renderItem(item))}
+            {shown.map(item => renderItem(item))}
           </div>
         ) : (
           <div
             className={`grid grid-cols-${columns}`}
             style={{ gap, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
-            {items.map(item => renderItem(item))}
+            {shown.map(item => renderItem(item))}
           </div>
         )}
       </div>

@@ -332,46 +332,38 @@ const SECTION_CATEGORY = {
   health:  'Health & wellness',
 };
 
+// Only data-backed quick filters (wired in quickFilterMatch). Unbacked chips
+// like Rainy day / Live events / Waitlist / Mental / Postpartum were removed.
 const QUICK_FILTERS_BY_SECTION = {
   places: [
     { id: 'top',      label: 'Top rated',         icon: Star       },
-    { id: 'outdoor',  label: 'Outdoor'                              },
-    { id: 'indoor',   label: 'Indoor'                               },
-    { id: 'free',     label: 'Free'                                 },
-    { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
     { id: 'near',     label: 'Near me',           icon: MapPin      },
+    { id: 'free',     label: 'Free'                                 },
+    { id: 'indoor',   label: 'Indoor'                               },
+    { id: 'outdoor',  label: 'Outdoor'                              },
+    { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
   ],
   fun: [
-    { id: 'indoor',  label: 'Indoor'                            },
-    { id: 'outdoor', label: 'Outdoor'                           },
-    { id: 'rainy',   label: 'Rainy day'                         },
-    { id: 'free',    label: 'Free'                              },
-    { id: 'event',   label: 'Live events', icon: Sparkles       },
-    { id: 'animal',  label: 'Animals',     icon: Trees          },
+    { id: 'top',     label: 'Top rated', icon: Star  },
+    { id: 'near',    label: 'Near me',   icon: MapPin },
+    { id: 'indoor',  label: 'Indoor'                  },
+    { id: 'outdoor', label: 'Outdoor'                 },
+    { id: 'free',    label: 'Free'                    },
   ],
   schools: [
-    { id: 'enrolling',label: 'Open enrollment', icon: ShieldCheck },
-    { id: 'availability', label: 'Availability'                    },
-    { id: 'tour',     label: 'Tour available',  icon: School      },
-    { id: 'preschool',label: 'Preschool'                          },
-    { id: 'vpk',      label: 'VPK'                                },
-    { id: 'private',  label: 'Private'                            },
+    { id: 'top',  label: 'Top rated', icon: Star  },
+    { id: 'near', label: 'Near me',   icon: MapPin },
   ],
   extras: [
-    { id: 'baby',   label: 'Baby (0–1)',    icon: Sparkles },
-    { id: 'tod',    label: 'Toddler (1–3)', icon: Activity },
-    { id: 'pre',    label: 'Pre-K (3–5)',   icon: BookOpen },
-    { id: 'kid',    label: 'Kid (5+)',      icon: Users    },
-    { id: 'camp',   label: 'Camps',         icon: Tent     },
-    { id: 'art',    label: 'Art',           icon: Palette  },
+    { id: 'baby', label: 'Baby (0–1)',    icon: Sparkles },
+    { id: 'tod',  label: 'Toddler (1–3)', icon: Activity },
+    { id: 'pre',  label: 'Pre-K (3–5)',   icon: BookOpen },
+    { id: 'kid',  label: 'Kid (5+)',      icon: Users    },
+    { id: 'top',  label: 'Top rated',     icon: Star     },
   ],
   health: [
-    { id: 'health',  label: 'Pediatric',     icon: Stethoscope    },
-    { id: 'mental',  label: 'Mental',        icon: Brain          },
-    { id: 'pp',      label: 'Postpartum',    icon: HeartHandshake },
-    { id: 'sleep',   label: 'Sleep',         icon: Sparkles       },
-    { id: 'ot',      label: 'OT & Speech',   icon: Activity       },
-    { id: 'group',   label: 'Groups',        icon: Users          },
+    { id: 'top',  label: 'Top rated', icon: Star  },
+    { id: 'near', label: 'Near me',   icon: MapPin },
   ],
 };
 
@@ -562,29 +554,51 @@ const liveAgeLabel = (min, max) => {
 };
 
 const cardId = (row) => row.slug || row.id;
-const cardDistance = (row) => row.area || row.city || 'Tampa';
 const livePhoto = (row) => row.hero_photo || LIVE_FALLBACK_PHOTO[row.category] || LIVE_FALLBACK_PHOTO.fun;
 
-const livePhotoCard = (row) => ({
+// Distance label: real miles from the user's coords when available, else area.
+const cardDistanceStr = (row, userCoords) => {
+  if (userCoords && row.lat != null && row.lng != null) {
+    const mi = haversineMi(userCoords.lat, userCoords.lng, row.lat, row.lng);
+    return mi < 0.1 ? 'Nearby' : `${mi.toFixed(mi < 10 ? 1 : 0)} mi`;
+  }
+  return row.area || row.city || 'Tampa';
+};
+
+// Resolve a place_photos row to a usable URL: durable blob → stored url →
+// key-safe Google proxy.
+const resolvePhotoUrl = (p) =>
+  p.blob_url || p.url || (p.google_ref ? `/api/places/photo?ref=${encodeURIComponent(p.google_ref)}` : null);
+
+// All photos for a place, hero first then sort_order; falls back to hero_photo.
+const livePhotos = (row) => {
+  const list = (row.place_photos || []).slice()
+    .sort((a, b) => (b.is_hero ? 1 : 0) - (a.is_hero ? 1 : 0) || (a.sort_order || 0) - (b.sort_order || 0));
+  const urls = list.map(resolvePhotoUrl).filter(Boolean);
+  if (urls.length) return urls;
+  return row.hero_photo ? [row.hero_photo] : [];
+};
+
+const livePhotoCard = (row, userCoords) => ({
   id: cardId(row), title: row.name,
   rating: typeof row.rating === 'number' && row.rating > 0 ? row.rating : undefined,
-  distance: cardDistance(row),
+  distance: cardDistanceStr(row, userCoords),
   photo: livePhoto(row),
   _live: row,
 });
 
-const liveSchoolCard = (row) => ({
-  ...livePhotoCard(row),
+const liveSchoolCard = (row, userCoords) => ({
+  ...livePhotoCard(row, userCoords),
   tag: (Array.isArray(row.tags) && row.tags[0]) || 'Enrolling',
   tagBg: C.sage, tagFg: C.sageDark,
 });
 
-const liveProgramCard = (row) => {
+const liveProgramCard = (row, userCoords) => {
   const style = LIVE_PROGRAM_STYLE[row.category] || LIVE_PROGRAM_STYLE.extracurricular;
   return {
     id: cardId(row), title: row.name,
     ages: liveAgeLabel(row.age_min, row.age_max),
-    distance: cardDistance(row),
+    distance: cardDistanceStr(row, userCoords),
     Icon: style.Icon, bg: style.bg, fg: style.fg,
     _live: row,
   };
@@ -599,20 +613,23 @@ const amenitiesToArray = (am) =>
   am && typeof am === 'object' ? Object.keys(AMENITY_LABELS).filter(k => am[k] === true).map(k => AMENITY_LABELS[k]) : [];
 
 // Rich PlaceDetailSheet input built from a live row (+ kind-specific extras).
-const liveDetail = (row, kind, extra = {}) => {
+const liveDetail = (row, kind, extra = {}, userCoords) => {
   const amen = amenitiesToArray(row.amenities);
+  const photos = livePhotos(row);
   return {
     id: cardId(row), title: row.name, kind,
-    photo: livePhoto(row),
+    photo: photos[0] || livePhoto(row),
+    photos,
     rating: typeof row.rating === 'number' && row.rating > 0 ? row.rating : undefined,
     reviews: row.review_count || undefined,
-    distance: cardDistance(row),
+    distance: cardDistanceStr(row, userCoords),
     address: row.address || undefined,
     description: row.description || undefined,
     ages: liveAgeLabel(row.age_min, row.age_max),
     amenities: amen.length ? amen : undefined,
     website: row.website || undefined,
     phone: row.phone || undefined,
+    lat: row.lat, lng: row.lng,
     ...extra,
   };
 };
@@ -686,23 +703,59 @@ const buildLiveSections = (places, filters, userCoords) => {
   ];
   const topNearby = [...everything].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   return {
-    places:  topNearby.map(livePhotoCard),
-    fun:     g('fun').map(livePhotoCard),
-    schools: [...g('schools'), ...g('childcare')].map(liveSchoolCard),
-    extras:  [...g('extracurricular'), ...g('camps')].map(liveProgramCard),
-    health:  [...g('health'), ...g('wellness')].map(livePhotoCard),
+    places:  topNearby.map(r => livePhotoCard(r, userCoords)),
+    fun:     g('fun').map(r => livePhotoCard(r, userCoords)),
+    schools: [...g('schools'), ...g('childcare')].map(r => liveSchoolCard(r, userCoords)),
+    extras:  [...g('extracurricular'), ...g('camps')].map(r => liveProgramCard(r, userCoords)),
+    health:  [...g('health'), ...g('wellness')].map(r => livePhotoCard(r, userCoords)),
   };
+};
+
+// ---- "See all" quick-filter chips (only data-backed ones) ----
+const QUICK_AGE = { baby: [0, 1], tod: [1, 3], pre: [3, 5], kid: [5, 18] };
+// (item, activeIds[]) => boolean. Age buckets OR together; the rest AND.
+// Hardcoded (non-live) items can't be filtered, so they always pass.
+const quickFilterMatch = (item, ids, userCoords) => {
+  const row = item._live;
+  if (!row) return true;
+  const ageIds = ids.filter(id => QUICK_AGE[id]);
+  const ageOk = ageIds.length === 0 || ageIds.some(id => {
+    const [lo, hi] = QUICK_AGE[id]; const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
+    return rmax >= lo && rmin <= hi;
+  });
+  const otherOk = ids.filter(id => !QUICK_AGE[id]).every(id => {
+    switch (id) {
+      case 'top': return (row.rating || 0) >= 4.5;
+      case 'free': return row.price_level === 0;
+      case 'indoor': return row.amenities?.indoor === true;
+      case 'outdoor': return row.amenities?.outdoor === true;
+      case 'stroller': return row.amenities?.stroller_friendly === true;
+      case 'near':
+        if (!userCoords || row.lat == null || row.lng == null) return true;
+        return haversineMi(userCoords.lat, userCoords.lng, row.lat, row.lng) <= 3;
+      default: return true;
+    }
+  });
+  return ageOk && otherOk;
 };
 
 // -------------------------- screen --------------------------
 
 export const LocalPicksTab = ({
   places,
-  savedItems = [], setSavedItems, location, flash,
+  location, locationGeo,
+  savedItems = [], setSavedItems, flash,
   filterOpen, setFilterOpen,
 }) => {
   const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
-  const userCoords = useMemo(() => resolveUserCoords(location), [location]);
+  // Prefer the user's captured coords (onboarding geo); fall back to the
+  // centroid of their selected area.
+  const userCoords = useMemo(
+    () => (locationGeo?.lat != null && locationGeo?.lng != null
+      ? { lat: locationGeo.lat, lng: locationGeo.lng }
+      : resolveUserCoords(location)),
+    [locationGeo, location]
+  );
 
   // Live-or-curated sections. With live data, show live (filtered) rows; a
   // section with no live results falls back to its curated list ONLY when no
@@ -731,13 +784,13 @@ export const LocalPicksTab = ({
   // Build the PlaceDetailSheet input — rich live detail when the card came from
   // /api/places (it carries `_live`), else the minimal hardcoded card fields.
   const openTopPlace = (item) => setSelectedPlace(item._live
-    ? liveDetail(item._live, 'Place')
+    ? liveDetail(item._live, 'Place', {}, userCoords)
     : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, kind: 'Place' });
   const openProgram = (item) => setSelectedPlace(item._live
-    ? liveDetail(item._live, 'Program', { photo: undefined, Icon: item.Icon, iconBg: item.bg, iconFg: item.fg })
+    ? liveDetail(item._live, 'Program', { Icon: item.Icon, iconBg: item.bg, iconFg: item.fg }, userCoords)
     : { id: item.id, title: item.title, Icon: item.Icon, iconBg: item.bg, iconFg: item.fg, ages: item.ages, distance: item.distance, kind: 'Program' });
   const openSchool = (item) => setSelectedPlace(item._live
-    ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg })
+    ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg }, userCoords)
     : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg, kind: 'School' });
 
   // Advanced filter badge count (category + the live-backed filters).
@@ -812,6 +865,7 @@ export const LocalPicksTab = ({
           }}
           columns={2}
           quickFilters={QUICK_FILTERS_BY_SECTION[seeAllSection.key]}
+          matchQuickFilter={(item, ids) => quickFilterMatch(item, ids, userCoords)}
           onOpenAdvancedFilter={() => setFilterOpen?.(true)}
           advancedFilterCount={advCount}
           onClose={() => setSeeAll(null)}
@@ -839,17 +893,26 @@ export const LocalPicksTab = ({
             toggleSave(`int-${selectedPlace.id}`);
             flash?.(isInterested(selectedPlace.id) ? 'Removed interest' : '✦ Marked as interested');
           }}
-          onShare={(_, action) => {
-            if (action === 'call') flash?.('Opening dialer…');
-            else if (action === 'web') flash?.('Opening website…');
-            else setShareItem({
-              title: selectedPlace.title,
-              kind: selectedPlace.kind || 'Place',
-              place: selectedPlace.distance,
-              photo: selectedPlace.photo,
-            });
+          onShare={(p, action) => {
+            if (action === 'call') {
+              if (p.phone) window.location.href = `tel:${String(p.phone).replace(/[^\d+]/g, '')}`;
+              else flash?.('No phone number listed');
+            } else if (action === 'web') {
+              if (p.website) window.open(p.website, '_blank', 'noopener');
+              else flash?.('No website listed');
+            } else {
+              setShareItem({
+                title: p.title, kind: p.kind || 'Place',
+                place: p.distance, photo: p.photo,
+              });
+            }
           }}
-          onDirections={() => flash?.('Opening directions…')}
+          onDirections={(p) => {
+            const dest = (p.lat != null && p.lng != null)
+              ? `${p.lat},${p.lng}`
+              : encodeURIComponent(p.address || p.title || '');
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank', 'noopener');
+          }}
           onClose={() => setSelectedPlace(null)}
         />
       )}

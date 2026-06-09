@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import {
   MapPin, Star, Phone, Globe, Bookmark, Share2,
-  Sparkles, Navigation, Clock, Check,
+  Sparkles, Navigation, Clock, Check, ChevronLeft,
 } from 'lucide-react';
 import { C } from '../theme';
-import { Sheet } from '../components/Sheet';
 
 // ==========================================================================
 // PlaceDetailSheet — shared detail surface for places / programs / schools
@@ -63,38 +62,68 @@ export const PlaceDetailSheet = ({
   // Only show hours when we actually have a real value (no fabricated default).
   const hours = typeof place.hours === 'string' && place.hours.trim() ? place.hours : null;
 
-  // Programs use icon-only hero (no photo). Fall back to a tinted icon panel.
+  // Photo gallery (all pictures). Programs with no photos use an icon panel.
   const Icon = place.Icon;
-  const hasPhoto = !!place.photo;
+  const photos = (place.photos && place.photos.length) ? place.photos : (place.photo ? [place.photo] : []);
+  const hasPhotos = photos.length > 0;
+  const hasPhone = !!place.phone;
+  const hasWebsite = !!place.website;
 
   return (
-    <Sheet onClose={onClose} tall>
-      <div className="pb-6">
-        {/* Hero */}
-        <div
-          className="relative"
-          style={{
-            height: 200,
-            backgroundImage: hasPhoto ? `url('${place.photo}')` : undefined,
-            background: hasPhoto ? undefined : place.iconBg || C.coralSoft,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            display: hasPhoto ? 'block' : 'flex',
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          {!hasPhoto && Icon && (
-            <Icon size={70} color={place.iconFg || C.coralDeep}/>
+    <div
+      className="absolute inset-0 z-40 flex flex-col"
+      style={{ background: C.cream, animation: 'slideUp .3s cubic-bezier(.2,.8,.2,1)' }}
+    >
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Hero — swipeable photo carousel, or a tinted icon panel */}
+        <div className="relative" style={{ height: 240 }}>
+          {hasPhotos ? (
+            <div className="flex h-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+              {photos.map((src, i) => (
+                <div key={i} style={{
+                  flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start',
+                  backgroundImage: `url('${src}')`, backgroundSize: 'cover', backgroundPosition: 'center',
+                }}/>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center" style={{ background: place.iconBg || C.coralSoft }}>
+              {Icon && <Icon size={70} color={place.iconFg || C.coralDeep}/>}
+            </div>
           )}
-          {hasPhoto && (
-            <div className="absolute inset-0" style={{
-              background: 'linear-gradient(180deg, rgba(0,0,0,.15) 40%, rgba(0,0,0,.6) 100%)',
+
+          {hasPhotos && (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: 'linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 55%, rgba(0,0,0,.62) 100%)',
             }}/>
           )}
-          <div
-            className="absolute left-5 right-5 bottom-4"
-            style={{ color: hasPhoto ? '#fff' : C.navy }}
+
+          {/* Back button */}
+          <button
+            onClick={onClose}
+            aria-label="Back"
+            className="absolute active:scale-[.95] transition-transform"
+            style={{
+              top: 14, left: 14, width: 36, height: 36, borderRadius: 18,
+              background: 'rgba(255,255,255,.92)', border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', boxShadow: '0 2px 8px -2px rgba(0,0,0,.35)',
+            }}
           >
+            <ChevronLeft size={18} color={C.navy}/>
+          </button>
+
+          {photos.length > 1 && (
+            <div className="absolute" style={{
+              top: 16, right: 16, background: 'rgba(0,0,0,.55)', color: '#fff',
+              borderRadius: 999, padding: '3px 10px',
+              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
+            }}>
+              {photos.length} photos
+            </div>
+          )}
+
+          <div className="absolute left-5 right-5 bottom-4" style={{ color: hasPhotos ? '#fff' : C.navy }}>
             <div className="text-[10.5px] tracking-[.18em] uppercase opacity-95" style={{
               fontFamily: 'Albert Sans', fontWeight: 700,
             }}>
@@ -109,7 +138,7 @@ export const PlaceDetailSheet = ({
           </div>
         </div>
 
-        <div className="px-5 pt-4">
+        <div className="px-5 pt-4 pb-8">
           {/* Meta */}
           <div className="space-y-2">
             {place.rating != null && (
@@ -188,11 +217,13 @@ export const PlaceDetailSheet = ({
             </div>
           </div>
 
-          {/* Quick-info row — call · website (decorative) */}
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <InfoTile Icon={Phone}  label="Call"    sub="Tap to dial"   onClick={() => onShare?.(place, 'call')}/>
-            <InfoTile Icon={Globe}  label="Website" sub="Open in browser" onClick={() => onShare?.(place, 'web')}/>
-          </div>
+          {/* Quick-info row — call · website (only when we have the data) */}
+          {(hasPhone || hasWebsite) && (
+            <div className="mt-5 grid gap-2" style={{ gridTemplateColumns: hasPhone && hasWebsite ? '1fr 1fr' : '1fr' }}>
+              {hasPhone && <InfoTile Icon={Phone} label="Call" sub="Tap to dial" onClick={() => onShare?.(place, 'call')}/>}
+              {hasWebsite && <InfoTile Icon={Globe} label="Website" sub="Open in browser" onClick={() => onShare?.(place, 'web')}/>}
+            </div>
+          )}
 
           {/* Primary — Get directions */}
           <button
@@ -249,7 +280,7 @@ export const PlaceDetailSheet = ({
           </div>
         </div>
       </div>
-    </Sheet>
+    </div>
   );
 };
 

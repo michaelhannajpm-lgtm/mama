@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
-import { WaitlistPage } from './WaitlistPage';
 import { AdminPage } from './AdminPage';
 import { PhoneFrame } from './components/PhoneFrame';
 import { Toast } from './components/Toast';
@@ -26,6 +25,7 @@ import { ProfileSheet } from './sheets/ProfileSheet';
 import { MessageSheet } from './sheets/MessageSheet';
 import { CreateAccountSheet } from './sheets/CreateAccountSheet';
 import { PremiumSheet } from './sheets/PremiumSheet';
+import { SeededMomLoginSheet } from './sheets/SeededMomLoginSheet';
 import { Landing }        from './screens/Landing';
 import { AboutYou }       from './screens/onboarding/AboutYou';
 import { VillagePreview } from './screens/onboarding/VillagePreview';
@@ -36,6 +36,7 @@ import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboard
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
+import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-moms';
 import { SUGGESTED_EVENTS as FALLBACK_EVENTS } from './data/events';
 
 // ====================================================================
@@ -49,6 +50,10 @@ function PrototypeApp({ bare = false }) {
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [seededLoginOpen, setSeededLoginOpen] = useState(false);
+  const [seededMoms, setSeededMoms] = useState([]);
+  const [seededLoginLoading, setSeededLoginLoading] = useState(false);
+  const [seededLoginError, setSeededLoginError] = useState(null);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
   const [location, setLocation] = useState('');
   const [distance, setDistance] = useState(null);
@@ -101,6 +106,47 @@ function PrototypeApp({ bare = false }) {
   const thisWeekData = liveEvents?.thisWeek || [];
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
+
+  const loadSeededMoms = async () => {
+    setSeededLoginLoading(true);
+    setSeededLoginError(null);
+    try {
+      const rows = await fetchSeededMomProfiles();
+      setSeededMoms(rows);
+    } catch (e) {
+      setSeededLoginError(e?.message || 'Could not load seeded moms');
+    } finally {
+      setSeededLoginLoading(false);
+    }
+  };
+
+  const openSeededLogin = () => {
+    setSeededLoginOpen(true);
+    if (!seededMoms.length && !seededLoginLoading) loadSeededMoms();
+  };
+
+  const applySeededMomLogin = (row) => {
+    const next = appStateFromMomProfile(row);
+    signOut().catch(() => { /* ignore */ });
+    setProfile(next.profile);
+    setPrefs(next.prefs);
+    setLocation(next.location);
+    setLocationGeo(next.locationGeo);
+    setDistance(next.distance);
+    setSavedItems([]);
+    setScheduled1to1({});
+    setJoinedEvents([]);
+    setGoingItems([]);
+    setRatings({});
+    setPendingAction(null);
+    setMessageHistory({});
+    setAccount(next.account);
+    setLoginOpen(false);
+    setSeededLoginOpen(false);
+    setSplashShown(true);
+    setStep(3);
+    flash(`Welcome back, ${next.account.firstName} ✦`);
+  };
 
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
@@ -238,12 +284,7 @@ function PrototypeApp({ bare = false }) {
             />
           ) : !splashShown ? (
             <Landing onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}
-              onDevLogin={()=>{
-                setAccount({ firstName:'Sana', username:'sana', auth_user_id:'local-sana', method:'phone', phone:'(813) 956-2058' });
-                setSplashShown(true);
-                setStep(3);
-                flash('Welcome back, Sana ✦');
-              }}/>
+              onDevLogin={openSeededLogin}/>
           ) : (<>
           {step===0 && <AboutYou
             onNext={()=>advance(0, {
@@ -283,6 +324,7 @@ function PrototypeApp({ bare = false }) {
             places={placesData}
             events={eventsData}
             thisWeek={thisWeekData}
+            locationGeo={locationGeo}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
@@ -343,6 +385,16 @@ function PrototypeApp({ bare = false }) {
           </>)}
 
       {toast && <Toast msg={toast}/>}
+      {seededLoginOpen && (
+        <SeededMomLoginSheet
+          rows={seededMoms}
+          loading={seededLoginLoading}
+          error={seededLoginError}
+          onRefresh={loadSeededMoms}
+          onSelect={applySeededMomLogin}
+          onClose={() => setSeededLoginOpen(false)}
+        />
+      )}
     </div>
   );
 
@@ -383,16 +435,5 @@ export default function App() {
   if (route === '/admin' || route.startsWith('/admin/')) {
     return <AdminPage />;
   }
-  if (route === '/waitlist') {
-    return (
-      <WaitlistPage
-        onNavigate={(path) => {
-          window.history.pushState({}, '', path);
-          window.dispatchEvent(new Event('popstate'));
-        }}
-      />
-    );
-  }
-
   return <PrototypeApp />;
 }

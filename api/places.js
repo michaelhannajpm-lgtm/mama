@@ -13,7 +13,8 @@ export default async function handler(req, res) {
   try {
     const select = 'id,slug,name,category,area,city,description,tags,hero_photo,badge,' +
       'rating,review_count,lat,lng,address,website,reference_url,phone,hours,amenities,' +
-      'good_for,age_min,age_max,price_level';
+      'good_for,age_min,age_max,price_level,' +
+      'place_photos(blob_url,url,google_ref,is_hero,sort_order)';
     const url = `${creds.supabaseUrl}/rest/v1/places` +
       `?select=${select}&visible=eq.true&order=name.asc&limit=5000`;
     const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
