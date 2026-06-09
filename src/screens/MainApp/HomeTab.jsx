@@ -7,6 +7,8 @@ import { C } from '../../theme';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
+import { MomDetailSheet } from '../../sheets/MomDetailSheet';
+import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 
@@ -275,12 +277,16 @@ export const HomeTab = ({
   places = null, nearbyMoms = [], groups = [],
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
-  profile, flash,
-  goToPlaces, goToConnect, goToHub, onVerify, openVillage,
+  profile, flash, openMessage, openSchedule,
+  goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
 }) => {
   const [filter, setFilter] = useState('today');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedMom, setSelectedMom] = useState(null);
+  const [selectedDiscussion, setSelectedDiscussion] = useState(null);
+  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
+  const [invited, setInvited] = useState({});
   const [shareItem, setShareItem] = useState(null);
   const [seeAll, setSeeAll] = useState(false);
 
@@ -366,23 +372,23 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* Moms near you */}
+        {/* Moms near you — tap a mom to open her profile; See all → Connect's
+            "Moms nearby" drawer (with filters). */}
         {moms.length > 0 && (
           <>
-            <SectionHead title="Moms near you" onLink={goToConnect}/>
+            <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
             <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-              {/* Tapping a mom routes to the Connect tab for now; per-mom deep-link is a follow-up. */}
-              {moms.map(m => <MomChip key={m.id} item={m} onClick={goToConnect}/>)}
+              {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
             </div>
           </>
         )}
 
-        {/* Groups for you */}
+        {/* Groups for you — tap a group to open its discussion; See all →
+            Connect's "Popular discussions" drawer (with filters). */}
         {topGroups.length > 0 && (
           <>
-            <SectionHead title="Groups for you" onLink={goToHub}/>
-            {/* Tapping a group routes to My Hub for now; opening the specific discussion is a follow-up. */}
-            {topGroups.map(g => <GroupRow key={g.id} item={g} onClick={goToHub}/>)}
+            <SectionHead title="Groups for you" onLink={goToConnectGroups}/>
+            {topGroups.map(g => <GroupRow key={g.id} item={g} onClick={() => setSelectedDiscussion(g)}/>)}
           </>
         )}
 
@@ -488,6 +494,53 @@ export const HomeTab = ({
           })}
           onDirections={() => flash?.('Opening directions…')}
           onClose={() => setSelectedPlace(null)}
+        />
+      )}
+
+      {selectedMom && (
+        <MomDetailSheet
+          mom={selectedMom}
+          saved={isSaved(`mom-${selectedMom.id}`)}
+          invited={!!invited[selectedMom.id]}
+          onInvite={() => {
+            setInvited(i => ({ ...i, [selectedMom.id]: true }));
+            flash?.(`✦ Invite sent to ${selectedMom.name}`);
+          }}
+          onMessage={() => { openMessage?.(selectedMom); setSelectedMom(null); }}
+          onSave={() => {
+            const key = `mom-${selectedMom.id}`;
+            toggleSave(key);
+            flash?.(isSaved(key) ? `Removed ${selectedMom.name} from saved` : `✦ Saved ${selectedMom.name}`);
+          }}
+          onShare={() => setShareItem({
+            title: `${selectedMom.name}'s profile`, kind: 'Mom profile',
+            place: selectedMom.distance, photo: selectedMom.photo,
+          })}
+          onClose={() => setSelectedMom(null)}
+        />
+      )}
+
+      {selectedDiscussion && (
+        <GroupDiscussionSheet
+          discussion={selectedDiscussion}
+          joined={joinedDiscussions.has(selectedDiscussion.id)}
+          onToggleJoin={() => {
+            setJoinedDiscussions(prev => {
+              const next = new Set(prev);
+              if (next.has(selectedDiscussion.id)) {
+                next.delete(selectedDiscussion.id);
+                flash?.(`Left ${selectedDiscussion.title}`);
+              } else {
+                next.add(selectedDiscussion.id);
+                flash?.(`✦ Joined ${selectedDiscussion.title}`);
+              }
+              return next;
+            });
+          }}
+          onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
+          onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
+          flash={flash}
+          onClose={() => setSelectedDiscussion(null)}
         />
       )}
 

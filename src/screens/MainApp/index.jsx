@@ -74,6 +74,12 @@ export const MainApp = ({
   const [connectFilterOpen,    setConnectFilterOpen]    = useState(false);
   const [localPicksFilterOpen, setLocalPicksFilterOpen] = useState(false);
 
+  // Cross-tab intent: when Home's "See all moms / See all groups" links are
+  // tapped, switch to Connect AND tell it which See-all drawer to open on
+  // mount. ConnectTab consumes + clears this so normal nav-bar entry is clean.
+  const [connectSeeAll, setConnectSeeAll] = useState(null); // null | 'moms' | 'topics'
+  const goToConnectSeeAll = (view) => { setConnectSeeAll(view); setTab('connect'); };
+
   const activeLabel = HEADER_LABELS[tab] || '';
   const savedCount = savedItems?.length || 0;
   const isProfile = tab === 'profile';
@@ -147,9 +153,10 @@ export const MainApp = ({
         goingItems={goingItems} setGoingItems={setGoingItems}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         profile={profile} flash={flash}
+        openMessage={openMessage} openSchedule={openSchedule}
         goToPlaces={() => setTab('localpicks')}
-        goToConnect={() => setTab('connect')}
-        goToHub={() => setTab('hub')}
+        goToConnectMoms={() => goToConnectSeeAll('moms')}
+        goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
         openVillage={() => setVillageOpen(true)}/>}
       {tab === 'connect' && <ConnectTab
@@ -164,7 +171,9 @@ export const MainApp = ({
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
-        onSetVerifiedOnly={onSetVerifiedOnly}/>}
+        onSetVerifiedOnly={onSetVerifiedOnly}
+        initialSeeAll={connectSeeAll}
+        onConsumeSeeAll={() => setConnectSeeAll(null)}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}

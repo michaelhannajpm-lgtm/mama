@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Heart, Briefcase, MapPin, Users,
   ChevronRight, Sparkles, Moon, Baby, Coffee, Smile, BookOpen,
@@ -608,6 +608,7 @@ export const ConnectTab = ({
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  initialSeeAll = null, onConsumeSeeAll,
 }) => {
   void profile; void prefs;
   void openProfile;
@@ -687,6 +688,16 @@ export const ConnectTab = ({
 
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
+
+  // Honor a cross-tab intent from Home ("See all moms / groups"): open the
+  // requested drawer on mount, then clear it on the parent so a plain
+  // nav-bar visit to Connect doesn't re-trigger it.
+  useEffect(() => {
+    if (initialSeeAll) {
+      setSeeAll(initialSeeAll);
+      onConsumeSeeAll?.();
+    }
+  }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local "Auto-scheduled" pool for prototype: tapping Auto-schedule on a
   // mom card flashes a confirmation and stamps a slot here so the button
