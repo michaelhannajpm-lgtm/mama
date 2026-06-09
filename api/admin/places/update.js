@@ -64,19 +64,55 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, deleted: body.delete });
     }
 
-    // Merge: repoint source_records + place_categories from dropId to keepId, delete dropId.
+    // Merge dropId into keepId. These are independent REST calls (no cross-table
+    // transaction), so every call is error-checked and ordered so a mid-way
+    // failure surfaces (502) rather than silently corrupting/partial-merging.
     if (body.merge) {
       const { keepId, dropId } = body.merge;
       if (!isUuid(keepId) || !isUuid(dropId)) return json(res, 400, { error: 'merge needs keepId+dropId uuids' });
-      for (const tbl of ['source_records', 'place_categories']) {
-        await fetch(`${creds.supabaseUrl}/rest/v1/${tbl}?place_id=eq.${dropId}`, {
-          method: 'PATCH', headers: sbHeaders(creds.serviceRoleKey),
-          body: JSON.stringify({ place_id: keepId }),
-        });
+      if (keepId === dropId) return json(res, 400, { error: 'cannot merge a place into itself' });
+
+      const base = `${creds.supabaseUrl}/rest/v1`;
+      // Throw on any non-2xx so the outer catch returns 502 instead of a false ok.
+      const must = async (label, r) => {
+        if (!r.ok) throw new Error(`merge ${label} ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}`);
+        return r;
+      };
+
+      // 1. Provenance: repoint source_records (unique on source_id,external_id,
+      //    record_type — keep/drop have distinct external_ids, so no collision).
+      await must('source_records', await fetch(`${base}/source_records?place_id=eq.${dropId}`, {
+        method: 'PATCH', headers: sbHeaders(creds.serviceRoleKey), body: JSON.stringify({ place_id: keepId }),
+      }));
+
+      // 2. Categories: keep gains drop's memberships. PATCHing place_id would hit
+      //    the (place_id,category_id) PK when both share a category, so instead
+      //    upsert drop's categories onto keep (ignore dupes); drop's own rows are
+      //    removed by the cascade in step 4.
+      const catRes = await must('read categories', await fetch(
+        `${base}/place_categories?select=category_id&place_id=eq.${dropId}`,
+        { headers: sbHeaders(creds.serviceRoleKey) }));
+      const cats = await catRes.json().catch(() => []);
+      if (Array.isArray(cats) && cats.length) {
+        await must('upsert categories', await fetch(`${base}/place_categories`, {
+          method: 'POST',
+          headers: sbHeaders(creds.serviceRoleKey, { Prefer: 'resolution=ignore-duplicates' }),
+          body: JSON.stringify(cats.map(c => ({ place_id: keepId, category_id: c.category_id }))),
+        }));
       }
-      await fetch(`${creds.supabaseUrl}/rest/v1/places?id=eq.${dropId}`, {
+
+      // 3. Photos: preserve drop's gallery by repointing its NON-hero photos to
+      //    keep. Drop's hero would collide with keep's hero (place_photos_one_hero
+      //    partial-unique index), so it's left to be cascade-removed in step 4.
+      await must('photos', await fetch(`${base}/place_photos?place_id=eq.${dropId}&is_hero=eq.false`, {
+        method: 'PATCH', headers: sbHeaders(creds.serviceRoleKey), body: JSON.stringify({ place_id: keepId }),
+      }));
+
+      // 4. Delete drop; FK cascades clean up any remaining children.
+      await must('delete', await fetch(`${base}/places?id=eq.${dropId}`, {
         method: 'DELETE', headers: sbHeaders(creds.serviceRoleKey),
-      });
+      }));
+
       return json(res, 200, { ok: true, merged: { keepId, dropId } });
     }
 

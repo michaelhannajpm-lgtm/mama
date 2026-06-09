@@ -94,6 +94,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
             <button disabled={busy} onClick={() => {
               const [a, b] = [...selected];
               const ra = rows.find(r => r.id === a), rb = rows.find(r => r.id === b);
+              if (!ra || !rb) { setSelected(new Set()); return; } // rows reloaded out from under the selection
               const keep = (ra.review_status === 'approved' || (ra.source_confidence || 0) >= (rb.source_confidence || 0)) ? a : b;
               const drop = keep === a ? b : a;
               if (confirm(`Merge: keep "${rows.find(r=>r.id===keep).name}", drop the other?`)) post({ merge: { keepId: keep, dropId: drop } });

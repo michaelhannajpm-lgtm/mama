@@ -55,11 +55,15 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {photos.length > 0 && (
           <div className="flex gap-2 mb-3 flex-wrap">
             {photos.map(p => {
-              const url = p.url || (p.google_ref ? `/api/places/photo?ref=${encodeURIComponent(p.google_ref)}&w=200` : null);
-              const isHero = (place.hero_photo && place.hero_photo === p.url) || p.is_hero;
+              // Stable hero value: a stored url, or the WIDTH-AGNOSTIC proxy path
+              // for Google photos (consumer picks width). `thumb` adds w=200 for
+              // display only — we never persist the thumbnail width as the hero.
+              const heroRef = p.url || (p.google_ref ? `/api/places/photo?ref=${encodeURIComponent(p.google_ref)}` : null);
+              const thumb = p.url || (heroRef ? `${heroRef}&w=200` : null);
+              const isHero = place.hero_photo ? place.hero_photo === heroRef : p.is_hero;
               return (
-                <button key={p.id} onClick={() => url && setHero(p.url || url)} title="Set as hero"
-                  style={{ position: 'relative', width: 84, height: 64, borderRadius: 8, overflow: 'hidden', border: `2px solid ${isHero ? C.saffron : C.divider}`, background: url ? `center/cover url(${url})` : C.lilac, cursor: 'pointer' }}>
+                <button key={p.id} onClick={() => heroRef && setHero(heroRef)} title="Set as hero"
+                  style={{ position: 'relative', width: 84, height: 64, borderRadius: 8, overflow: 'hidden', border: `2px solid ${isHero ? C.saffron : C.divider}`, background: thumb ? `center/cover url(${thumb})` : C.lilac, cursor: 'pointer' }}>
                   {isHero && <Star size={13} fill={C.saffron} color={C.saffron} style={{ position: 'absolute', top: 3, right: 3 }} />}
                 </button>
               );
