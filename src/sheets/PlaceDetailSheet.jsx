@@ -60,7 +60,8 @@ export const PlaceDetailSheet = ({
   const kind = place.kind || 'Place';
   const description = place.description || FALLBACK_DESCRIPTION_BY_KIND[kind] || FALLBACK_DESCRIPTION_BY_KIND.Place;
   const amenities = place.amenities || FALLBACK_AMENITIES;
-  const hours = place.hours || 'Open today · 9:00 AM – 8:00 PM';
+  // Only show hours when we actually have a real value (no fabricated default).
+  const hours = typeof place.hours === 'string' && place.hours.trim() ? place.hours : null;
 
   // Programs use icon-only hero (no photo). Fall back to a tinted icon panel.
   const Icon = place.Icon;
@@ -125,7 +126,7 @@ export const PlaceDetailSheet = ({
             {place.ages && (
               <MetaRow Icon={Sparkles} text={place.ages} color={C.coralDeep}/>
             )}
-            <MetaRow Icon={Clock} text={hours} color={C.sageDark}/>
+            {hours && <MetaRow Icon={Clock} text={hours} color={C.sageDark}/>}
           </div>
 
           {/* Tag */}
