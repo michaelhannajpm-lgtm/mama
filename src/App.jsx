@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
 import { AdminPage } from './AdminPage';
@@ -56,6 +56,7 @@ function PrototypeApp({ bare = false }) {
   const [seededMoms, setSeededMoms] = useState([]);
   const [nearbyMoms, setNearbyMoms] = useState([]);
   const [nearbyVerifiedOnly, setNearbyVerifiedOnly] = useState(true);
+  const nearbyReqId = useRef(0);
   const [seededLoginLoading, setSeededLoginLoading] = useState(false);
   const [seededLoginError, setSeededLoginError] = useState(null);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
@@ -168,11 +169,14 @@ function PrototypeApp({ bare = false }) {
   });
 
   const loadNearbyMoms = async (verifiedOnly = nearbyVerifiedOnly) => {
+    const reqId = ++nearbyReqId.current;
     setNearbyVerifiedOnly(verifiedOnly);
     try {
       const { moms } = await fetchNearbyMoms(buildMatchUser(), { limit: 24, verifiedOnly });
+      if (reqId !== nearbyReqId.current) return; // a newer load superseded this one
       setNearbyMoms(moms.map(decorateMom));
     } catch (e) {
+      if (reqId !== nearbyReqId.current) return;
       console.error('loadNearbyMoms failed', e);
       setNearbyMoms([]);
     }
