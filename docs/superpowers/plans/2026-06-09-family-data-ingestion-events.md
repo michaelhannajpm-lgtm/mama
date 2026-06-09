@@ -1861,6 +1861,8 @@ Then change the Things-to-do list builder to iterate `thingsSource` instead of `
 - [ ] **Step 5: Build:** `npm run build` Expected: builds OK.
 - [ ] **Step 6: Commit** `git add -A && git commit -m "feat(app): screens consume live events; light up This week surface"`
 
+> **EXECUTION NOTE (2026-06-09):** The live `MainApp` shell was redesigned since this plan was authored. It now mounts `ThisWeekTab`/`ConnectTab`/`LocalPicksTab`/`YouTab` (NOT `ActivitiesTab`/`MatchesTab`, which are legacy/unmounted), and `ThisWeekTab` renders **hardcoded curated card arrays** (`TODAY_ITEMS`, `WEEKEND_ITEMS`, `POPULAR_PLACES`, `AGE_CATEGORIES`) rather than `SUGGESTED_EVENTS`. The data plumbing (T19 `/api/events`, T20 client, T21 `App.jsx` loader + `MainApp` prop forwarding) is correct and in place; the legacy-tab prop-consumption edits were committed (harmless, inert). **Rendering live ingested events into the redesigned `ThisWeekTab` cards is deferred as a follow-up** — it requires a DB-row→curated-card mapping and product decisions about which sections (Today/Weekend/See-all) surface dated vs. recurring events. The places slice's app-wiring is likely inert in the same way (pre-existing). Backend/admin/API phases are unaffected.
+
 ---
 
 # Phase 6 — Admin CRUD
