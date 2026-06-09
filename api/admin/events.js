@@ -13,7 +13,8 @@ export default async function handler(req, res) {
   if (!creds) return json(res, 500, { error: 'Supabase env not configured' });
 
   try {
-    const url = `${creds.supabaseUrl}/rest/v1/events?select=*&order=created_at.desc&limit=5000`;
+    const url = `${creds.supabaseUrl}/rest/v1/events` +
+      `?select=*,places(id,name,area,visible),event_categories(category_id)&order=created_at.desc&limit=5000`;
     const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
     if (!r.ok) {
       const text = await r.text().catch(() => '');
