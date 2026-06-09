@@ -4,6 +4,8 @@ import {
 
 const ALLOWED_PATCH_KEYS = new Set([
   'location', 'distance_miles',
+  'location_place_id', 'location_city', 'location_neighborhood', 'location_county',
+  'location_lat', 'location_lng',
   'kids_ages', 'mom_types', 'values', 'interests',
   'slots', 'places',
 ]);
@@ -17,6 +19,16 @@ const sanitizePatch = (raw) => {
     if (k === 'location') {
       const t = cleanText(v, 200);
       if (t) out[k] = t;
+    } else if (k === 'location_place_id' || k === 'location_city'
+            || k === 'location_neighborhood' || k === 'location_county') {
+      const t = cleanText(v, 120);
+      if (t) out[k] = t;
+    } else if (k === 'location_lat' || k === 'location_lng') {
+      const n = Number(v);
+      // Clamp to plausible Florida bounds; round to 6 dp.
+      const okLat = k === 'location_lat' && n >= 24 && n <= 31;
+      const okLng = k === 'location_lng' && n >= -88 && n <= -79;
+      if (Number.isFinite(n) && (okLat || okLng)) out[k] = Math.round(n * 1e6) / 1e6;
     } else if (k === 'distance_miles') {
       const n = Number(v);
       if (Number.isFinite(n) && n >= 0 && n <= 500) out[k] = Math.round(n);
