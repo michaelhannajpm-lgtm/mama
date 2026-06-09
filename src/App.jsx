@@ -201,7 +201,13 @@ function PrototypeApp({ bare = false }) {
               flash={flash}
             />
           ) : !splashShown ? (
-            <Landing onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}/>
+            <Landing onBegin={()=>setSplashShown(true)} onSignIn={() => setLoginOpen(true)}
+              onDevLogin={()=>{
+                setAccount({ firstName:'Sana', username:'sana', auth_user_id:'local-sana', method:'phone', phone:'(813) 956-2058' });
+                setSplashShown(true);
+                setStep(3);
+                flash('Welcome back, Sana ✦');
+              }}/>
           ) : (<>
           {step===0 && <AboutYou
             onNext={()=>advance(0, {
@@ -225,6 +231,7 @@ function PrototypeApp({ bare = false }) {
           />}
           {step===2 && <Account
             onBack={()=>setStep(1)}
+            onLogin={()=>{ setSplashShown(false); setLoginOpen(true); }}
             account={account}
             onComplete={(acct) => { setAccount(acct); setStep(3); }}
             flash={flash}
