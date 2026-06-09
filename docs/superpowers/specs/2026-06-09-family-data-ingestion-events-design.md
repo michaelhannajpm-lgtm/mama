@@ -11,14 +11,15 @@ Replace Go Mama's hardcoded event directory (`SUGGESTED_EVENTS`) with a live pip
 ## Decisions (from brainstorming)
 
 - **Event model — Approach A (dated events first-class).** Extend the existing `events` table with dated fields + a `kind` discriminator (`'recurring' | 'dated'`). For dated events the normalizer always derives `day_of_week`/`bucket`/`time_label` from `starts_at` (in `America/New_York`) so every existing card renders unchanged. A dormant "This week" surface in `ActivitiesTab` is lit up with real upcoming dated events.
-- **Connectors:** Eventbrite (live — `EVENTBRITE_API_TOKEN` available), official calendars via ICS + JSON-LD (runnable against public feeds + checked-in fixtures), Meta Graph **built but its source config `enabled: false`** with notes (no token yet).
+- **Connectors:** Eventbrite (live — `EVENTBRITE_API_TOKEN` available), official calendars via ICS + JSON-LD (runnable against public feeds + checked-in fixtures), Meta Graph **built but its source config `enabled: false`** with notes (no token yet), and a **`place_website` crawler** that fans out over the places already in the DB and discovers each place's own events from its public website (§10).
+- **Places are event sources.** Every place with a `website` is crawled for its own events; discovered events are linked to the place via `place_id`. Event visibility is gated by place visibility (§5.1): a place's events can only appear in the app once the place is active+visible and the events are approved. Events are viewable/manageable from the Place CRUD detail panel, which has a one-click "scrape events from website" that runs the per-place ingestion (§8.1).
 - **Scope:** Full end-to-end, like the places slice (DB → ingestion → public `/api/events` → app UI with fallback → full-CRUD admin).
 - **Place creation deferred:** ingestion links events to *existing* places by venue name/geo; it does **not** auto-create place rows from event venues. Unmatched events keep their raw `place_name` for an admin to resolve via a place picker.
 - **One plan** covering all phases.
 
 ## Architecture
 
-Additive DB schema on `events` (dated + provenance + review fields) + `event_categories` join + `kind='event'` rows in `categories` → reuse existing `ingestion_sources`/`ingestion_runs`/`source_records` provenance tables (already have `record_type='event'` + `event_id`) → public service-role read route `/api/events` → `App.jsx` central loader drills live events to screens (hardcoded `SUGGESTED_EVENTS` kept as fallback) → config-driven event connectors under `api/_lib/ingestion/connectors/` reusing the `fetchRaw`/`parseX` shape → event orchestrator + extended CLI → full-CRUD admin `EventsManager` in `AdminPage.jsx`.
+Additive DB schema on `events` (dated + provenance + review fields) + `event_categories` join + `kind='event'` rows in `categories` → reuse existing `ingestion_sources`/`ingestion_runs`/`source_records` provenance tables (already have `record_type='event'` + `event_id`) → public service-role read route `/api/events` (with a place-visibility gate, §5.1) → `App.jsx` central loader drills live events to screens (hardcoded `SUGGESTED_EVENTS` kept as fallback) → config-driven event connectors under `api/_lib/ingestion/connectors/` reusing the `fetchRaw`/`parseX` shape, including a `place_website` crawler that fans out over DB places (§10) → event orchestrator + extended CLI → full-CRUD admin `EventsManager` plus a per-place events panel with one-click scraping in the Place CRUD detail (§8.1).
 
 ## Constraints inherited from the codebase
 
@@ -166,6 +167,7 @@ Add an `EVENT_SOURCES` array; keep the existing Google `SOURCES`. Each event sou
 - `glazer-museum-ics`, `hcplc-library-ics` — `type:'ics'`, enabled, `url` to public `.ics`, `defaultType`.
 - `<venue>-jsonld` — `type:'json_ld'`, enabled, `url` to a public event page.
 - `fb-graph-tampa-venues` — `type:'facebook_graph'`, `enabled:false`, `notes:'Needs approved Meta app + page tokens; run when META_GRAPH_TOKEN present.'`
+- **`place-websites`** — `type:'place_website'`, enabled, cadence 72h. **Has no static `url`/`queries`** — it iterates over the *places already in the DB* that have a `website`, and discovers each place's own events from its own public site. This is the dynamic, fan-out source described in Section 10.
 
 `getEventSource(id)` helper. Adding a source must not require touching control flow.
 
@@ -177,6 +179,7 @@ Same shape as `google-places.js`: a pure `parseX(body|text)` (fixture-tested, ne
 - **`ics.js`** — uses `node-ical` (new dependency, justified: ICS parsing is fiddly and error-prone by hand). `parseIcs(text)` → array of `{ uid, summary, description, start, end, location, url }`. `fetchRaw` GETs the feed (honors `ETag`/`Last-Modified` when present).
 - **`json-ld.js`** — `cheerio` (already justified in skill) to read `<script type="application/ld+json">`, collect schema.org `Event` nodes (handle `@graph` + arrays). `parseJsonLd(html)` pure.
 - **`facebook-graph.js`** — built; source disabled. `parseGraphEvents(body)` pure + fixture-tested; `fetchRaw` throws a clear error if no `META_GRAPH_TOKEN`.
+- **`place-website.js`** — discovery wrapper (Section 10). Given one place `{ website }`, it: (1) fetches the homepage politely (robots.txt check, `User-Agent`, bounded retry, `ETag`/`Last-Modified` cache via `source_records.content_hash`); (2) finds the events/calendar page by scanning links for `event|calendar|programs|classes|camps|schedule|things-to-do`; (3) extracts events **structured-data first** — reuse `parseJsonLd` (schema.org `Event`), then a discovered `.ics` via `parseIcs`, then RSS, then a last-resort HTML parse; (4) returns raw events tagged with the originating `placeId`. Pure helpers `discoverEventPage(html, baseUrl)` and `extractPlaceEvents({ html, ics, jsonld })` are fixture-tested; network lives in `fetchRaw`.
 
 ## 4. Normalization, place-linking, dedupe
 
@@ -200,7 +203,16 @@ Public, `visible=true` only, embeds matched place. One query, two shapes via `ap
 - **`recurring`** (`kind='recurring'`): reshaped into the `SUGGESTED_EVENTS` object shape (`{ id, day, bucket, time, name, place, going, recurring, tags, indoor, mi, kidAges, hue, photo }`) by `reshapeEvents(rows)`.
 - **`thisWeek`** (`kind='dated'`, `starts_at` ∈ [now, now+14d], ordered asc): dated cards with `startsAt`, derived date label, place.
 
-`reshapeEvents` and the payload normalizer are TDD-tested. Place embed: `place_id → places(name,area,lat,lng,hero_photo)`.
+`reshapeEvents` and the payload normalizer are TDD-tested. Place embed: `place_id → places(name,area,lat,lng,hero_photo,visible)`.
+
+### 5.1 Visibility cascade (place ↔ event)
+
+An event that belongs to a place must never be more public than its place. Two layers enforce this:
+
+- **Public-API gate (non-destructive safety net).** `/api/events` returns an event only when `events.visible=true` **AND** (`place_id IS NULL` **OR** the embedded `place.visible=true`). So hiding a place instantly removes its events from the app on the next load with no write to the events themselves. A place-less recurring meetup is unaffected. Implemented by embedding `places(visible)` and filtering in `events-shape.js`.
+- **Admin cascade (explicit, convenient).** When an admin **approves + publishes a place**, the Place detail panel surfaces its `needs_review`/approved-but-hidden events and offers **"Publish N approved events"** (bulk `visible=true` on events already `review_status='approved'`). When a place is **hidden or rejected**, the per-place events are bulk-set `visible=false` (and may be set `review_status='archived'` on reject) so the DB state matches reality, not just the read-time gate.
+
+Net effect (the user's rule): website-discovered events land hidden/`needs_review`; once their place is active+visible and the events are approved, the admin activates them — and they can never leak while the place is hidden.
 
 ## 6. App wiring (Approach A, fallback like places)
 
@@ -213,7 +225,8 @@ Public, `visible=true` only, embeds matched place. One query, two shapes via `ap
 
 - `api/_lib/ingestion/runEventIngestion.js` — per source → `fetchRaw` → `normalizeEvent` → `linkEventToPlace` → `classifyEventCandidate` → writer. Per-source failures isolated + logged in the run summary (`ingestion_runs`). `dryRun` ⇒ no writes, counts only.
 - `writer.js` gains: `createEvent`, `refreshEvent` (never clobbers curator fields; refreshes facts + `last_seen_at`), `linkEventCategory`, `recordSource({record_type:'event', event_id})`, `loadExistingEvents`.
-- `scripts/ingest-family-data.mjs` — dispatch by source `type`: `google_places` → place pipeline; `eventbrite|ics|json_ld|facebook_graph` → event pipeline. Same `--source --dry-run --limit --since` flags. Dry-run prints fetched/normalized/deduped/would-create/would-update/skipped/errors.
+- For `type:'place_website'`, `runEventIngestion` first calls `loadIngestablePlaces(sb, { onlyApproved, placeId })` then loops places, running `place-website.fetchRaw` per place with `place.id`/`place.name`/`place.city`/`place.area` pre-bound (no place-linking step needed — `place_id` is known). Per-place failures are isolated and counted; the run summary records `placesScanned`, `placesWithEvents`, `eventsCreated`.
+- `scripts/ingest-family-data.mjs` — dispatch by source `type`: `google_places` → place pipeline; `eventbrite|ics|json_ld|facebook_graph|place_website` → event pipeline. Flags: `--source --dry-run --limit --since`, plus **`--place <uuid>`** (scope `place-websites` to one place) and **`--all-places`** (include non-approved places; default scans only `review_status='approved'` places that have a `website`). Dry-run prints fetched/normalized/deduped/would-create/would-update/skipped/errors (+ `placesScanned` for place-website runs).
 
 ## 8. Admin CRUD
 
@@ -221,11 +234,35 @@ Public, `visible=true` only, embeds matched place. One query, two shapes via `ap
 - `GET /api/admin/events` — extend select to embed `place_name`, matched place (`place_id(...)`), and `event_categories(category_id)`.
 - `src/admin/EventsManager.jsx` + `EventEditModal.jsx` — list with filters (status, type, kind, has-place, date range, search), row + bulk approve/reject/hide, edit modal with a **place picker** (search existing places → set `place_id`), event-type selector, dated fields, hero/hue. New `events` tab in `AdminPage.jsx` (sage accent).
 
+### 8.1 Place CRUD → events panel + per-place ingestion
+
+The existing `PlaceEditModal` (places slice) gains an **Events** section so events are managed in the place's own context:
+
+- **Linked-events list** — fetched via `GET /api/admin/places/events?placeId=<id>` (new read route, or embed `events(...)` in the existing admin places select). Shows each event's name/type/date/status with inline approve / hide / reject / edit (reusing the `EventEditModal`) and a **"Publish all approved"** button (the 5.1 cascade).
+- **"Scrape events from website" button** — enabled when the place has a `website`. Calls **`POST /api/admin/places/ingest-events`** with `{ placeId }`, which runs the `place-website` connector for that single place synchronously (bounded `limit`, server-side service-role), writing new events `visible=false`/`needs_review` linked to the place. Returns counts; the panel reloads to show freshly discovered events. A disabled-with-tooltip state explains when no `website` is set.
+- This is the UI parallel of `npm run ingest -- --source place-websites --place <id>` — same orchestrator path, invoked from the admin instead of the CLI.
+
 ## 9. Validation
 
-- `node:test` fixtures: `parseEventbrite`, `parseIcs`, `parseJsonLd`, `parseGraphEvents` (checked-in raw samples under `scripts/ingestion/fixtures/`); `normalizeEvent` (derived day/bucket/time + tz correctness, slug namespacing); `linkEventToPlace`; `classifyEventCandidate`; `reshapeEvents`; `normalizeEventsPayload`. No test hits a live network.
+- `node:test` fixtures: `parseEventbrite`, `parseIcs`, `parseJsonLd`, `parseGraphEvents`, `discoverEventPage` + `extractPlaceEvents` (checked-in raw samples — incl. a place homepage HTML with an events link + an event page — under `scripts/ingestion/fixtures/`); `normalizeEvent` (derived day/bucket/time + tz correctness, slug namespacing); `linkEventToPlace`; `classifyEventCandidate`; `reshapeEvents`; `normalizeEventsPayload`; the `events-shape.js` place-visibility gate (event with hidden place is filtered out). No test hits a live network.
 - `node --check` on every new `.mjs`/`.js`; `npm run build` for `src/` changes.
 - Live: `npm run ingest -- --source eventbrite-tampa-family --dry-run --limit 5`, then a bounded live run; verify rows land `visible=false`/`needs_review` with provenance; approve a batch in `/admin` → Events; confirm they appear in `/prototype` "This week"; toggling `visible=false` removes them on next load; offline → app still renders `SUGGESTED_EVENTS` fallback.
+
+## 10. Places as event sources (website discovery)
+
+Every place already in the DB that has a `website` is a potential recurring event feed. The `place-websites` source turns the place directory into a fan-out crawler.
+
+**Flow (per eligible place):**
+1. Eligibility: place has a non-null `website`. Batch runs default to `review_status='approved'` places (real, curated/approved venues); `--all-places` widens to any status; the admin per-place button works on any single place.
+2. Politeness: check `robots.txt`, send a descriptive `User-Agent`, bound retries with backoff, honor `Retry-After`/`ETag`/`Last-Modified`, and cache the last `content_hash` in `source_records` to skip unchanged pages. One place's failure never stops the batch.
+3. Discovery: fetch homepage → `discoverEventPage()` finds the events/calendar URL → fetch it.
+4. Extraction, **structured-data first** (per source-strategy priority order): JSON-LD `Event` → discovered `.ics` → RSS → last-resort HTML parse. Keep parser fixtures because venue markup changes.
+5. Normalize each raw event with `place_id`/`place_name`/`city`/`area` pre-bound from the place (the place-link step is skipped — the link is known and exact). `event_type` via `mapEventType()`; new rows `visible=false`/`review_status='needs_review'`; provenance in `source_records` (`record_type='event'`, `source_id='place-websites'`, `external_id` = event uid or `content_hash`).
+6. Dedupe via `classifyEventCandidate` (idempotent re-runs; same place + same name + same start updates rather than duplicates).
+
+**Lifecycle tie to the place (the user's rule):** discovered events stay hidden until (a) their place is `approved`+`visible` and (b) the event is `approved`. The 5.1 public-API gate guarantees they can never appear while the place is hidden; the admin cascade lets the admin publish a place's approved events in one click. Re-scraping (cron at 72h cadence, or the per-place button) keeps each place's events fresh.
+
+**Two entry points, one code path:** the CLI batch (`--source place-websites [--place <id>] [--all-places]`) and the Place-detail **"Scrape events from website"** button (§8.1) both call `runEventIngestion` for the `place_website` source — the admin button just scopes it to one `placeId`.
 
 ## Done criteria
 
@@ -234,6 +271,8 @@ Public, `visible=true` only, embeds matched place. One query, two shapes via `ap
 - Idempotent: re-running a source does not duplicate events (external-id update path).
 - One source failing does not stop the run; it is logged in the run summary.
 - Approved dated events surface in the app's "This week"; recurring events render through existing cards unchanged; fallback keeps the app non-blank.
+- Places with a `website` can be crawled for their own events (batch CLI or per-place admin button); discovered events are linked to the place and never appear in the app while the place is hidden (public-API place-visibility gate).
+- A place's events are viewable and manageable from the Place CRUD detail panel, including a one-click "scrape events from this place's website".
 
 ## Out of scope (this slice)
 
