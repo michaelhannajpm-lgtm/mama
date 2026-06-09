@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Heart, Users, Bookmark, SlidersHorizontal } from 'lucide-react';
 import { C } from '../../theme';
 import { SAMPLE_MOMS } from '../../data/moms';
-import { SUGGESTED_EVENTS } from '../../data/events';
+import { SUGGESTED_EVENTS as EVENTS_FALLBACK } from '../../data/events';
 import { MatchCardFull } from '../../components/MatchCardFull';
 import { GroupCardFull } from '../../components/GroupCardFull';
 import { MeetupsFilterSheet, MEETUPS_FILTER_DEFAULT } from '../../sheets/MeetupsFilterSheet';
@@ -134,6 +134,7 @@ const AdvancedFilterBtn = ({ count, onClick, accent = C.navy }) => (
 );
 
 export const MatchesTab = ({
+  events,
   profile,
   prefs,
   openSchedule,
@@ -147,6 +148,7 @@ export const MatchesTab = ({
   requestAccount,
   flash,
 }) => {
+  const SUGGESTED_EVENTS = events || EVENTS_FALLBACK;
   // Hard default — Groups loads first every time the tab is opened.
   const [view, setView] = useState('groups');
 

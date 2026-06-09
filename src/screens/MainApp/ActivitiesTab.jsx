@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Calendar, MapPin, Bookmark, Users, SlidersHorizontal, Star, Check, Send } from 'lucide-react';
 import { C } from '../../theme';
-import { SUGGESTED_EVENTS } from '../../data/events';
+import { SUGGESTED_EVENTS as EVENTS_FALLBACK } from '../../data/events';
 import { PLACES, PLACE_CATEGORIES, BADGE_META, TOP_PICKS, findPlace } from '../../data/places';
 import { SAMPLE_MOMS } from '../../data/moms';
 import { ActivitiesFilterSheet, ACTIVITIES_FILTER_DEFAULT } from '../../sheets/ActivitiesFilterSheet';
@@ -419,11 +419,13 @@ const countActiveFilters = (f) => {
 // Tab
 // ──────────────────────────────────────────────────────────────────────────
 export const ActivitiesTab = ({
+  events, thisWeek = [],
   savedItems = [], setSavedItems,
   goingItems = [], setGoingItems,
   ratings = {}, setRatings,
   location, flash,
 }) => {
+  const SUGGESTED_EVENTS = events || EVENTS_FALLBACK;
   const [view, setView] = useState('things');
   const [visibleThings, setVisibleThings] = useState(() => new Set());
   const [thingsAdv, setThingsAdv] = useState(ACTIVITIES_FILTER_DEFAULT);
@@ -462,10 +464,13 @@ export const ActivitiesTab = ({
   };
 
   const filteredEvents = useMemo(() => {
-    return SUGGESTED_EVENTS
+    // When the "This week" chip is active and we have live dated events, show those.
+    const thisWeekActive = visibleThings.has('this-week');
+    const thingsSource = (thisWeekActive && thisWeek.length) ? thisWeek : SUGGESTED_EVENTS;
+    return thingsSource
       .filter(e => passesVisibleThings(e, visibleThings))
       .filter(e => passesAdvancedThings(e, thingsAdv));
-  }, [visibleThings, thingsAdv]);
+  }, [visibleThings, thingsAdv, thisWeek, SUGGESTED_EVENTS]);
 
   const topPicks = useMemo(() => TOP_PICKS
     .map(t => { const p = findPlace(t.placeId); return p ? { ...p, ...t } : null; })

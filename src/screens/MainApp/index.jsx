@@ -36,6 +36,7 @@ const HEADER_SUBTITLES = {
 
 export const MainApp = ({
   places,
+  events, thisWeek,
   profile, setProfile, prefs, setPrefs,
   location, setLocation, distance, setDistance,
   scheduled1to1, joinedEvents, setJoinedEvents,
