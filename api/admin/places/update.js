@@ -9,8 +9,9 @@ import { json, readJsonBody, supabaseCreds, sbHeaders, isUuid } from '../../_lib
 import { requireAdmin } from '../../_lib/admin-auth.js';
 
 const EDITABLE = new Set([
-  'name','category','area','address','description','tags','website','reference_url',
-  'phone','amenities','good_for','age_min','age_max','hero_photo','rating',
+  'name','category','area','city','address','description','tags','website','reference_url',
+  'phone','amenities','good_for','age_min','age_max','hero_photo','rating','badge',
+  'lat','lng','business_status','price_level',
   'review_status','visible',
 ]);
 
@@ -54,7 +55,7 @@ export default async function handler(req, res) {
   if (body === null) return json(res, 400, { error: 'Invalid JSON body' });
 
   try {
-    // Delete
+    // Delete (single)
     if (body.delete) {
       if (!isUuid(body.delete)) return json(res, 400, { error: 'delete must be a uuid' });
       const r = await fetch(`${creds.supabaseUrl}/rest/v1/places?id=eq.${body.delete}`, {
@@ -62,6 +63,19 @@ export default async function handler(req, res) {
       });
       if (!r.ok) return json(res, 502, { error: `delete failed ${r.status}` });
       return json(res, 200, { ok: true, deleted: body.delete });
+    }
+
+    // Bulk delete
+    if (Array.isArray(body.deleteIds)) {
+      if (!body.deleteIds.length || !body.deleteIds.every(isUuid)) {
+        return json(res, 400, { error: 'deleteIds must be a non-empty array of uuids' });
+      }
+      const inList = body.deleteIds.map(id => `"${id}"`).join(',');
+      const r = await fetch(`${creds.supabaseUrl}/rest/v1/places?id=in.(${inList})`, {
+        method: 'DELETE', headers: sbHeaders(creds.serviceRoleKey),
+      });
+      if (!r.ok) { const t = await r.text().catch(() => ''); return json(res, 502, { error: `bulk delete failed ${r.status}: ${t.slice(0, 200)}` }); }
+      return json(res, 200, { ok: true, deleted: body.deleteIds.length });
     }
 
     // Merge dropId into keepId. These are independent REST calls (no cross-table
