@@ -1,13 +1,13 @@
 import OpenAI from 'openai';
-import { getEventSource } from './sources.js';
 import { normalizeEvent } from './normalize-event.js';
 import { classifyEventCandidate } from './dedupe-event.js';
 import { resolveEventPlace } from './resolve-place.js';
 import {
   makeClient, createEvent, refreshEvent, linkEventCategory, recordEventSource,
-  loadExistingEvents, loadIngestablePlaces, upsertSource, startRun, finishRun, loadExistingPlaces,
+  loadExistingEvents, loadIngestablePlaces, startRun, finishRun, loadExistingPlaces,
   setEventImage,
 } from './writer.js';
+import { loadSource, ensureSource } from './source-store.js';
 import { storeEventImage } from './image-blob.js';
 import { parseEventbrite, fetchRaw as ebFetch } from './connectors/eventbrite.js';
 import { fetchRaw as icsFetch } from './connectors/ics.js';
@@ -45,17 +45,17 @@ async function buildWork(source, { env, limit, since, placeId, allPlaces, logger
 // [offset, offset+sliceSize); the return includes { total, nextOffset, hasMore }
 // so a job processor can continue across invocations.
 export async function runEventIngestion({ sourceId, limit = 50, since = null, dryRun = false, offset = 0, sliceSize = null, placeId = null, allPlaces = false, venueLimit = 100, logger = console, env }) {
-  const source = getEventSource(sourceId);
-  if (!source) throw new Error(`unknown event source: ${sourceId}`);
-
   const sb = dryRun ? null : makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const sourceClient = sb || (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY ? makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : null);
+  const source = await loadSource(sourceClient, sourceId, { fallback: true });
+  if (!source) throw new Error(`unknown event source: ${sourceId}`);
   const openai = (!dryRun && env.OPENAI_API_KEY) ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
   const counts = { fetched: 0, normalized: 0, created: 0, updated: 0, review: 0, skipped: 0, errors: 0, venuesResolved: 0, placesCreatedFromVenues: 0, venuesLinked: 0, placesScanned: 0 };
   const reviewItems = [];
 
   const chunked = sliceSize != null;
   let runId = null;
-  if (!dryRun && !chunked) { await upsertSource(sb, source); runId = await startRun(sb, source.id); }
+  if (!dryRun && !chunked) { await ensureSource(sb, source, 'events'); runId = await startRun(sb, source.id); }
   const existingEvents = dryRun ? [] : await loadExistingEvents(sb);
   const existingPlaces = dryRun ? [] : await loadExistingPlaces(sb);
   const venueCache = new Map();

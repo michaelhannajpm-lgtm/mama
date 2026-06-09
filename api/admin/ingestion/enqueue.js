@@ -3,7 +3,7 @@
 import { waitUntil } from '@vercel/functions';
 import { json, readJsonBody } from '../../_lib/supabase.js';
 import { requireAdmin } from '../../_lib/admin-auth.js';
-import { getSource, getEventSource } from '../../_lib/ingestion/sources.js';
+import { loadSource } from '../../_lib/ingestion/source-store.js';
 import { makeJobClient, enqueueJob } from '../../_lib/ingestion/jobs.js';
 import { processNextJob, selfProcessUrl } from '../../_lib/ingestion/process-jobs.js';
 
@@ -20,8 +20,7 @@ export default async function handler(req, res) {
   const kind = body.kind;
   if (kind !== 'places' && kind !== 'events') return json(res, 400, { error: "kind must be 'places' or 'events'" });
   const sourceId = typeof body.sourceId === 'string' ? body.sourceId : '';
-  const known = kind === 'places' ? getSource(sourceId) : getEventSource(sourceId);
-  if (!known) return json(res, 400, { error: `unknown ${kind} source: ${sourceId}` });
+  if (!sourceId) return json(res, 400, { error: 'sourceId required' });
   const params = (body.params && typeof body.params === 'object') ? body.params : {};
 
   const env = {
@@ -33,6 +32,9 @@ export default async function handler(req, res) {
 
   try {
     const sb = makeJobClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const src = await loadSource(sb, sourceId, { fallback: true });
+    if (!src) return json(res, 400, { error: `unknown source: ${sourceId}` });
+    if (src.kind && src.kind !== kind) return json(res, 400, { error: `source ${sourceId} is kind '${src.kind}', not '${kind}'` });
     const job = await enqueueJob(sb, { kind, sourceId, params });
     // Kick the chained processor in the background so the request returns now.
     // On a deployment, hit the processor endpoint (it self-continues across

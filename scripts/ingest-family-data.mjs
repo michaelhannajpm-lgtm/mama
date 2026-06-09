@@ -8,7 +8,8 @@
 //   node scripts/ingest-family-data.mjs --source place-websites --place <uuid>
 import { runIngestion } from '../api/_lib/ingestion/runIngestion.js';
 import { runEventIngestion } from '../api/_lib/ingestion/runEventIngestion.js';
-import { getSource, getEventSource } from '../api/_lib/ingestion/sources.js';
+import { getEventSource } from '../api/_lib/ingestion/sources.js';
+import { makeSourceClient, loadSource } from '../api/_lib/ingestion/source-store.js';
 
 const flags = process.argv.slice(2);
 const val = (name, fb) => { const i = flags.indexOf(name); return i >= 0 ? flags[i + 1] : fb; };
@@ -33,7 +34,9 @@ if (!dryRun && (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY)) {
   process.exit(1);
 }
 
-const isEvent = !!getEventSource(sourceId);
+const sbForKind = (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) ? makeSourceClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : null;
+const loaded = await loadSource(sbForKind, sourceId, { fallback: true });
+const isEvent = loaded?.kind ? loaded.kind === 'events' : !!getEventSource(sourceId);
 const run = isEvent
   ? runEventIngestion({ sourceId, limit, since, dryRun, placeId: place, allPlaces, venueLimit, env, logger: console })
   : runIngestion({ sourceId, limit, dryRun, env, logger: console });

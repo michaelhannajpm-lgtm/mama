@@ -1,12 +1,12 @@
-import { getSource } from './sources.js';
 import { fetchRaw } from './connectors/google-places.js';
 import { normalizeGooglePlace } from './normalize.js';
 import { classifyCandidate } from './dedupe.js';
 import { makeGradientPng, uploadGeneratedPng } from './images.js';
 import {
   makeClient, createPlace, refreshPlace, linkCategory, addPhoto, recordSource,
-  upsertSource, startRun, finishRun, loadExistingPlaces, setHeroPhoto,
+  startRun, finishRun, loadExistingPlaces, setHeroPhoto,
 } from './writer.js';
+import { loadSource, ensureSource } from './source-store.js';
 
 // Run one source. dryRun => no writes, returns counts only.
 // Chunked mode: pass a numeric `sliceSize` to process only source.queries
@@ -14,12 +14,13 @@ import {
 // for a job processor to continue across invocations. In chunked mode the
 // ingestion_runs bookkeeping is skipped (the ingestion_jobs row is the record).
 export async function runIngestion({ sourceId, limit = 20, dryRun = false, offset = 0, sliceSize = null, logger = console, env }) {
-  const source = getSource(sourceId);
-  if (!source) throw new Error(`unknown source: ${sourceId}`);
   const apiKey = env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_PLACES_API_KEY not set');
 
   const sb = dryRun ? null : makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const sourceClient = sb || (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY ? makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) : null);
+  const source = await loadSource(sourceClient, sourceId, { fallback: true });
+  if (!source) throw new Error(`unknown source: ${sourceId}`);
   const counts = { fetched: 0, normalized: 0, created: 0, updated: 0, skipped: 0, errors: 0, review: 0 };
   const reviewItems = [];
 
@@ -28,7 +29,7 @@ export async function runIngestion({ sourceId, limit = 20, dryRun = false, offse
   const slice = chunked ? allQueries.slice(offset, offset + sliceSize) : allQueries;
 
   let runId = null;
-  if (!dryRun && !chunked) { await upsertSource(sb, source); runId = await startRun(sb, source.id); }
+  if (!dryRun && !chunked) { await ensureSource(sb, source, 'places'); runId = await startRun(sb, source.id); }
 
   // Wrap the whole run so an unexpected throw (e.g. loadExistingPlaces) never
   // strands the ingestion_runs row in 'running'.
