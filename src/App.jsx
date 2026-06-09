@@ -35,6 +35,8 @@ import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces } from './lib/places-api';
+import { fetchEvents } from './lib/events-api';
+import { SUGGESTED_EVENTS as FALLBACK_EVENTS } from './data/events';
 
 // ====================================================================
 // ROOT
@@ -83,6 +85,20 @@ function PrototypeApp({ bare = false }) {
     return () => { alive = false; };
   }, []);
   const placesData = livePlaces?.places || null;
+
+  const [liveEvents, setLiveEvents] = useState(null); // { recurring, thisWeek } | null
+
+  useEffect(() => {
+    let alive = true;
+    fetchEvents()
+      .then(data => { if (alive) setLiveEvents(data); })
+      .catch(() => { if (alive) setLiveEvents(null); });
+    return () => { alive = false; };
+  }, []);
+
+  // Live recurring events when present; hardcoded fallback so the app never blanks.
+  const eventsData = liveEvents?.recurring?.length ? liveEvents.recurring : FALLBACK_EVENTS;
+  const thisWeekData = liveEvents?.thisWeek || [];
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
 
@@ -265,6 +281,8 @@ function PrototypeApp({ bare = false }) {
           />}
           {step===3 && <MainApp
             places={placesData}
+            events={eventsData}
+            thisWeek={thisWeekData}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
