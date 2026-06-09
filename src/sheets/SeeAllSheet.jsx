@@ -26,6 +26,8 @@ export const SeeAllSheet = ({
   gap = 10,
   layout = 'grid', // 'grid' | 'wrap' | 'list'
   quickFilters = [],
+  activeQuickFilter = null,
+  onQuickFilter = null,
   // (item, activeIds[]) => boolean — applies the active quick-filter chips.
   // Defaults to a no-op so callers that don't pass it keep all items.
   matchQuickFilter = () => true,
@@ -105,11 +107,12 @@ export const SeeAllSheet = ({
           >
             {quickFilters.map(f => {
               const Icon = f.icon;
-              const isActive = active.has(f.id);
+              const controlled = typeof onQuickFilter === 'function';
+              const isActive = controlled ? activeQuickFilter === f.id : active.has(f.id);
               return (
                 <button
                   key={f.id}
-                  onClick={() => toggle(f.id)}
+                  onClick={() => (controlled ? onQuickFilter(f.id) : toggle(f.id))}
                   style={{
                     flexShrink: 0,
                     display: 'flex', alignItems: 'center', gap: 5,

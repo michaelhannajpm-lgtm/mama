@@ -47,6 +47,7 @@ export const MainApp = ({
   messageHistory = {},
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
+  nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
 }) => {
   void setPrefs;
   const [tab, setTab] = useState('thisweek');
@@ -163,7 +164,10 @@ export const MainApp = ({
         savedItems={savedItems} setSavedItems={setSavedItems}
         messageHistory={messageHistory}
         account={account} requestAccount={requestAccount} flash={flash}
-        filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}/>}
+        filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
+        nearbyMoms={nearbyMoms}
+        nearbyVerifiedOnly={nearbyVerifiedOnly}
+        onSetVerifiedOnly={onSetVerifiedOnly}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}
@@ -228,6 +232,7 @@ export const MainApp = ({
           messageHistory={messageHistory}
           openMessage={openMessage}
           flash={flash}
+          moms={nearbyMoms}
           onClose={() => setVillageOpen(false)}
         />
       )}

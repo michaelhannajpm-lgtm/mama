@@ -23,73 +23,6 @@ import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 //   • "Popular topics" — coloured chip row
 // ==========================================================================
 
-const MOMS = [
-  {
-    id: 'm1', name: 'Sarah', kids: '2 kids', distance: '0.4 mi away',
-    tag: 'Working mom', tagBg: C.lilac, tagFg: '#5E4A8A', Icon: Briefcase,
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm2', name: 'Amanda', kids: '1 kid', distance: '0.7 mi away',
-    tag: 'Similar kids', tagBg: C.coralSoft, tagFg: C.coralDeep, Icon: Heart,
-    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm3', name: 'Jessica', kids: '2 kids', distance: '0.8 mi away',
-    tag: 'Lives nearby', tagBg: C.sage, tagFg: C.sageDark, Icon: MapPin,
-    photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=200&auto=format&fit=crop',
-  },
-];
-
-const MOMS_ALL = [
-  ...MOMS,
-  {
-    id: 'm4', name: 'Priya', kids: '1 kid', distance: '0.9 mi away',
-    tag: 'New mom', tagBg: C.coralSoft, tagFg: C.coralDeep, Icon: Baby,
-    photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm5', name: 'Emily', kids: '3 kids', distance: '1.0 mi away',
-    tag: 'Stay-at-home', tagBg: C.sage, tagFg: C.sageDark, Icon: Home,
-    photo: 'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm6', name: 'Mia', kids: '2 kids', distance: '1.1 mi away',
-    tag: 'Verified', tagBg: C.lilac, tagFg: '#5E4A8A', Icon: ShieldCheck,
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm7', name: 'Olivia', kids: '1 kid', distance: '1.3 mi away',
-    tag: 'Crunchy mom', tagBg: C.sage, tagFg: C.sageDark, Icon: Sprout,
-    photo: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm8', name: 'Ava', kids: '2 kids', distance: '1.5 mi away',
-    tag: 'Similar kids', tagBg: C.coralSoft, tagFg: C.coralDeep, Icon: Heart,
-    photo: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm9', name: 'Sophia', kids: '1 kid', distance: '1.6 mi away',
-    tag: 'Working mom', tagBg: C.lilac, tagFg: '#5E4A8A', Icon: Briefcase,
-    photo: 'https://images.unsplash.com/photo-1542596594-649edbc13630?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm10', name: 'Hannah', kids: '2 kids', distance: '1.8 mi away',
-    tag: 'Verified', tagBg: C.lilac, tagFg: '#5E4A8A', Icon: ShieldCheck,
-    photo: 'https://images.unsplash.com/photo-1502323777036-f29e3972d82f?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm11', name: 'Zoe', kids: '1 kid', distance: '2.0 mi away',
-    tag: 'New mom', tagBg: C.coralSoft, tagFg: C.coralDeep, Icon: Baby,
-    photo: 'https://images.unsplash.com/photo-1546961342-1e3258dc9ce5?w=200&auto=format&fit=crop',
-  },
-  {
-    id: 'm12', name: 'Maya', kids: '2 kids', distance: '2.1 mi away',
-    tag: 'Lives nearby', tagBg: C.sage, tagFg: C.sageDark, Icon: MapPin,
-    photo: 'https://images.unsplash.com/photo-1521252659862-eec69941b071?w=200&auto=format&fit=crop',
-  },
-];
-
 const MEETUPS = [
   {
     id: 'um1', dow: 'SAT', day: 17, title: 'Stroller Walk + Coffee',
@@ -652,10 +585,32 @@ export const ConnectTab = ({
   messageHistory = {},
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
+  nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
 }) => {
   void profile; void prefs;
   void openProfile;
   void requestAccount;
+
+  // Live moms come decorated (Icon + resolved colors) from App. The 3-up grid
+  // shows the top 3; the See-all list shows the full ranked set with filters.
+  const gridMoms = nearbyMoms.slice(0, 3);
+
+  // See-all quick-filter state (single-select chip). 'verified' re-fetches
+  // server-side (verified is a DB filter); the rest filter the loaded list.
+  const [momQuickFilter, setMomQuickFilter] = useState(null);
+
+  const applyMomFilter = (list) => {
+    switch (momQuickFilter) {
+      case 'similar': return list.filter(m => (m.sharedTags || []).includes('Same kid ages'));
+      case 'newmom':  return list.filter(m => m.iconKey === 'new');
+      case 'working': return list.filter(m => m.iconKey === 'working');
+      case 'stay':    return list.filter(m => m.iconKey === 'home');
+      case 'near':    return [...list].sort((a, b) =>
+        (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity));
+      default:        return list;
+    }
+  };
+  const seeAllMoms = applyMomFilter(nearbyMoms);
 
   // Detail-sheet state — only one open at a time.
   const [selectedMom, setSelectedMom] = useState(null);
@@ -784,11 +739,20 @@ export const ConnectTab = ({
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
         {/* Moms nearby */}
         <SectionHead title="Moms nearby" onLink={() => setSeeAll('moms')}/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {MOMS.map(item => (
-            <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
-          ))}
-        </div>
+        {gridMoms.length === 0 ? (
+          <div style={{
+            fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
+            padding: '8px 2px',
+          }}>
+            No moms nearby yet — check back soon.
+          </div>
+        ) : (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {gridMoms.map(item => (
+              <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
+            ))}
+          </div>
+        )}
         {/* Upcoming meetups */}
         <SectionHead title="Upcoming meetups" onLink={() => setSeeAll('meetups')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
@@ -813,14 +777,15 @@ export const ConnectTab = ({
       {seeAll === 'moms' && (
         <SeeAllSheet
           title="Moms nearby"
-          subtitle={`${MOMS_ALL.length} moms within 3 mi · verified only`}
-          items={MOMS_ALL}
+          subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
+          items={seeAllMoms}
           renderItem={(item) => {
             const used = (messageHistory?.[item.id] || []).filter(m => m.fromUser).length;
             return (
               <MomListCard
                 key={item.id}
                 item={item}
+                sharedTags={item.sharedTags}
                 scheduledSlot={scheduledFor(item)}
                 messagesUsed={used}
                 freeLimit={3}
@@ -837,13 +802,22 @@ export const ConnectTab = ({
           layout="list"
           gap={12}
           quickFilters={[
-            { id: 'verified',label: 'Verified',    icon: ShieldCheck },
-            { id: 'similar', label: 'Similar kids',icon: Heart       },
-            { id: 'newmom',  label: 'New mom',     icon: Baby        },
-            { id: 'working', label: 'Working',     icon: Briefcase   },
-            { id: 'stay',    label: 'Stay-at-home',icon: Home        },
-            { id: 'near',    label: 'Near me',     icon: MapPin      },
+            { id: 'verified', label: 'Verified',     icon: ShieldCheck },
+            { id: 'similar',  label: 'Similar kids',  icon: Heart },
+            { id: 'newmom',   label: 'New mom',       icon: Baby },
+            { id: 'working',  label: 'Working',       icon: Briefcase },
+            { id: 'stay',     label: 'Stay-at-home',  icon: Home },
+            { id: 'near',     label: 'Near me',       icon: MapPin },
           ]}
+          activeQuickFilter={momQuickFilter}
+          onQuickFilter={(id) => {
+            if (id === 'verified') {
+              onSetVerifiedOnly?.(!nearbyVerifiedOnly);
+              setMomQuickFilter(null);
+              return;
+            }
+            setMomQuickFilter(prev => (prev === id ? null : id));
+          }}
           onOpenAdvancedFilter={() => setFilterOpen?.(true)}
           advancedFilterCount={advCount}
           onClose={() => setSeeAll(null)}
