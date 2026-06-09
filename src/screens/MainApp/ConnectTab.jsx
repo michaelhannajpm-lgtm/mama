@@ -142,10 +142,21 @@ const MomCard = ({ item, onClick }) => {
       cursor: 'pointer',
     }}>
       <div style={{ position: 'relative', display: 'inline-block' }}>
-        <img src={item.photo} alt="" style={{
-          width: 62, height: 62, borderRadius: 31, objectFit: 'cover',
-          display: 'block',
-        }}/>
+        {item.photo ? (
+          <img src={item.photo} alt="" style={{
+            width: 62, height: 62, borderRadius: 31, objectFit: 'cover',
+            display: 'block',
+          }}/>
+        ) : (
+          <div style={{
+            width: 62, height: 62, borderRadius: 31,
+            background: item.hue,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 22,
+          }}>
+            {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
+          </div>
+        )}
         <div style={{
           position: 'absolute', top: 2, right: 2,
           width: 10, height: 10, borderRadius: 5,
@@ -216,10 +227,21 @@ const MomListCard = ({
           className="relative active:scale-[.97] transition-transform"
           style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
         >
-          <img src={item.photo} alt="" style={{
-            width: 68, height: 68, borderRadius: 16, objectFit: 'cover',
-            display: 'block',
-          }}/>
+          {item.photo ? (
+            <img src={item.photo} alt="" style={{
+              width: 68, height: 68, borderRadius: 16, objectFit: 'cover',
+              display: 'block',
+            }}/>
+          ) : (
+            <div style={{
+              width: 68, height: 68, borderRadius: 16,
+              background: item.hue,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 26,
+            }}>
+              {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div style={{
             position: 'absolute', bottom: -3, right: -3,
             width: 22, height: 22, borderRadius: 11,
