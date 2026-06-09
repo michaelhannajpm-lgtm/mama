@@ -58,7 +58,7 @@ export const MomDetailSheet = ({
   const TagIcon = mom.Icon;
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall bleedTop>
       <div className="pb-6">
         {/* Hero — round avatar over a coral wash */}
         <div

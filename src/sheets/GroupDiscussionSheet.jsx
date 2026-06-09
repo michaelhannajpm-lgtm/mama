@@ -110,7 +110,7 @@ export const GroupDiscussionSheet = ({
   };
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall bleedTop>
       <div className="pb-6">
         {/* Header */}
         <div

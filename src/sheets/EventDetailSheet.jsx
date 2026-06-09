@@ -52,7 +52,7 @@ export const EventDetailSheet = ({
   const tags = event.tags || [];
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall bleedTop>
       <div className="pb-6">
         {/* Hero */}
         <div
