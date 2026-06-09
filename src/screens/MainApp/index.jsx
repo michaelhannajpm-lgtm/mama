@@ -101,31 +101,35 @@ export const MainApp = ({
             </div>
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-            {/* Profile — top-right avatar button + label (opens the Profile view) */}
+            {/* Profile — top-right avatar + first-name pill (opens the Profile view) */}
             <button
               aria-label="Profile"
               onClick={() => setTab('profile')}
-              className="flex flex-col items-center active:scale-[.97] transition-transform"
-              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', gap: 2 }}
+              className="flex items-center active:scale-[.97] transition-transform"
+              style={{
+                gap: 7, height: 40, paddingLeft: 4, paddingRight: 13, borderRadius: 999,
+                background: isProfile ? C.coralSoft : C.paper,
+                border: `1px solid ${isProfile ? C.coralDeep : C.divider}`,
+                cursor: 'pointer',
+              }}
             >
               <div
                 className="rounded-full flex items-center justify-center overflow-hidden"
                 style={{
-                  width: 36, height: 36,
+                  width: 32, height: 32, flexShrink: 0,
                   background: profile?.photos?.[0]
                     ? `center/cover no-repeat url('${profile.photos[0]}')`
-                    : C.paper,
-                  border: `${isProfile ? 2 : 1}px solid ${isProfile ? C.coralDeep : C.divider}`,
+                    : (isProfile ? C.paper : C.coralSoft),
                 }}
               >
-                {!profile?.photos?.[0] && <User size={16} color={isProfile ? C.coralDeep : C.navy}/>}
+                {!profile?.photos?.[0] && <User size={15} color={C.coralDeep}/>}
               </div>
               <span style={{
-                fontFamily: 'Albert Sans', fontSize: 9, lineHeight: 1,
-                fontWeight: isProfile ? 700 : 600,
-                color: isProfile ? C.coralDeep : C.navySoft,
+                fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+                color: isProfile ? C.coralDeep : C.navy,
+                maxWidth: 92, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                Profile
+                {account?.firstName || 'Profile'}
               </span>
             </button>
           </div>
