@@ -2,12 +2,13 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MessageSquare, MapPin, Calendar, Server,
+  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database,
 } from 'lucide-react';
 import { C } from './theme';
 import { PlacesManager } from './admin/PlacesManager';
 import { EventsManager } from './admin/EventsManager';
 import { IngestionManager } from './admin/IngestionManager';
+import { SourcesManager } from './admin/SourcesManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -231,6 +232,69 @@ const tally = (rows, picker) => {
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 };
 
+const reviewLabel = (status) => ({
+  approved: 'Verified',
+  needs_review: 'Needs review',
+  rejected: 'Rejected',
+  archived: 'Archived',
+}[status] || 'Unreviewed');
+
+const inventoryStats = (rows = []) => {
+  const nonArchived = rows.filter(r => r.review_status !== 'archived');
+  const verified = nonArchived.filter(r => r.review_status === 'approved');
+  const needsReview = nonArchived.filter(r => r.review_status === 'needs_review' || !r.review_status);
+  const rejected = nonArchived.filter(r => r.review_status === 'rejected');
+  const visible = nonArchived.filter(r => r.visible === true);
+  const hidden = nonArchived.filter(r => r.visible === false);
+  const archived = rows.filter(r => r.review_status === 'archived');
+  return { nonArchived, verified, needsReview, rejected, visible, hidden, archived };
+};
+
+const InventoryOverviewCard = ({ title, rows, breakdownLabel, breakdownPicker, color = C.terracotta }) => {
+  const stats = inventoryStats(rows);
+  const statusItems = tally(rows, r => reviewLabel(r.review_status));
+  const breakdownItems = tally(stats.nonArchived, breakdownPicker).slice(0, 8);
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[10.5px] tracking-[.16em] uppercase" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+            {title}
+          </div>
+          <div className="mt-1" style={{ fontFamily: 'Fraunces', fontSize: 34, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1 }}>
+            {fmt(stats.nonArchived.length)}
+          </div>
+          <div className="mt-1 text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
+            non-archived · {fmt(stats.archived.length)} archived
+          </div>
+        </div>
+        <div className="text-right text-[12px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.55 }}>
+          <div><strong style={{ color: C.sageDark }}>{fmt(stats.verified.length)}</strong> verified</div>
+          <div><strong style={{ color }}>{fmt(stats.needsReview.length)}</strong> needs review</div>
+          <div><strong style={{ color: C.ink }}>{fmt(stats.visible.length)}</strong> visible</div>
+          <div><strong style={{ color: C.inkMuted }}>{fmt(stats.hidden.length)}</strong> hidden</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+        <div>
+          <div className="mb-2 text-[11px] tracking-[.14em] uppercase" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.inkMuted }}>
+            Review status
+          </div>
+          <BarList items={statusItems} total={Math.max(1, rows.length)} color={color}/>
+        </div>
+        <div>
+          <div className="mb-2 text-[11px] tracking-[.14em] uppercase" style={{ fontFamily: 'Albert Sans', fontWeight: 700, color: C.inkMuted }}>
+            {breakdownLabel}
+          </div>
+          <BarList items={breakdownItems} total={Math.max(1, stats.nonArchived.length)} color={C.sageDark}/>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
 const csvEscape = (v) => {
   if (v == null) return '';
   const s = Array.isArray(v) ? v.join('|') : (typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -253,7 +317,7 @@ const downloadCsv = (filename, rows) => {
 // ============================================================================
 // Overview tab
 // ============================================================================
-const Overview = ({ moms, waitlist }) => {
+const Overview = ({ moms, momProfiles, places, events }) => {
   const completed = moms.filter(m => !!m.completed_at);
   const completionRate = pct(completed.length, moms.length);
   const avgMs = (() => {
@@ -265,96 +329,39 @@ const Overview = ({ moms, waitlist }) => {
     return deltas.reduce((a, b) => a + b, 0) / deltas.length;
   })();
   const avgMin = avgMs == null ? '—' : `${Math.round(avgMs / 60000)} min`;
+  const placeStats = inventoryStats(places);
+  const eventStats = inventoryStats(events);
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Waitlist signups" value={fmt(waitlist.length)}/>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <Stat label="Mom profiles" value={fmt(moms.length)} hint="started onboarding"/>
+        <Stat label="Live profiles" value={fmt(momProfiles.length)} hint="searchable moms"/>
         <Stat label="Completed signups" value={fmt(completed.length)} hint={`${completionRate} completion`}/>
+        <Stat label="Places" value={fmt(placeStats.nonArchived.length)} hint={`${fmt(placeStats.verified.length)} verified`}/>
+        <Stat label="Events" value={fmt(eventStats.nonArchived.length)} hint={`${fmt(eventStats.verified.length)} verified`}/>
         <Stat label="Avg. time to complete" value={avgMin} hint="created → finished"/>
       </div>
 
-      <SectionTitle hint="last 30 days">Daily signups — waitlist</SectionTitle>
-      <DailyTrend rows={waitlist} color={C.terracotta}/>
-
       <SectionTitle hint="last 30 days">Daily signups — mom onboarding</SectionTitle>
       <DailyTrend rows={moms} color={C.sageDark}/>
-    </div>
-  );
-};
 
-// ============================================================================
-// Waitlist tab
-// ============================================================================
-const WaitlistTable = ({ rows }) => {
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r => [r.first_name, r.email, r.city, r.audience].some(v => (v || '').toLowerCase().includes(q)));
-  }, [rows, query]);
-
-  const cityList = tally(rows, r => r.city).slice(0, 10);
-  const audList  = tally(rows, r => r.audience).slice(0, 10);
-  const srcList  = tally(rows, r => r.source).slice(0, 8);
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total signups" value={fmt(rows.length)}/>
-        <Stat label="Cities" value={fmt(new Set(rows.map(r => r.city).filter(Boolean)).size)}/>
-        <Stat label="Sources" value={fmt(new Set(rows.map(r => r.source).filter(Boolean)).size)}/>
-        <Stat label="Newest" value={rows[0] ? rel(rows[0].created_at) : '—'}/>
-      </div>
-
-      <SectionTitle hint="last 30 days">Daily trend</SectionTitle>
-      <DailyTrend rows={rows}/>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-        <Card><SectionTitle hint="top 10">By city</SectionTitle><BarList items={cityList} total={rows.length}/></Card>
-        <Card><SectionTitle hint="top 10">By audience</SectionTitle><BarList items={audList} total={rows.length} color={C.sageDark}/></Card>
-        <Card><SectionTitle hint="all">By source</SectionTitle><BarList items={srcList} total={rows.length} color={C.saffron}/></Card>
-      </div>
-
-      <div className="flex items-center gap-2 mt-2">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name / email / city / audience…"
-          className="flex-1 rounded-xl px-3 py-2 outline-none text-[13px]"
-          style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
-        <button onClick={() => downloadCsv(`waitlist-${new Date().toISOString().slice(0, 10)}.csv`, filtered)}
-          className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-          style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
-          <Download size={14}/> Export CSV ({filtered.length})
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-2xl" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
-        <table className="w-full" style={{ fontFamily: 'Albert Sans', fontSize: 12.5 }}>
-          <thead style={{ background: C.creamSoft }}>
-            <tr>
-              {['Name', 'Email', 'City', 'Audience', 'Source', 'Joined'].map(h => (
-                <th key={h} className="text-left px-3 py-2" style={{ color: C.inkSoft, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', fontSize: 10.5 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 500).map(r => (
-              <tr key={r.id} style={{ borderTop: `1px solid ${C.divider}` }}>
-                <td className="px-3 py-2" style={{ color: C.ink }}>{r.first_name || '—'}</td>
-                <td className="px-3 py-2" style={{ color: C.ink }}>{r.email}</td>
-                <td className="px-3 py-2" style={{ color: C.inkSoft }}>{r.city || '—'}</td>
-                <td className="px-3 py-2" style={{ color: C.inkSoft }}>{r.audience || '—'}</td>
-                <td className="px-3 py-2" style={{ color: C.inkMuted }}>{r.source || '—'}</td>
-                <td className="px-3 py-2" style={{ color: C.inkMuted }}>{rel(r.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length > 500 && (
-          <div className="px-3 py-2 text-[11.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
-            Showing 500 of {fmt(filtered.length)}. Export CSV for full data.
-          </div>
-        )}
+      <SectionTitle hint="non-archived inventory">Places and events</SectionTitle>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <InventoryOverviewCard
+          title="Places"
+          rows={places}
+          breakdownLabel="By category"
+          breakdownPicker={r => r.category || 'Uncategorized'}
+          color={C.terracotta}
+        />
+        <InventoryOverviewCard
+          title="Events"
+          rows={events}
+          breakdownLabel="By event type"
+          breakdownPicker={r => r.event_type || r.kind || 'Uncategorized'}
+          color={C.saffron}
+        />
       </div>
     </div>
   );
@@ -1320,238 +1327,9 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
 };
 
 // ============================================================================
-// Feedback tab — qualitative responses from the /promo Founding Moms page.
-// Read-only. Renders an NPS-style stat strip + charts + a searchable,
-// expandable, exportable raw table.
-// ============================================================================
-
-// Friendly labels for the useful[] enum values stored in the DB.
-const USEFUL_LABELS = {
-  schedule:  'Free at the same times',
-  kid_age:   'Kids same age',
-  match_pct: 'Match percentage',
-  places:    'Suggested places',
-  groups:    'Group meet-ups',
-  verified:  'Verified profiles',
-};
-
-const FeedbackTab = ({ rows }) => {
-  const [query, setQuery] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      [r.name, r.describe, r.confusing, r.use_when, r.missing]
-        .some(v => (v || '').toString().toLowerCase().includes(q))
-    );
-  }, [rows, query]);
-
-  // NPS-style buckets (industry: NPS uses 0-10; we use 1-10, same bands).
-  const promoters  = rows.filter(r => r.rating >= 9).length;
-  const passives   = rows.filter(r => r.rating >= 7 && r.rating <= 8).length;
-  const detractors = rows.filter(r => r.rating <= 6).length;
-
-  const avgRating = rows.length
-    ? (rows.reduce((sum, r) => sum + (r.rating || 0), 0) / rows.length)
-    : 0;
-
-  // Rating distribution split into 3 bands so each renders with its own color.
-  const ratingItems = (lo, hi) => {
-    const out = [];
-    for (let i = lo; i <= hi; i++) {
-      out.push([String(i), rows.filter(r => r.rating === i).length]);
-    }
-    return out;
-  };
-  const detractorBars = ratingItems(1, 6);
-  const passiveBars   = ratingItems(7, 8);
-  const promoterBars  = ratingItems(9, 10);
-
-  // Useful-features tally — friendly labels, fallback to raw key if unknown.
-  const usefulRaw = tally(rows, r => r.useful || []);
-  const usefulItems = usefulRaw.map(([k, n]) => [USEFUL_LABELS[k] || k, n]);
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Total feedback" value={fmt(rows.length)}/>
-        <Stat label="Average rating" value={rows.length ? avgRating.toFixed(1) : '—'} hint="out of 10"/>
-        <Stat label="Promoters" value={fmt(promoters)} hint={`${pct(promoters, rows.length)} rated 9–10`}/>
-        <Stat label="Detractors" value={fmt(detractors)} hint={`${pct(detractors, rows.length)} rated 1–6`}/>
-      </div>
-
-      <SectionTitle hint="last 30 days">Daily submissions</SectionTitle>
-      <DailyTrend rows={rows} color={C.terracotta}/>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-        <Card>
-          <SectionTitle hint="1–10 split into NPS bands">Rating distribution</SectionTitle>
-          <div className="space-y-3">
-            <div>
-              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily: 'Albert Sans', fontWeight: 700 }}>
-                Detractors · {fmt(detractors)} ({pct(detractors, rows.length)})
-              </div>
-              <BarList items={detractorBars} total={rows.length} color={C.terracotta}/>
-            </div>
-            <div>
-              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 700 }}>
-                Passives · {fmt(passives)} ({pct(passives, rows.length)})
-              </div>
-              <BarList items={passiveBars} total={rows.length} color={C.ink}/>
-            </div>
-            <div>
-              <div className="text-[10.5px] tracking-[.16em] uppercase mb-1.5" style={{ color: C.sageDark, fontFamily: 'Albert Sans', fontWeight: 700 }}>
-                Promoters · {fmt(promoters)} ({pct(promoters, rows.length)})
-              </div>
-              <BarList items={promoterBars} total={rows.length} color={C.sageDark}/>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <SectionTitle hint="up to 2 picks per response">Most useful features</SectionTitle>
-          <BarList items={usefulItems} total={rows.length} color={C.saffron}/>
-        </Card>
-      </div>
-
-      <div className="flex items-center gap-2 mt-2">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name / describe / confusing / use when / missing…"
-          className="flex-1 rounded-xl px-3 py-2 outline-none text-[13px]"
-          style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}/>
-        <button onClick={() => downloadCsv(`gomama-feedback-${new Date().toISOString().slice(0, 10)}.csv`, filtered)}
-          className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-          style={{ background: C.ink, color: C.cream, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
-          <Download size={14}/> Export CSV ({filtered.length})
-        </button>
-      </div>
-
-      <Card padding={0}>
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
-            <thead style={{ background: C.creamSoft }}>
-              <tr>
-                {['Name', 'Rating', 'Describe', 'Useful', 'Confusing', 'Use when', 'Missing', 'Submitted'].map(h => (
-                  <th key={h} className="text-left px-3 py-2" style={{
-                    color: C.inkSoft, fontWeight: 700, letterSpacing: '.04em',
-                    textTransform: 'uppercase', fontSize: 10.5, whiteSpace: 'nowrap',
-                    position: 'sticky', top: 0, background: C.creamSoft,
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, 500).map(r => {
-                const isExpanded = expandedId === r.id;
-                const ratingColor = r.rating >= 9 ? C.sageDark : (r.rating <= 6 ? C.terracotta : C.ink);
-                const truncate = (s, n = 60) => {
-                  if (!s) return '—';
-                  return s.length > n ? `${s.slice(0, n)}…` : s;
-                };
-                return (
-                  <Fragment key={r.id}>
-                    <tr
-                      onClick={() => setExpandedId(isExpanded ? null : r.id)}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={isExpanded}
-                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} feedback from ${r.name || 'unknown'}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setExpandedId(isExpanded ? null : r.id);
-                        }
-                      }}
-                      className="cursor-pointer transition-colors hover:bg-[var(--fb-row-hover)]"
-                      style={{ borderTop: `1px solid ${C.divider}`, ['--fb-row-hover']: C.creamSoft }}
-                    >
-                      <td className="px-3 py-2" style={{ color: C.ink, whiteSpace: 'nowrap', fontWeight: 600 }}>
-                        {r.name || '—'}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: ratingColor, fontWeight: 700 }}>
-                        {r.rating}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: C.ink, maxWidth: 260 }} title={r.describe || ''}>
-                        {truncate(r.describe)}
-                      </td>
-                      <td className="px-3 py-2" style={{ whiteSpace: 'nowrap' }}>
-                        {(r.useful || []).length === 0 ? (
-                          <span style={{ color: C.inkMuted }}>—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {r.useful.map((k, i) => (
-                              <span key={`${k}-${i}`}
-                                className="rounded-full px-2 py-0.5 text-[10.5px]"
-                                style={{ background: C.creamSoft, color: C.ink, fontFamily: 'Albert Sans' }}
-                              >
-                                {USEFUL_LABELS[k] || k}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.confusing || ''}>
-                        {truncate(r.confusing)}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.use_when || ''}>
-                        {truncate(r.use_when)}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: C.inkSoft, maxWidth: 220 }} title={r.missing || ''}>
-                        {truncate(r.missing)}
-                      </td>
-                      <td className="px-3 py-2" style={{ color: C.inkMuted, whiteSpace: 'nowrap' }}>
-                        {rel(r.created_at)}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr style={{ background: C.creamSoft }}>
-                        <td colSpan={8} className="px-3 py-3" style={{ borderTop: `1px solid ${C.divider}` }}>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12.5px]" style={{ fontFamily: 'Albert Sans' }}>
-                            {[
-                              { label: 'Describe',  value: r.describe },
-                              { label: 'Confusing', value: r.confusing },
-                              { label: 'Use when',  value: r.use_when },
-                              { label: 'Missing',   value: r.missing },
-                            ].map(f => (
-                              <div key={f.label}>
-                                <div className="text-[10.5px] tracking-[.16em] uppercase mb-1" style={{ color: C.inkSoft, fontWeight: 700 }}>
-                                  {f.label}
-                                </div>
-                                <div style={{ color: f.value ? C.ink : C.inkMuted, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
-                                  {f.value || '—'}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
-                  {rows.length === 0 ? 'No feedback yet. Submissions from /promo will appear here.' : 'No feedback matches that search.'}
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length > 500 && (
-          <div className="px-3 py-2 border-t text-[11.5px]" style={{ borderColor: C.divider, color: C.inkMuted, fontFamily: 'Albert Sans' }}>
-            Showing 500 of {fmt(filtered.length)}. Use Export CSV for the full set.
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
-// ============================================================================
 // Quick Actions tab — destructive operations live here, gated by typed confirm.
 // ============================================================================
-const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
+const QuickActions = ({ onReset, momsCount, momProfilesCount, placesCount, eventsCount }) => {
   const [phase, setPhase] = useState('idle'); // 'idle' | 'arming' | 'confirming' | 'running' | 'done' | 'error'
   const [confirmText, setConfirmText] = useState('');
   const [result, setResult] = useState(null);
@@ -1590,12 +1368,16 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
 
   // Seed card state — separate from the reset flow.
   const [seedPhase, setSeedPhase] = useState('idle'); // 'idle' | 'running' | 'done' | 'error'
-  const [seedOpts, setSeedOpts] = useState({ places: 50, events: 30, moms: 200, reset: true });
+  const [seedOpts, setSeedOpts] = useState({ places: 50, events: 30, moms: 1000, reset: true, resetMoms: 'all' });
   const [seedResult, setSeedResult] = useState(null);
   const [seedError, setSeedError] = useState(null);
 
   const setSeedField = (key) => (e) => {
-    const raw = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
+    const raw = e.target.type === 'checkbox'
+      ? e.target.checked
+      : e.target.type === 'number'
+        ? Number(e.target.value)
+        : e.target.value;
     setSeedOpts(o => ({ ...o, [key]: raw }));
   };
 
@@ -1650,7 +1432,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
             Run seed
           </h3>
           <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.5 }}>
-            Populates <strong>places</strong>, <strong>events</strong>, and <strong>mom_profiles</strong> with synthetic data so you can test search and matching at scale. Idempotent — places/events upsert by slug, moms by username. With <em>reset</em> on, mom_profiles where <code>source='seed'</code> are wiped first; real signups are <strong>not</strong> affected.
+            Populates <strong>places</strong>, <strong>events</strong>, and <strong>mom_profiles</strong> with synthetic Tampa Bay data so you can test search and matching at scale. Idempotent — places/events upsert by slug, moms by username. With <em>reset</em> on, the selected mom reset scope is wiped first.
           </p>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1672,9 +1454,27 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
           <label className="mt-3 flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
             <input type="checkbox" checked={seedOpts.reset} onChange={setSeedField('reset')} disabled={seedPhase === 'running'}/>
             <span className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink }}>
-              Reset (delete <code>source='seed'</code> mom_profiles first)
+              Reset mom profiles first
             </span>
           </label>
+
+          {seedOpts.reset && (
+            <label className="mt-3 flex flex-col gap-1" style={{ maxWidth: 360 }}>
+              <span className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily: 'Albert Sans', fontWeight: 600 }}>
+                Mom reset scope
+              </span>
+              <select
+                value={seedOpts.resetMoms}
+                onChange={setSeedField('resetMoms')}
+                disabled={seedPhase === 'running'}
+                className="rounded-lg px-2 py-1.5 outline-none text-[13px]"
+                style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans' }}
+              >
+                <option value="all">All mom profiles</option>
+                <option value="seed">Only source=seed</option>
+              </select>
+            </label>
+          )}
 
           <div className="mt-3 flex items-center gap-2">
             <button onClick={fireSeed} disabled={seedPhase === 'running'}
@@ -1693,7 +1493,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
               <CheckIcon size={16} style={{ color: C.sageDark, flexShrink: 0, marginTop: 1 }}/>
               <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
                 <strong>Seeded.</strong> {fmt(seedResult?.places ?? 0)} places · {fmt(seedResult?.events ?? 0)} events · {fmt(seedResult?.moms ?? 0)} mom profiles
-                {seedResult?.reset?.deleted ? <> (reset deleted {fmt(seedResult.reset.deleted)})</> : null}.
+                {seedResult?.reset?.deleted ? <> (reset {seedResult.reset.scope || 'seed'} deleted {fmt(seedResult.reset.deleted)})</> : null}.
                 <button onClick={dismissSeed} className="ml-2 underline" style={{ color: C.sageDark, background: 'transparent', border: 'none', cursor: 'pointer' }}>
                   Dismiss
                 </button>
@@ -1729,7 +1529,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
             Reset database
           </h3>
           <p className="mt-1 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft, lineHeight: 1.5 }}>
-            Truncates every row in <strong>onboarding_profiles</strong> ({fmt(momsCount)} mom{momsCount === 1 ? '' : 's'}) and <strong>waitlist_signups</strong> ({fmt(waitlistCount)} signup{waitlistCount === 1 ? '' : 's'}).
+            Truncates every row in <strong>events</strong> ({fmt(eventsCount)}), <strong>places</strong> ({fmt(placesCount)}), <strong>mom_profiles</strong> ({fmt(momProfilesCount)}), and <strong>onboarding_profiles</strong> ({fmt(momsCount)}).
             <br/>
             <strong style={{ color: C.terracotta }}>This cannot be undone.</strong> Auth users in Supabase Auth are NOT deleted.
           </p>
@@ -1780,7 +1580,7 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
             <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: `${C.sageDark}15`, border: `1px solid ${C.sageDark}` }}>
               <CheckIcon size={16} style={{ color: C.sageDark, flexShrink: 0, marginTop: 1 }}/>
               <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
-                <strong>Database reset.</strong> Deleted {fmt(result?.onboarding_profiles?.deleted ?? 0)} mom profile{result?.onboarding_profiles?.deleted === 1 ? '' : 's'} and {fmt(result?.waitlist_signups?.deleted ?? 0)} waitlist signup{result?.waitlist_signups?.deleted === 1 ? '' : 's'}. Dashboard reloaded.
+                <strong>Database reset.</strong> Deleted {fmt(result?.events?.deleted ?? 0)} event{result?.events?.deleted === 1 ? '' : 's'}, {fmt(result?.places?.deleted ?? 0)} place{result?.places?.deleted === 1 ? '' : 's'}, {fmt(result?.mom_profiles?.deleted ?? 0)} mom profile{result?.mom_profiles?.deleted === 1 ? '' : 's'}, and {fmt(result?.onboarding_profiles?.deleted ?? 0)} onboarding profile{result?.onboarding_profiles?.deleted === 1 ? '' : 's'}. Dashboard reloaded.
                 <button onClick={cancel} className="ml-2 underline" style={{ color: C.sageDark, background: 'transparent', border: 'none', cursor: 'pointer' }}>
                   Dismiss
                 </button>
@@ -1811,11 +1611,10 @@ const QuickActions = ({ onReset, momsCount, waitlistCount }) => {
 export const AdminPage = () => {
   const [tab, setTab] = useState('overview');
   const [moms, setMoms] = useState(null);
-  const [waitlist, setWaitlist] = useState(null);
   const [momProfiles, setMomProfiles] = useState(null);
   const [places, setPlaces] = useState(null);
   const [events, setEvents] = useState(null);
-  const [feedback, setFeedback] = useState(null);
+  const [sources, setSources] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [authed, setAuthed] = useState(() => !!getAdminToken());
@@ -1823,7 +1622,7 @@ export const AdminPage = () => {
   const signOut = () => {
     clearAdminToken();
     setAuthed(false);
-    setMoms(null); setWaitlist(null); setMomProfiles(null); setPlaces(null); setFeedback(null); setEvents(null);
+    setMoms(null); setMomProfiles(null); setPlaces(null); setEvents(null); setSources(null);
   };
 
   // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
@@ -1863,20 +1662,18 @@ export const AdminPage = () => {
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const [a, b, c, d, e, f] = await Promise.all([
+      const [a, b, c, d, g] = await Promise.all([
         fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
-        fetchEndpoint('/api/admin/waitlist',     'Waitlist'),
         fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
         fetchEndpoint('/api/admin/places',       'Places'),
-        fetchEndpoint('/api/admin/feedback',     'Feedback'),
         fetchEndpoint('/api/admin/events',       'Events'),
+        fetchEndpoint('/api/admin/sources',      'Sources'),
       ]);
       setMoms(a.rows || []);
-      setWaitlist(b.rows || []);
-      setMomProfiles(c.rows || []);
-      setPlaces(d.rows || []);
-      setFeedback(e.rows || []);
-      setEvents(f.rows || []);
+      setMomProfiles(b.rows || []);
+      setPlaces(c.rows || []);
+      setEvents(d.rows || []);
+      setSources(g.rows || []);
     } catch (e) {
       setError(e?.message || 'Could not load data');
     } finally {
@@ -1905,7 +1702,7 @@ export const AdminPage = () => {
               Go Mama · Admin
             </h1>
             <div className="text-[11px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
-              Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} onboardings · ${momProfiles?.length || 0} mom profiles · ${waitlist?.length || 0} waitlist` : ''}
+              Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} onboardings · ${momProfiles?.length || 0} mom profiles · ${places?.length || 0} places · ${events?.length || 0} events` : ''}
             </div>
           </div>
           <a href="/" target="_blank" rel="noopener noreferrer"
@@ -1929,11 +1726,10 @@ export const AdminPage = () => {
             { id: 'overview',     icon: BarChart3,     label: 'Overview' },
             { id: 'onboarding',   icon: ListChecks,    label: 'Onboarding' },
             { id: 'mom-profiles', icon: Users,         label: 'Mom profiles' },
-            { id: 'waitlist',     icon: ListChecks,    label: 'Waitlist' },
-            { id: 'feedback',     icon: MessageSquare, label: 'Feedback' },
             { id: 'places',       icon: MapPin,        label: 'Places' },
             { id: 'events',       icon: Calendar,      label: 'Events' },
             { id: 'ingestion',    icon: Server,        label: 'Ingestion' },
+            { id: 'sources',      icon: Database,      label: 'Sources' },
             { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
@@ -1968,7 +1764,7 @@ export const AdminPage = () => {
           </div>
         )}
 
-        {!moms || !waitlist || !momProfiles || !places || !feedback ? (
+        {!moms || !momProfiles || !places || !events ? (
           <div className="rounded-2xl p-8 text-center" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
             <RefreshCw size={20} className="mx-auto mb-2" style={{ color: C.inkSoft, animation: loading ? 'spin 1s linear infinite' : 'none' }}/>
             <div className="text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
@@ -1977,15 +1773,14 @@ export const AdminPage = () => {
           </div>
         ) : (
           <>
-            {tab === 'overview'     && <Overview moms={moms} waitlist={waitlist}/>}
+            {tab === 'overview'     && <Overview moms={moms} momProfiles={momProfiles} places={places} events={events}/>}
             {tab === 'onboarding'   && <MomsReport rows={moms} momProfiles={momProfiles}/>}
             {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
-            {tab === 'waitlist'     && <WaitlistTable rows={waitlist}/>}
-            {tab === 'feedback'     && <FeedbackTab rows={feedback}/>}
             {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'ingestion'    && <IngestionManager adminFetch={adminFetch} />}
-            {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
+            {tab === 'sources'      && <SourcesManager rows={sources || []} adminFetch={adminFetch} onReload={load} />}
+            {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} momProfilesCount={momProfiles.length} placesCount={places.length} eventsCount={events.length}/>}
           </>
         )}
       </div>
