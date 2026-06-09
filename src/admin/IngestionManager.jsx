@@ -2,14 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { C } from '../theme';
 import { Play, RefreshCw, Server } from 'lucide-react';
 
-const SOURCES = {
-  places: [{ id: 'google-places-tampa', label: 'Google Places — Tampa' }],
-  events: [
-    { id: 'place-websites', label: 'Place websites (scrape approved places)' },
-    { id: 'eventbrite-tampa-family', label: 'Eventbrite — personal account' },
-  ],
-};
-
 const STATUS_COLOR = (s) => ({
   queued: C.inkMuted, running: C.saffron, succeeded: C.sageDark,
   partial: C.saffron, failed: C.terracotta, canceled: C.inkMuted,
@@ -17,10 +9,35 @@ const STATUS_COLOR = (s) => ({
 
 export const IngestionManager = ({ adminFetch }) => {
   const [kind, setKind] = useState('events');
-  const [sourceId, setSourceId] = useState('place-websites');
+  const [sourceId, setSourceId] = useState('');
   const [limit, setLimit] = useState(10);
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState([]);
+  const [sourceList, setSourceList] = useState({ places: [], events: [] });
+
+  // Load the enabled sources from the DB once, grouped by kind. The Type/Source
+  // selects below read from this; defaults to the first events source available.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await adminFetch('/api/admin/sources');
+        const b = await r.json().catch(() => ({}));
+        if (!r.ok || cancelled) return;
+        const grouped = { places: [], events: [] };
+        (b.rows || []).filter(s => s.enabled).forEach(s => {
+          if (grouped[s.kind]) grouped[s.kind].push({ id: s.id, label: s.name });
+        });
+        setSourceList(grouped);
+        const first = grouped.events[0] || grouped.places[0];
+        if (first) {
+          setKind(grouped.events.length ? 'events' : 'places');
+          setSourceId(first.id);
+        }
+      } catch { /* ignore load errors */ }
+    })();
+    return () => { cancelled = true; };
+  }, [adminFetch]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -36,7 +53,7 @@ export const IngestionManager = ({ adminFetch }) => {
     return () => clearInterval(t);
   }, [loadJobs]);
 
-  const onKind = (k) => { setKind(k); setSourceId(SOURCES[k][0].id); };
+  const onKind = (k) => { setKind(k); setSourceId(sourceList[k][0]?.id || ''); };
 
   const launch = async () => {
     setBusy(true);
@@ -70,17 +87,19 @@ export const IngestionManager = ({ adminFetch }) => {
             </select>
           </label>
           <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft }}>Source
-            <select value={sourceId} onChange={e => setSourceId(e.target.value)}
+            <select value={sourceId} onChange={e => setSourceId(e.target.value)} disabled={!sourceList[kind].length}
               style={{ display: 'block', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, minWidth: 240 }}>
-              {SOURCES[kind].map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {sourceList[kind].length === 0
+                ? <option value="">no sources</option>
+                : sourceList[kind].map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>
           <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft }}>Limit
             <input type="number" value={limit} min={1} onChange={e => setLimit(e.target.value)}
               style={{ display: 'block', width: 80, border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13 }} />
           </label>
-          <button disabled={busy} onClick={launch}
-            style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button disabled={busy || !sourceId} onClick={launch}
+            style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: (busy || !sourceId) ? 0.6 : 1 }}>
             <Play size={14} /> {busy ? 'Launching…' : 'Launch'}
           </button>
         </div>
