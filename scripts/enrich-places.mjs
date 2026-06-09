@@ -4,7 +4,7 @@
 // good_for/age_min/age_max/amenities via Claude).
 //
 // Usage:
-//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ANTHROPIC_API_KEY=... \
+//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... \
 //   node scripts/enrich-places.mjs --dry-run --limit 3
 //   node scripts/enrich-places.mjs --limit 80          # live write
 //   node scripts/enrich-places.mjs --overwrite         # re-enrich all fields
@@ -20,9 +20,9 @@ const model = val('--model', process.env.ENRICH_MODEL || DEFAULT_MODEL);
 const env = {
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 };
-if (!env.ANTHROPIC_API_KEY) { console.error('Missing ANTHROPIC_API_KEY'); process.exit(1); }
+if (!env.OPENAI_API_KEY) { console.error('Missing OPENAI_API_KEY'); process.exit(1); }
 if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (needed to read + write places)');
   process.exit(1);

@@ -6,12 +6,12 @@
 // Mirrors the seed.js service-role write pattern. Only fills EMPTY fields by
 // default (never clobbers curated/admin edits) unless `overwrite` is set.
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { nearestArea } from '../../../src/lib/places.js';
 
-// You chose Haiku in the enrichment prompt; bulk structured extraction is a
-// good fit for it. Override with --model / ENRICH_MODEL if you want Opus/Sonnet.
-export const DEFAULT_MODEL = 'claude-haiku-4-5';
+// OpenAI model for the qualitative fields. gpt-4o-mini is cheap and supports
+// JSON-schema structured outputs. Override with --model / ENRICH_MODEL.
+export const DEFAULT_MODEL = 'gpt-4o-mini';
 
 // ---------------------------------------------------------------- deterministic
 
@@ -86,16 +86,20 @@ export const toEnrichPatch = (out) => ({
   amenities: out.amenities && typeof out.amenities === 'object' ? out.amenities : {},
 });
 
-// One Claude call → enrichment fields (no DB write). Pure-ish: takes the client.
-export const enrichOne = async (anthropic, place, model = DEFAULT_MODEL) => {
-  const res = await anthropic.messages.create({
+// One OpenAI call → enrichment fields (no DB write). Takes the client so the
+// network dependency stays injectable/testable.
+export const enrichOne = async (openai, place, model = DEFAULT_MODEL) => {
+  const res = await openai.chat.completions.create({
     model,
-    max_tokens: 1024,
-    output_config: { format: { type: 'json_schema', schema: ENRICH_SCHEMA } },
     messages: [{ role: 'user', content: buildPrompt(place) }],
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: 'place_enrichment', strict: true, schema: ENRICH_SCHEMA },
+    },
   });
-  const text = res.content.find(b => b.type === 'text')?.text || '{}';
-  return toEnrichPatch(JSON.parse(text));
+  const msg = res.choices?.[0]?.message;
+  if (msg?.refusal) throw new Error(`model refused: ${msg.refusal}`);
+  return toEnrichPatch(JSON.parse(msg?.content || '{}'));
 };
 
 // ----------------------------------------------------------------- orchestrator
@@ -120,10 +124,10 @@ const isEmptyObj = (v) => !v || typeof v !== 'object' || Object.keys(v).length =
 
 // Run enrichment. dryRun => generate + report, no writes.
 export async function runEnrich({ env, limit = null, dryRun = false, overwrite = false, model = DEFAULT_MODEL, logger = console }) {
-  if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
+  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE creds not set');
 
-  const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const sb = makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   const places = await loadPlacesToEnrich(sb, limit);
@@ -142,7 +146,7 @@ export async function runEnrich({ env, limit = null, dryRun = false, overwrite =
       const needsAI = overwrite || !p.description || isEmptyArr(p.tags) ||
         isEmptyArr(p.good_for) || p.age_min == null || p.age_max == null || isEmptyObj(p.amenities);
       if (needsAI) {
-        const ai = await enrichOne(anthropic, p, model);
+        const ai = await enrichOne(openai, p, model);
         counts.aiCalls++;
         if (overwrite || !p.description) patch.description = ai.description;
         if (overwrite || isEmptyArr(p.tags)) patch.tags = ai.tags;
