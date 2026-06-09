@@ -19,12 +19,10 @@ export const NeighborhoodPicker = ({ value, onSelect }) => {
   }, [query]);
 
   useEffect(() => {
-    if (open) {
-      setResults(POPULAR_AREAS);
-      setTimeout(() => inputRef.current?.focus(), 80);
-    } else {
-      setQuery('');
-    }
+    if (!open) { setQuery(''); return; }
+    setResults(POPULAR_AREAS);
+    const id = setTimeout(() => inputRef.current?.focus(), 80);
+    return () => clearTimeout(id);
   }, [open]);
 
   const pick = (entry) => {
@@ -39,6 +37,8 @@ export const NeighborhoodPicker = ({ value, onSelect }) => {
       {/* Closed field — select-styled */}
       <button
         onClick={() => setOpen(true)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="w-full flex items-center justify-between active:scale-[.99] transition-transform"
         style={{
           background: '#fff',
@@ -122,7 +122,7 @@ export const NeighborhoodPicker = ({ value, onSelect }) => {
                         gap: 11, padding: '11px 8px', cursor: 'pointer',
                         background: active ? C.coralSoft : 'transparent',
                         border: 'none', borderRadius: 10, textAlign: 'left',
-                        borderBottom: `1px solid ${C.line}`,
+                        borderBottom: a.id === results[results.length - 1].id ? 'none' : `1px solid ${C.line}`,
                       }}
                     >
                       <MapPin size={15} color={active ? C.coral : C.muted} style={{ flexShrink: 0 }} />
