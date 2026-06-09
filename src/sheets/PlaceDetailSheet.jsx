@@ -54,6 +54,7 @@ export const PlaceDetailSheet = ({
   onClose,
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(0);
   if (!place) return null;
 
   const kind = place.kind || 'Place';
@@ -78,7 +79,14 @@ export const PlaceDetailSheet = ({
         {/* Hero — swipeable photo carousel, or a tinted icon panel */}
         <div className="relative" style={{ height: 240 }}>
           {hasPhotos ? (
-            <div className="flex h-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}>
+            <div
+              className="flex h-full overflow-x-auto"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                if (el.clientWidth) setActivePhoto(Math.round(el.scrollLeft / el.clientWidth));
+              }}
+              style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
+            >
               {photos.map((src, i) => (
                 <div key={i} style={{
                   flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start',
@@ -113,17 +121,21 @@ export const PlaceDetailSheet = ({
             <ChevronLeft size={18} color={C.navy}/>
           </button>
 
+          {/* Page dots — active one elongates; cues that more photos exist */}
           {photos.length > 1 && (
-            <div className="absolute" style={{
-              top: 16, right: 16, background: 'rgba(0,0,0,.55)', color: '#fff',
-              borderRadius: 999, padding: '3px 10px',
-              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-            }}>
-              {photos.length} photos
+            <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ bottom: 12, gap: 5 }}>
+              {photos.map((_, i) => (
+                <span key={i} style={{
+                  height: 6, width: i === activePhoto ? 16 : 6, borderRadius: 999,
+                  background: i === activePhoto ? '#fff' : 'rgba(255,255,255,.55)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,.45)',
+                  transition: 'width .25s ease, background .25s ease',
+                }}/>
+              ))}
             </div>
           )}
 
-          <div className="absolute left-5 right-5 bottom-4" style={{ color: hasPhotos ? '#fff' : C.navy }}>
+          <div className="absolute left-5 right-5" style={{ color: hasPhotos ? '#fff' : C.navy, bottom: photos.length > 1 ? 24 : 16 }}>
             <div className="text-[10.5px] tracking-[.18em] uppercase opacity-95" style={{
               fontFamily: 'Albert Sans', fontWeight: 700,
             }}>
