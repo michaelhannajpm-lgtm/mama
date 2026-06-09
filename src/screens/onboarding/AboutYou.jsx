@@ -5,6 +5,8 @@ import { StatusBar } from '../../components/StatusBar';
 import { SUGGESTED_EVENTS } from '../../data/events';
 import { PLACES } from '../../data/places';
 import { SAMPLE_MOMS } from '../../data/moms';
+import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
+import { nearestArea } from '../../lib/places.js';
 
 // ==========================================================================
 // AboutYou — onboarding screen 2, structured as a 3-step visual carousel:
@@ -262,17 +264,23 @@ const PreviewBanner = ({ title, items, snippet, hint }) => (
   </div>
 );
 
-export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance }) => {
+export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance, locationGeo, setLocationGeo }) => {
   const inputRef = useRef(null);
   const [geoStatus, setGeoStatus] = useState('idle'); // idle | detecting | ok | denied | unsupported
   const [step, setStep] = useState(1); // carousel: 1..3
+
+  // Unifies manual picks and GPS into one structured selection.
+  const handleAreaSelect = (entry) => {
+    setLocation(entry.label);
+    setLocationGeo(entry);
+  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) { setGeoStatus('unsupported'); return; }
     setGeoStatus('detecting');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocation(nearestBucket(pos.coords.latitude, pos.coords.longitude));
+        handleAreaSelect(nearestArea(pos.coords.latitude, pos.coords.longitude));
         setGeoStatus('ok');
         inputRef.current?.blur();
       },
@@ -477,35 +485,9 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               <div style={{ flex: 1, height: 1, background: C.line }}/>
             </div>
 
-            {/* 3 × 2 area grid — uniform chips */}
-            <div className="grid grid-cols-2" style={{ marginTop: 16, gap: 10 }}>
-              {AREA_BUCKETS.map((area) => {
-                const active = location === area.label;
-                return (
-                  <button
-                    key={area.label}
-                    onClick={() => setLocation(area.label)}
-                    className="rounded-2xl flex items-center justify-center active:scale-[.98] transition-transform"
-                    style={{
-                      padding: '14px 10px',
-                      background: active ? C.coralSoft : '#FAF1E2',
-                      border: `1.5px solid ${active ? C.coral : '#EFE3D0'}`,
-                      cursor: 'pointer',
-                      minHeight: 58,
-                      boxShadow: active
-                        ? '0 6px 14px -8px rgba(214,68,106,.3)'
-                        : '0 1px 2px rgba(27,42,78,.04)',
-                    }}
-                  >
-                    <span style={{
-                      fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-                      color: C.navy, textAlign: 'center', lineHeight: 1.2,
-                    }}>
-                      {area.label}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* Searchable neighborhood picker */}
+            <div style={{ marginTop: 16 }}>
+              <NeighborhoodPicker value={locationGeo} onSelect={handleAreaSelect} />
             </div>
           </div>
 
