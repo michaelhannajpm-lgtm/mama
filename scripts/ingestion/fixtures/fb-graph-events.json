@@ -1,0 +1,7 @@
+{ "data": [
+  { "id": "999", "name": "Preschool Play Date",
+    "description": "Open play for under-5s",
+    "start_time": "2026-06-14T15:00:00-0400",
+    "end_time": "2026-06-14T17:00:00-0400",
+    "place": { "name": "Riverfront Park", "location": { "city": "Tampa", "state": "FL", "latitude": 27.95, "longitude": -82.46 } } }
+] }
