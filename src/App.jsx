@@ -364,7 +364,7 @@ function PrototypeApp({ bare = false }) {
             places={placesData}
             events={eventsData}
             thisWeek={thisWeekData}
-            locationGeo={locationGeo}
+            locationGeo={locationGeo} setLocationGeo={setLocationGeo}
             placesRadius={effectivePlacesRadius} setPlacesRadius={changePlacesRadius}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}

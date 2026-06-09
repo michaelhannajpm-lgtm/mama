@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift,
+  MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, Check, X,
   User as UserIcon, LogOut, BadgeCheck, ShieldCheck, Camera, Link2,
   Instagram, Facebook,
 } from 'lucide-react';
@@ -8,6 +8,8 @@ import { C } from '../../theme';
 import { EditProfileSheet } from '../../sheets/EditProfileSheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
 import { ToggleSettingsSheet } from '../../sheets/ToggleSettingsSheet';
+import { LocationSheet } from '../../sheets/LocationSheet';
+import { KidsSheet } from '../../sheets/KidsSheet';
 import { signOut as signOutSession, updateMomProfile } from '../../lib/onboarding';
 import { linkFacebook, linkInstagram, getLinkedProviders, computeVerified } from '../../lib/social-verify';
 
@@ -88,19 +90,35 @@ const SocialRow = ({ Icon, name, handle, linked, onConnect }) => (
         {linked ? (handle || 'Connected') : 'Tap to connect'}
       </div>
     </div>
-    {linked
-      ? <BadgeCheck size={16} color={C.sageDark}/>
-      : <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, color: C.coralDeep }}>Connect</span>}
+    {linked ? (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+        background: `${C.sageDark}1A`, color: C.sageDark, borderRadius: 999,
+        padding: '5px 11px', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
+      }}>
+        <BadgeCheck size={13}/> Linked
+      </span>
+    ) : (
+      <span style={{
+        flexShrink: 0, background: C.coral, color: '#fff', borderRadius: 999,
+        padding: '6px 15px', fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+        boxShadow: '0 3px 8px -4px rgba(214,68,106,.6)',
+      }}>
+        Connect
+      </span>
+    )}
   </button>
 );
 
 export const YouTab = ({
   profile, setProfile, account,
-  location, setLocation, distance, setDistance,
+  location, setLocation, locationGeo, setLocationGeo, distance, setDistance,
   openPlans, restart, flash,
 }) => {
   const [editOpen, setEditOpen] = useState(false);
-  const [sheet, setSheet] = useState(null); // 'prefs' | 'notif' | 'priv' | null
+  const [sheet, setSheet] = useState(null); // 'prefs'|'notif'|'priv'|'location'|'kids'|null
+  const [bioEditing, setBioEditing] = useState(false);
+  const [bioDraft, setBioDraft] = useState('');
 
   const fullName = account?.firstName
     ? `${account.firstName}${account.lastName ? ' ' + account.lastName : ''}`
@@ -122,12 +140,31 @@ export const YouTab = ({
     if ('momTypes' in localPatch)    api.mom_types = localPatch.momTypes;
     if ('values' in localPatch)      api.values = localPatch.values;
     if ('interests' in localPatch)   api.interests = localPatch.interests;
+    if ('kidsAges' in localPatch)    api.kids_ages = localPatch.kidsAges;
     if ('bio' in localPatch)         api.bio = localPatch.bio;
     if ('settings' in localPatch)    api.settings = localPatch.settings;
     if ('socialLinks' in localPatch) api.social_links = localPatch.socialLinks;
     if ('verifiedFlag' in localPatch) api.verified = localPatch.verifiedFlag;
     if (Object.keys(api).length) { try { await updateMomProfile(api); } catch { /* best-effort */ } }
   };
+
+  // Location lives in app-level state (not the profile object); persist the
+  // geo + travel radius separately.
+  const saveLocation = async ({ location: loc, locationGeo: geo, distance: dist }) => {
+    setLocation?.(loc);
+    setLocationGeo?.(geo || null);
+    setDistance?.(dist);
+    const api = { distance_miles: dist };
+    if (geo) {
+      if (geo.neighborhood || geo.label) api.neighborhood = geo.neighborhood || geo.label;
+      if (geo.city) api.city = geo.city;
+      if (geo.lat != null) api.home_lat = geo.lat;
+      if (geo.lng != null) api.home_lng = geo.lng;
+    }
+    try { await updateMomProfile(api); } catch { /* best-effort */ }
+  };
+
+  const saveBio = () => { saveProfile({ bio: bioDraft.trim() }); setBioEditing(false); };
 
   const linkSocial = (network, handle) => {
     const nextSocial = { ...socialLinks, [network]: handle };
@@ -184,7 +221,7 @@ export const YouTab = ({
         background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16,
         padding: 14, display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
           {primaryPhoto ? (
             <img src={primaryPhoto} alt="" style={{ width: 64, height: 64, borderRadius: 32, objectFit: 'cover' }}/>
           ) : (
@@ -193,6 +230,14 @@ export const YouTab = ({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}><UserIcon size={28}/></div>
           )}
+          <button onClick={() => setEditOpen(true)} aria-label="Change photo" style={{
+            position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12,
+            background: C.coral, color: '#fff', border: '2px solid #fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 6px -2px rgba(0,0,0,.35)',
+          }}>
+            <Camera size={12}/>
+          </button>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center gap-1.5" style={{ flexWrap: 'wrap' }}>
@@ -215,16 +260,6 @@ export const YouTab = ({
           }}>
             {kidsCount ? `Mom of ${kidsCount} · ` : ''}<MapPin size={11} color={C.muted}/> {cityLabel}
           </div>
-          <button
-            onClick={() => setEditOpen(true)}
-            style={{
-              marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
-              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            <Pencil size={11}/> Edit profile
-          </button>
         </div>
       </div>
 
@@ -236,14 +271,40 @@ export const YouTab = ({
           <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700 }}>
             About me
           </div>
-          <button onClick={() => setEditOpen(true)} style={{
-            background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
-            fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-          }}>Edit</button>
+          {!bioEditing && (
+            <button onClick={() => { setBioDraft(profile?.bio || ''); setBioEditing(true); }} style={{
+              background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
+              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            }}>Edit</button>
+          )}
         </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, lineHeight: 1.5, color: profile?.bio ? C.navySoft : C.muted }}>
-          {profile?.bio || 'Add a short bio so other moms get to know you.'}
-        </div>
+        {bioEditing ? (
+          <>
+            <textarea
+              value={bioDraft} onChange={e => setBioDraft(e.target.value)} rows={3} maxLength={280} autoFocus
+              placeholder="Add a short bio so other moms get to know you."
+              style={{
+                width: '100%', resize: 'none', border: `1px solid ${C.divider}`, borderRadius: 12,
+                padding: 10, fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navy, outline: 'none', lineHeight: 1.5,
+              }}
+            />
+            <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
+              <button onClick={saveBio} className="inline-flex items-center gap-1" style={{
+                background: C.coral, color: '#fff', border: 'none', borderRadius: 999,
+                padding: '6px 14px', fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+              }}><Check size={12}/> Save</button>
+              <button onClick={() => setBioEditing(false)} className="inline-flex items-center gap-1" style={{
+                background: 'transparent', color: C.muted, border: 'none', padding: '6px 4px',
+                fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+              }}><X size={12}/> Cancel</button>
+            </div>
+          </>
+        ) : (
+          <div onClick={() => { setBioDraft(profile?.bio || ''); setBioEditing(true); }}
+            style={{ fontFamily: 'Albert Sans', fontSize: 12.5, lineHeight: 1.5, cursor: 'pointer', color: profile?.bio ? C.navySoft : C.muted }}>
+            {profile?.bio || 'Add a short bio so other moms get to know you.'}
+          </div>
+        )}
         {(igLinked || fbLinked) && (
           <div className="flex gap-1.5" style={{ marginTop: 10, flexWrap: 'wrap' }}>
             {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone="#5E4A8A">{socialLinks.instagram}</StatPill>}
@@ -306,6 +367,10 @@ export const YouTab = ({
           <SettingsRow Icon={Heart} iconBg={C.coralSoft} iconFg={C.coralDeep}
             label="Interests & Preferences" sub="Update what matters to you" onClick={() => setSheet('prefs')}/>
         </div>
+        <SettingsRow Icon={MapPin} iconBg={C.peach} iconFg={C.coralDeep}
+          label="Location" sub={location ? `${cityLabel} · ${distance ?? 5} mi` : 'Set your neighborhood & radius'} onClick={() => setSheet('location')}/>
+        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
+          label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'} onClick={() => setSheet('kids')}/>
         <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
           label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
         <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
@@ -378,6 +443,16 @@ export const YouTab = ({
         items={PRIVACY_ITEMS}
         values={profile?.settings?.privacy || {}}
         onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), privacy: next } })}
+        onClose={() => setSheet(null)}/>}
+
+      {sheet === 'location' && <LocationSheet
+        location={location} locationGeo={locationGeo} distance={distance}
+        onSave={saveLocation}
+        onClose={() => setSheet(null)}/>}
+
+      {sheet === 'kids' && <KidsSheet
+        profile={profile}
+        onSave={(patch) => saveProfile(patch)}
         onClose={() => setSheet(null)}/>}
     </div>
   );

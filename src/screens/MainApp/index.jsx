@@ -47,7 +47,7 @@ const HEADER_LABELS = {
 export const MainApp = ({
   places,
   events, thisWeek,
-  locationGeo,
+  locationGeo, setLocationGeo,
   placesRadius = 50, setPlacesRadius,
   profile, setProfile, prefs, setPrefs,
   location, setLocation, distance, setDistance,
@@ -167,6 +167,7 @@ export const MainApp = ({
         profile={profile} setProfile={setProfile}
         account={account}
         location={location} setLocation={setLocation}
+        locationGeo={locationGeo} setLocationGeo={setLocationGeo}
         distance={distance} setDistance={setDistance}
         openPlans={() => setVillageOpen(true)}
         restart={restart} flash={flash}/>}
