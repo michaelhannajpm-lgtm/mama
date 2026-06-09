@@ -385,3 +385,40 @@ export const SOURCES = [
 ];
 
 export const getSource = (id) => SOURCES.find(s => s.id === id) || null;
+
+// ----------------------------------------------------------------- event sources
+export const EVENT_SOURCES = [
+  {
+    id: 'eventbrite-tampa-family', name: 'Eventbrite — Tampa family', type: 'eventbrite',
+    city: 'Tampa, FL', county: 'Hillsborough', enabled: true, cadenceHours: 24, parserVersion: 'v1',
+    queries: [
+      { q: 'kids', type: 'class' }, { q: 'toddler', type: 'playgroup' },
+      { q: 'storytime', type: 'storytime' }, { q: 'family camp', type: 'camp' },
+      { q: 'parenting', type: 'parenting-class' }, { q: 'preschool', type: 'class' },
+    ],
+  },
+  {
+    id: 'hcplc-library-ics', name: 'Tampa-Hillsborough Library calendar', type: 'ics',
+    city: 'Tampa, FL', county: 'Hillsborough', enabled: false, cadenceHours: 24, parserVersion: 'v1',
+    url: '', defaultType: 'library-program',
+    notes: 'Set url to the public .ics feed for library storytimes before enabling.',
+  },
+  {
+    id: 'glazer-museum-jsonld', name: "Glazer Children's Museum events", type: 'json_ld',
+    city: 'Tampa, FL', county: 'Hillsborough', enabled: false, cadenceHours: 24, parserVersion: 'v1',
+    url: 'https://glazermuseum.org/events/', defaultType: 'museum-program',
+    notes: 'Verify the events page exposes schema.org Event JSON-LD before enabling.',
+  },
+  {
+    id: 'place-websites', name: 'Place websites — event discovery', type: 'place_website',
+    city: 'Tampa, FL', county: 'Hillsborough', enabled: true, cadenceHours: 72, parserVersion: 'v1',
+    notes: 'Iterates over DB places with a website; default scans approved places.',
+  },
+  {
+    id: 'fb-graph-tampa-venues', name: 'Facebook Graph — Tampa venues', type: 'facebook_graph',
+    city: 'Tampa, FL', county: 'Hillsborough', enabled: false, cadenceHours: 24, parserVersion: 'v1',
+    notes: 'Needs an approved Meta app + page tokens; run when META_GRAPH_TOKEN present.',
+  },
+];
+
+export const getEventSource = (id) => EVENT_SOURCES.find(s => s.id === id) || null;
