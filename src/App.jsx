@@ -33,6 +33,7 @@ import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
+import { resolveArea } from './lib/places.js';
 
 // ====================================================================
 // ROOT
@@ -48,6 +49,7 @@ function PrototypeApp({ bare = false }) {
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
   const [location, setLocation] = useState('');
   const [distance, setDistance] = useState(null);
+  const [locationGeo, setLocationGeo] = useState(null); // { id,label,city,neighborhood,county,lat,lng }
   const [prefs, setPrefs] = useState({ slots:[], places:[] });
   const [savedItems, setSavedItems] = useState([]); // ids of bookmarked meetups + places (Favorites)
   const [scheduleMom, setScheduleMom] = useState(null);
@@ -96,6 +98,9 @@ function PrototypeApp({ bare = false }) {
           places: result.prefs.places || [],
         });
         if (result.location) setLocation(result.location);
+        if (result.locationGeo?.id) {
+          setLocationGeo(resolveArea(result.locationGeo.id) || result.locationGeo);
+        }
         if (result.distance != null) setDistance(result.distance);
         setAccount({
           firstName: result.first_name,
@@ -133,6 +138,7 @@ function PrototypeApp({ bare = false }) {
     setProfile({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
     setLocation('');
     setDistance(null);
+    setLocationGeo(null);
     setPrefs({ slots:[], places:[] });
     setSavedItems([]);
     setAccount(null);
@@ -213,6 +219,12 @@ function PrototypeApp({ bare = false }) {
             onNext={()=>advance(0, {
               location,
               distance_miles: distance,
+              location_place_id:     locationGeo?.id ?? null,
+              location_city:         locationGeo?.city ?? null,
+              location_neighborhood: locationGeo?.neighborhood ?? null,
+              location_county:       locationGeo?.county ?? null,
+              location_lat:          locationGeo?.lat ?? null,
+              location_lng:          locationGeo?.lng ?? null,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
             })}
@@ -220,6 +232,7 @@ function PrototypeApp({ bare = false }) {
             profile={profile} setProfile={setProfile}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
+            locationGeo={locationGeo} setLocationGeo={setLocationGeo}
           />}
           {step===1 && <VillagePreview
             onNext={()=>advance(1, {})}

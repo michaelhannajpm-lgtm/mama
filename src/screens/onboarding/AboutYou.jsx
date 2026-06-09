@@ -5,6 +5,8 @@ import { StatusBar } from '../../components/StatusBar';
 import { SUGGESTED_EVENTS } from '../../data/events';
 import { PLACES } from '../../data/places';
 import { SAMPLE_MOMS } from '../../data/moms';
+import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
+import { nearestArea } from '../../lib/places.js';
 
 // ==========================================================================
 // AboutYou — onboarding screen 2, structured as a 3-step visual carousel:
@@ -13,15 +15,6 @@ import { SAMPLE_MOMS } from '../../data/moms';
 // dynamic preview banner that mirrors the Landing promise — events, places,
 // support and moms — recomputed live as the user makes selections.
 // ==========================================================================
-
-const AREA_BUCKETS = [
-  { label: 'South Tampa',                lat: 27.90, lng: -82.49 },
-  { label: 'Westchase & West Tampa',     lat: 28.05, lng: -82.58 },
-  { label: 'North Tampa & Wesley Chapel', lat: 28.24, lng: -82.36 },
-  { label: 'Brandon & Riverview',        lat: 27.90, lng: -82.30 },
-  { label: 'St. Pete & Clearwater',      lat: 27.87, lng: -82.72 },
-  { label: 'Apollo Beach & Ruskin',      lat: 27.77, lng: -82.40 },
-];
 
 const DISTANCE_STOPS = [1, 3, 5, 10, 15, 25];
 const DEFAULT_DISTANCE = 5;
@@ -80,15 +73,6 @@ const momYearsFromKidsStr = (s = '') => {
     out.push(months >= 12 ? 1 : 0);
   });
   return out;
-};
-
-const nearestBucket = (lat, lng) => {
-  let best = AREA_BUCKETS[0], bestD = Infinity;
-  for (const a of AREA_BUCKETS) {
-    const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
-    if (d < bestD) { bestD = d; best = a; }
-  }
-  return best.label;
 };
 
 // Carousel progress banner — back button + full-width 3-segment bar.
@@ -262,17 +246,23 @@ const PreviewBanner = ({ title, items, snippet, hint }) => (
   </div>
 );
 
-export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance }) => {
+export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance, locationGeo, setLocationGeo }) => {
   const inputRef = useRef(null);
   const [geoStatus, setGeoStatus] = useState('idle'); // idle | detecting | ok | denied | unsupported
   const [step, setStep] = useState(1); // carousel: 1..3
+
+  // Unifies manual picks and GPS into one structured selection.
+  const handleAreaSelect = (entry) => {
+    setLocation(entry.label);
+    setLocationGeo(entry);
+  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) { setGeoStatus('unsupported'); return; }
     setGeoStatus('detecting');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocation(nearestBucket(pos.coords.latitude, pos.coords.longitude));
+        handleAreaSelect(nearestArea(pos.coords.latitude, pos.coords.longitude));
         setGeoStatus('ok');
         inputRef.current?.blur();
       },
@@ -477,35 +467,9 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               <div style={{ flex: 1, height: 1, background: C.line }}/>
             </div>
 
-            {/* 3 × 2 area grid — uniform chips */}
-            <div className="grid grid-cols-2" style={{ marginTop: 16, gap: 10 }}>
-              {AREA_BUCKETS.map((area) => {
-                const active = location === area.label;
-                return (
-                  <button
-                    key={area.label}
-                    onClick={() => setLocation(area.label)}
-                    className="rounded-2xl flex items-center justify-center active:scale-[.98] transition-transform"
-                    style={{
-                      padding: '14px 10px',
-                      background: active ? C.coralSoft : '#FAF1E2',
-                      border: `1.5px solid ${active ? C.coral : '#EFE3D0'}`,
-                      cursor: 'pointer',
-                      minHeight: 58,
-                      boxShadow: active
-                        ? '0 6px 14px -8px rgba(214,68,106,.3)'
-                        : '0 1px 2px rgba(27,42,78,.04)',
-                    }}
-                  >
-                    <span style={{
-                      fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-                      color: C.navy, textAlign: 'center', lineHeight: 1.2,
-                    }}>
-                      {area.label}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* Searchable neighborhood picker */}
+            <div style={{ marginTop: 16 }}>
+              <NeighborhoodPicker value={locationGeo} onSelect={handleAreaSelect} />
             </div>
           </div>
 
