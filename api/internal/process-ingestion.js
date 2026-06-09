@@ -1,8 +1,9 @@
 // POST /api/internal/process-ingestion — runs one queued ingestion job.
 // SECURITY: Bearer CRON_SECRET (or Vercel cron). For the queue worker + cron.
 import { timingSafeEqual } from 'node:crypto';
+import { waitUntil } from '@vercel/functions';
 import { json } from '../_lib/supabase.js';
-import { processNextJob } from '../_lib/ingestion/process-jobs.js';
+import { processNextJob, selfProcessUrl } from '../_lib/ingestion/process-jobs.js';
 
 const authed = (req) => {
   const secret = process.env.CRON_SECRET || '';
@@ -20,6 +21,16 @@ export default async function handler(req, res) {
     GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY, OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     EVENTBRITE_API_TOKEN: process.env.EVENTBRITE_API_TOKEN, BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
   };
-  try { return json(res, 200, await processNextJob(env, { logger: console })); }
-  catch (e) { return json(res, 502, { error: e?.message || 'process failed' }); }
+  // Respond immediately, then process one slice + chain the next invocation in
+  // the background (each link gets a fresh time budget — no telescoping).
+  json(res, 200, { ok: true, accepted: true });
+  const url = selfProcessUrl();
+  waitUntil((async () => {
+    try {
+      const r = await processNextJob(env, { logger: console });
+      if (r?.continue && url) {
+        await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }).catch(() => {});
+      }
+    } catch (e) { console.error('process-ingestion bg:', e?.message); }
+  })());
 }

@@ -31,6 +31,17 @@ export const finishJob = async (sb, id, { status, counts, error }) => {
   if (e) throw new Error(`finish job failed: ${e.message}`);
 };
 
+// Persist mid-run progress for a chunked job (cursor/total/counts/status).
+export const saveJobProgress = async (sb, id, { cursor, total, counts, status }) => {
+  const patch = { updated_at: new Date().toISOString() };
+  if (cursor != null) patch.cursor = cursor;
+  if (total != null) patch.total = total;
+  if (counts != null) patch.counts = counts;
+  if (status != null) patch.status = status;
+  const { error } = await sb.from('ingestion_jobs').update(patch).eq('id', id);
+  if (error) throw new Error(`save job progress failed: ${error.message}`);
+};
+
 export const listJobs = async (sb, { limit = 50 } = {}) => {
   const { data, error } = await sb.from('ingestion_jobs')
     .select('*').order('created_at', { ascending: false }).limit(limit);

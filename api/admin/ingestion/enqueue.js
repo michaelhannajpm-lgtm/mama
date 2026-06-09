@@ -5,7 +5,7 @@ import { json, readJsonBody } from '../../_lib/supabase.js';
 import { requireAdmin } from '../../_lib/admin-auth.js';
 import { getSource, getEventSource } from '../../_lib/ingestion/sources.js';
 import { makeJobClient, enqueueJob } from '../../_lib/ingestion/jobs.js';
-import { processNextJob } from '../../_lib/ingestion/process-jobs.js';
+import { processNextJob, selfProcessUrl } from '../../_lib/ingestion/process-jobs.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -34,8 +34,15 @@ export default async function handler(req, res) {
   try {
     const sb = makeJobClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
     const job = await enqueueJob(sb, { kind, sourceId, params });
-    // Run it in the background so the request returns immediately.
-    waitUntil(processNextJob(env, { logger: console }).catch(e => console.error('processNextJob:', e.message)));
+    // Kick the chained processor in the background so the request returns now.
+    // On a deployment, hit the processor endpoint (it self-continues across
+    // fresh invocations). Locally (no deploy URL), run one slice inline.
+    const url = selfProcessUrl();
+    if (url) {
+      waitUntil(fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }).catch(() => {}));
+    } else {
+      waitUntil(processNextJob(env, { logger: console }).catch(e => console.error('processNextJob:', e.message)));
+    }
     return json(res, 200, { ok: true, job });
   } catch (e) { return json(res, 502, { error: e?.message || 'enqueue failed' }); }
 }

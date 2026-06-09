@@ -9,7 +9,11 @@ import {
 } from './writer.js';
 
 // Run one source. dryRun => no writes, returns counts only.
-export async function runIngestion({ sourceId, limit = 20, dryRun = false, logger = console, env }) {
+// Chunked mode: pass a numeric `sliceSize` to process only source.queries
+// [offset, offset+sliceSize); the return includes { total, nextOffset, hasMore }
+// for a job processor to continue across invocations. In chunked mode the
+// ingestion_runs bookkeeping is skipped (the ingestion_jobs row is the record).
+export async function runIngestion({ sourceId, limit = 20, dryRun = false, offset = 0, sliceSize = null, logger = console, env }) {
   const source = getSource(sourceId);
   if (!source) throw new Error(`unknown source: ${sourceId}`);
   const apiKey = env.GOOGLE_PLACES_API_KEY;
@@ -19,15 +23,19 @@ export async function runIngestion({ sourceId, limit = 20, dryRun = false, logge
   const counts = { fetched: 0, normalized: 0, created: 0, updated: 0, skipped: 0, errors: 0, review: 0 };
   const reviewItems = [];
 
+  const chunked = sliceSize != null;
+  const allQueries = source.queries;
+  const slice = chunked ? allQueries.slice(offset, offset + sliceSize) : allQueries;
+
   let runId = null;
-  if (!dryRun) { await upsertSource(sb, source); runId = await startRun(sb, source.id); }
+  if (!dryRun && !chunked) { await upsertSource(sb, source); runId = await startRun(sb, source.id); }
 
   // Wrap the whole run so an unexpected throw (e.g. loadExistingPlaces) never
   // strands the ingestion_runs row in 'running'.
   try {
     const existing = dryRun ? [] : await loadExistingPlaces(sb);
 
-    for (const { q, category } of source.queries) {
+    for (const { q, category } of slice) {
       let raw;
       try {
         raw = await fetchRaw({ query: q, bias: source.bias, limit, apiKey, logger });
@@ -93,12 +101,13 @@ export async function runIngestion({ sourceId, limit = 20, dryRun = false, logge
       }
     }
 
-    if (!dryRun) {
+    if (!dryRun && !chunked) {
       const wrote = counts.created || counts.updated || counts.review;
       const status = counts.errors === 0 ? 'succeeded' : (wrote ? 'partial' : 'failed');
       await finishRun(sb, runId, status, { ...counts, summary: { review: counts.review } });
     }
-    return { ...counts, reviewItems };
+    const nextOffset = (chunked ? offset : 0) + slice.length;
+    return { ...counts, reviewItems, total: allQueries.length, nextOffset, hasMore: chunked ? nextOffset < allQueries.length : false };
   } catch (e) {
     if (!dryRun && runId) {
       try { await finishRun(sb, runId, 'failed', { ...counts, summary: { review: counts.review, error: e.message } }); }
