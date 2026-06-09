@@ -107,12 +107,18 @@ export const enrichOne = async (openai, place, model = DEFAULT_MODEL) => {
 export const makeClient = (supabaseUrl, serviceRoleKey) =>
   createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-// Ingested places (google_place_id set) + their photos, oldest first.
-export const loadPlacesToEnrich = async (sb, limit) => {
+// Ingested places that still NEED enrichment (description or area unset), with
+// their photos, oldest first. The filter matters: PostgREST caps a query at
+// ~1000 rows, so loading *all* ingested places and skipping the done ones would
+// never reach rows beyond the first 1000. By loading only the unenriched, each
+// run (and each mop-up pass) advances through the full set in 1000-row batches.
+// Unless `overwrite`, in which case load everything (the caller re-fills).
+export const loadPlacesToEnrich = async (sb, limit, { overwrite = false } = {}) => {
   let q = sb.from('places')
     .select('id,name,category,address,rating,review_count,lat,lng,area,description,tags,good_for,age_min,age_max,amenities,hero_photo,place_photos(url,google_ref,is_hero)')
     .not('google_place_id', 'is', null)
     .order('created_at', { ascending: true });
+  if (!overwrite) q = q.or('description.is.null,area.is.null');
   if (limit) q = q.limit(limit);
   const { data, error } = await q;
   if (error) throw new Error(`load places failed: ${error.message}`);
@@ -130,7 +136,7 @@ export async function runEnrich({ env, limit = null, dryRun = false, overwrite =
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const sb = makeClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const places = await loadPlacesToEnrich(sb, limit);
+  const places = await loadPlacesToEnrich(sb, limit, { overwrite });
   const counts = { total: places.length, enriched: 0, skipped: 0, errors: 0, aiCalls: 0 };
   const samples = [];
 
