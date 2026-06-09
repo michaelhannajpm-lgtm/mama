@@ -1,6 +1,6 @@
 // GET /api/admin/places — returns all places for the admin dashboard.
 // SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
-import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
+import { json, supabaseCreds, fetchAllRows } from '../_lib/supabase.js';
 import { requireAdmin } from '../_lib/admin-auth.js';
 
 export default async function handler(req, res) {
@@ -13,15 +13,9 @@ export default async function handler(req, res) {
   if (!creds) return json(res, 500, { error: 'Supabase env not configured' });
 
   try {
-    const url = `${creds.supabaseUrl}/rest/v1/places` +
-      `?select=*,place_photos(id,url,google_ref,source,attribution,is_hero,sort_order),` +
-      `place_categories(category_id)&order=created_at.desc&limit=5000`;
-    const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
-    if (!r.ok) {
-      const text = await r.text().catch(() => '');
-      return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 200)}` });
-    }
-    const rows = await r.json();
+    const select = '*,place_photos(id,url,blob_url,google_ref,source,attribution,is_hero,sort_order,fetch_status,fetch_attempted_at,fetch_error),' +
+      'place_categories(category_id)';
+    const rows = await fetchAllRows(creds, 'places', `select=${select}&order=created_at.desc`);
     return json(res, 200, { ok: true, count: rows.length, rows });
   } catch (e) {
     return json(res, 502, { error: e?.message || 'Could not reach Supabase' });

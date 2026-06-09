@@ -44,6 +44,25 @@ export const sbHeaders = (serviceRoleKey, extra = {}) => ({
   ...extra,
 });
 
+// Fetch ALL rows from a PostgREST table in batches, bypassing the project's
+// "Max rows" cap (Supabase default 1000). `query` is the querystring WITHOUT
+// limit/offset (e.g. `select=*&order=created_at.desc`). Pages until a partial
+// (or empty) batch is returned. `pageSize` should be <= the project max-rows.
+export const fetchAllRows = async (creds, path, query, { pageSize = 1000, maxPages = 200 } = {}) => {
+  const headers = sbHeaders(creds.serviceRoleKey);
+  const all = [];
+  for (let page = 0; page < maxPages; page++) {
+    const url = `${creds.supabaseUrl}/rest/v1/${path}?${query}&limit=${pageSize}&offset=${page * pageSize}`;
+    const r = await fetch(url, { headers });
+    if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`Supabase ${r.status}: ${t.slice(0, 200)}`); }
+    const batch = await r.json();
+    if (!Array.isArray(batch)) break;
+    all.push(...batch);
+    if (batch.length < pageSize) break; // last page
+  }
+  return all;
+};
+
 // Build a username base from a first name. Lowercased, alpha-num only, capped.
 export const usernameBase = (firstName) => {
   const cleaned = (firstName || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
