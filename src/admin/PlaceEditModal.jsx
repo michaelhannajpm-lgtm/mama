@@ -16,6 +16,42 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
     visible: !!place.visible, review_status: place.review_status || 'needs_review',
   });
   const [busy, setBusy] = useState(false);
+  const [placeEvents, setPlaceEvents] = useState(null);
+  const [scraping, setScraping] = useState(false);
+
+  const loadPlaceEvents = async () => {
+    try {
+      const r = await adminFetch('/api/admin/events');
+      const body = await r.json().catch(() => ({}));
+      setPlaceEvents((body.rows || []).filter(e => e.place_id === place.id));
+    } catch { setPlaceEvents([]); }
+  };
+
+  const scrapeEvents = async () => {
+    setScraping(true);
+    try {
+      const r = await adminFetch('/api/admin/places/ingest-events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ placeId: place.id }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || r.status);
+      alert(`Scrape done: created=${body.counts?.created ?? 0}, updated=${body.counts?.updated ?? 0}, errors=${body.counts?.errors ?? 0}`);
+      await loadPlaceEvents();
+    } catch (e) { alert(`Scrape failed: ${e.message}`); }
+    finally { setScraping(false); }
+  };
+
+  const publishPlaceEvents = async () => {
+    try {
+      const r = await adminFetch('/api/admin/events/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId: place.id, patch: { review_status: 'approved', visible: true } }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || r.status); }
+      await loadPlaceEvents();
+    } catch (e) { alert(`Publish failed: ${e.message}`); }
+  };
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const photos = place.place_photos || [];
 
@@ -55,11 +91,12 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {photos.length > 0 && (
           <div className="flex gap-2 mb-3 flex-wrap">
             {photos.map(p => {
-              // Stable hero value: a stored url, or the WIDTH-AGNOSTIC proxy path
-              // for Google photos (consumer picks width). `thumb` adds w=200 for
-              // display only — we never persist the thumbnail width as the hero.
-              const heroRef = p.url || (p.google_ref ? `/api/places/photo?ref=${encodeURIComponent(p.google_ref)}` : null);
-              const thumb = p.url || (heroRef ? `${heroRef}&w=200` : null);
+              // Prefer the durable Vercel Blob copy, then any stored url, then the
+              // WIDTH-AGNOSTIC Google proxy path (consumer picks width). `thumb`
+              // adds w=200 to the proxy only — blob URLs are served as-is.
+              const stored = p.blob_url || p.url || null;
+              const heroRef = stored || (p.google_ref ? `/api/places/photo?ref=${encodeURIComponent(p.google_ref)}` : null);
+              const thumb = stored || (heroRef ? `${heroRef}&w=200` : null);
               const isHero = place.hero_photo ? place.hero_photo === heroRef : p.is_hero;
               return (
                 <button key={p.id} onClick={() => heroRef && setHero(heroRef)} title="Set as hero"
@@ -108,6 +145,30 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
             style={{ marginLeft: 'auto', background: C.terracotta, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
             Save
           </button>
+        </div>
+
+        <div style={{ marginTop: 16, borderTop: `1px solid ${C.divider}`, paddingTop: 12 }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontFamily: 'Fraunces', fontSize: 15, color: C.ink, flex: 1 }}>Events at this place</span>
+            {placeEvents === null
+              ? <button onClick={loadPlaceEvents} style={{ background: 'transparent', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 12, cursor: 'pointer', color: C.inkSoft }}>Load events</button>
+              : <button onClick={publishPlaceEvents} style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Publish all approved</button>}
+            <button disabled={scraping || !place.website} title={place.website ? 'Scrape this place\'s website for events' : 'No website set'}
+              onClick={scrapeEvents}
+              style={{ background: place.website ? C.saffron : C.divider, color: C.ink, border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: place.website ? 'pointer' : 'not-allowed' }}>
+              {scraping ? 'Scraping…' : 'Scrape events'}
+            </button>
+          </div>
+          {placeEvents && placeEvents.length === 0 && (
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>No events linked to this place yet.</div>
+          )}
+          {placeEvents && placeEvents.map(e => (
+            <div key={e.id} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px solid ${C.divider}` }}>
+              <div className="flex-1 min-w-0" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {e.name} <span style={{ color: C.inkMuted }}>· {e.event_type} · {e.day_of_week || ''} {e.time_label || ''} · {e.review_status}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
