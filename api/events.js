@@ -23,7 +23,8 @@ export default async function handler(req, res) {
       return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 200)}` });
     }
     const rows = await r.json();
-    const { recurring, thisWeek } = splitEvents(rows, { now: new Date(), windowDays: 14 });
+    // 45-day window so the Home tab's "This Month" filter has data to bucket.
+    const { recurring, thisWeek } = splitEvents(rows, { now: new Date(), windowDays: 45 });
     return json(res, 200, { ok: true, count: recurring.length + thisWeek.length, recurring, thisWeek });
   } catch (e) {
     return json(res, 502, { error: e?.message || 'Could not reach Supabase' });
