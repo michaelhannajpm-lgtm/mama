@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (!/^places\/[\w-]+\/photos\/[\w-]+$/.test(ref)) {
     return json(res, 400, { error: 'invalid photo ref' });
   }
-  const w = Math.min(parseInt(req.query?.w, 10) || 800, 1600);
+  const w = Math.max(1, Math.min(parseInt(req.query?.w, 10) || 800, 1600));
   const target = `https://places.googleapis.com/v1/${ref}/media?maxWidthPx=${w}&key=${key}`;
   res.statusCode = 302;
   res.setHeader('Location', target);

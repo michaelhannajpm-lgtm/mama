@@ -5,7 +5,9 @@ import { randomBytes } from 'node:crypto';
 export const json = (res, status, body) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
+  // Default to no-store, but don't clobber a caller-set caching policy
+  // (public read routes like /api/places set their own public, max-age=...).
+  if (!res.getHeader('Cache-Control')) res.setHeader('Cache-Control', 'no-store');
   res.end(JSON.stringify(body));
 };
 
