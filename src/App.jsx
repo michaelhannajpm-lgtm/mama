@@ -34,6 +34,7 @@ import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
 import { resolveArea } from './lib/places.js';
+import { fetchPlaces } from './lib/places-api';
 
 // ====================================================================
 // ROOT
@@ -69,6 +70,20 @@ function PrototypeApp({ bare = false }) {
   const [ratings, setRatings] = useState({});
   // Message history per mom: { [momId]: [{ text, fromUser, ts }, ...] }
   const [messageHistory, setMessageHistory] = useState({});
+
+  // Live places loaded from /api/places (approved + visible rows, grouped by
+  // category). Null until the first load resolves; screens fall back to their
+  // own hardcoded data so the app never renders blank or stale.
+  const [livePlaces, setLivePlaces] = useState(null); // { places, topPicks, flat } | null
+  useEffect(() => {
+    let alive = true;
+    fetchPlaces()
+      .then(data => { if (alive) setLivePlaces(data); })
+      .catch(() => { /* keep hardcoded fallback in screens */ });
+    return () => { alive = false; };
+  }, []);
+  const placesData = livePlaces?.places || null;
+  const topPicksData = livePlaces?.topPicks || null;
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
 
@@ -250,6 +265,7 @@ function PrototypeApp({ bare = false }) {
             flash={flash}
           />}
           {step===3 && <MainApp
+            places={placesData} topPicks={topPicksData}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}

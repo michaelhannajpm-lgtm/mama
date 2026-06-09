@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   MapPin, School, Brain, Star,
   Music, Activity, Sparkles, ChevronRight,
@@ -524,13 +524,119 @@ const SchoolCard = ({ item, onClick }) => (
   </button>
 );
 
+// ---------------------- live data adapter ----------------------
+// Map live DB place rows (from /api/places, grouped by category) into the card
+// shapes this tab already renders. Live rows win when present; each section
+// independently falls back to its curated hardcoded list when live data is
+// empty/unavailable, so the surface never regresses.
+//
+// NOTE: ingested rows may lack hero_photo (Google photos live in place_photos
+// and are not yet joined into /api/places), so we fall back to a per-category
+// stock image — wiring real Google imagery via /api/places/photo is a follow-up.
+
+const LIVE_FALLBACK_PHOTO = {
+  fun:       'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
+  sports:    'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&auto=format&fit=crop',
+  schools:   'https://images.unsplash.com/photo-1497486751825-1233686d5d80?w=400&auto=format&fit=crop',
+  childcare: 'https://images.unsplash.com/photo-1587653263995-422546a7a569?w=400&auto=format&fit=crop',
+  health:    'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400&auto=format&fit=crop',
+  wellness:  'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&auto=format&fit=crop',
+};
+
+const LIVE_PROGRAM_STYLE = {
+  extracurricular: { Icon: Palette, bg: C.coralSoft, fg: C.coralDeep },
+  camps:           { Icon: Tent,    bg: C.sage,      fg: C.sageDark  },
+};
+
+const liveAgeLabel = (min, max) => {
+  if (min == null && max == null) return 'All ages';
+  if (min != null && max != null) return `Ages ${min}–${max}`;
+  if (min != null) return `Ages ${min}+`;
+  return `Ages 0–${max}`;
+};
+
+const cardId = (row) => row.slug || row.id;
+const cardDistance = (row) => row.area || row.city || 'Tampa';
+
+const livePhotoCard = (row) => ({
+  id: cardId(row), title: row.name,
+  rating: typeof row.rating === 'number' && row.rating > 0 ? row.rating : undefined,
+  distance: cardDistance(row),
+  photo: row.hero_photo || LIVE_FALLBACK_PHOTO[row.category] || LIVE_FALLBACK_PHOTO.fun,
+});
+
+const liveSchoolCard = (row) => ({
+  ...livePhotoCard(row),
+  tag: (Array.isArray(row.tags) && row.tags[0]) || 'Enrolling',
+  tagBg: C.sage, tagFg: C.sageDark,
+});
+
+const liveProgramCard = (row) => {
+  const style = LIVE_PROGRAM_STYLE[row.category] || LIVE_PROGRAM_STYLE.extracurricular;
+  return {
+    id: cardId(row), title: row.name,
+    ages: liveAgeLabel(row.age_min, row.age_max),
+    distance: cardDistance(row),
+    Icon: style.Icon, bg: style.bg, fg: style.fg,
+  };
+};
+
+// Subtitle override so "See all" counts reflect the live list, not the
+// hardcoded constants embedded at module load.
+const liveSubtitle = (key, n) => {
+  if (key === 'schools') return `${n} options within 5 mi`;
+  if (key === 'extras')  return `${n} programs & camps`;
+  return null;
+};
+
+// Build per-section card lists from the grouped live payload. Returns null when
+// no live data is available (caller then uses the curated hardcoded sections).
+const buildLiveSections = (places) => {
+  if (!places || typeof places !== 'object') return null;
+  const g = (k) => (Array.isArray(places[k]) ? places[k] : []);
+  const everything = [
+    ...g('fun'), ...g('sports'), ...g('wellness'), ...g('schools'),
+    ...g('childcare'), ...g('extracurricular'), ...g('camps'), ...g('health'),
+  ];
+  if (everything.length === 0) return null;
+  const topNearby = [...everything].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  return {
+    places:  topNearby.map(livePhotoCard),
+    fun:     g('fun').map(livePhotoCard),
+    schools: [...g('schools'), ...g('childcare')].map(liveSchoolCard),
+    extras:  [...g('extracurricular'), ...g('camps')].map(liveProgramCard),
+    health:  [...g('health'), ...g('wellness')].map(livePhotoCard),
+  };
+};
+
 // -------------------------- screen --------------------------
 
 export const LocalPicksTab = ({
+  places, topPicks,
   savedItems = [], setSavedItems, location, flash,
   filterOpen, setFilterOpen,
 }) => {
   void location;
+  void topPicks;
+
+  // Live-or-curated sections: when /api/places returns rows for a section,
+  // show the mapped live cards; otherwise keep that section's curated list.
+  const effectiveSections = useMemo(() => {
+    const live = buildLiveSections(places);
+    if (!live) return SECTIONS;
+    return SECTIONS.map(s => {
+      const items = live[s.key];
+      if (items && items.length) {
+        return {
+          ...s,
+          items: items.slice(0, 3),
+          allItems: items,
+          seeAllSubtitle: liveSubtitle(s.key, items.length) || s.seeAllSubtitle,
+        };
+      }
+      return s;
+    });
+  }, [places]);
 
   // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -571,12 +677,12 @@ export const LocalPicksTab = ({
   // When category chips are picked, hide non-matching sections. Empty = show all.
   const activeCats = filters.categories || [];
   const visibleSections = activeCats.length
-    ? SECTIONS.filter(s => activeCats.includes(SECTION_CATEGORY[s.key]))
-    : SECTIONS;
+    ? effectiveSections.filter(s => activeCats.includes(SECTION_CATEGORY[s.key]))
+    : effectiveSections;
 
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
-  const seeAllSection = SECTIONS.find(s => s.key === seeAll);
+  const seeAllSection = effectiveSections.find(s => s.key === seeAll);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
