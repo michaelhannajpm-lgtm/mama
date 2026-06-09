@@ -14,12 +14,12 @@ Replace Go Mama's hardcoded event directory (`SUGGESTED_EVENTS`) with a live pip
 - **Connectors:** Eventbrite (live — `EVENTBRITE_API_TOKEN` available), official calendars via ICS + JSON-LD (runnable against public feeds + checked-in fixtures), Meta Graph **built but its source config `enabled: false`** with notes (no token yet), and a **`place_website` crawler** that fans out over the places already in the DB and discovers each place's own events from its public website (§10).
 - **Places are event sources.** Every place with a `website` is crawled for its own events; discovered events are linked to the place via `place_id`. Event visibility is gated by place visibility (§5.1): a place's events can only appear in the app once the place is active+visible and the events are approved. Events are viewable/manageable from the Place CRUD detail panel, which has a one-click "scrape events from website" that runs the per-place ingestion (§8.1).
 - **Scope:** Full end-to-end, like the places slice (DB → ingestion → public `/api/events` → app UI with fallback → full-CRUD admin).
-- **Place creation deferred:** ingestion links events to *existing* places by venue name/geo; it does **not** auto-create place rows from event venues. Unmatched events keep their raw `place_name` for an admin to resolve via a place picker.
+- **Event venues auto-create places (dedupe-or-create) through the full place pipeline.** When an event names a venue, ingestion runs venue→place resolution (§4.1): dedupe against existing places first; on a confident match, **link the event to that place**; on no match, **create the place by running the same Google-Places ingestion steps as the places slice** (`fetchRaw`/`parseSearchText` → `normalizeGooglePlace` → Google photos/gradient → `enrichOne` OpenAI metadata), staged `visible=false`/`review_status='needs_review'` and marked `origin='event'` so the admin sees it was generated from event ingestion. The event's `place_id` is set to the resolved/created place. (This supersedes the earlier "defer place creation" decision.)
 - **One plan** covering all phases.
 
 ## Architecture
 
-Additive DB schema on `events` (dated + provenance + review fields) + `event_categories` join + `kind='event'` rows in `categories` → reuse existing `ingestion_sources`/`ingestion_runs`/`source_records` provenance tables (already have `record_type='event'` + `event_id`) → public service-role read route `/api/events` (with a place-visibility gate, §5.1) → `App.jsx` central loader drills live events to screens (hardcoded `SUGGESTED_EVENTS` kept as fallback) → config-driven event connectors under `api/_lib/ingestion/connectors/` reusing the `fetchRaw`/`parseX` shape, including a `place_website` crawler that fans out over DB places (§10) → event orchestrator + extended CLI → full-CRUD admin `EventsManager` plus a per-place events panel with one-click scraping in the Place CRUD detail (§8.1).
+Additive DB schema on `events` (dated + provenance + review fields) + `event_categories` join + `kind='event'` rows in `categories` → reuse existing `ingestion_sources`/`ingestion_runs`/`source_records` provenance tables (already have `record_type='event'` + `event_id`) → public service-role read route `/api/events` (with a place-visibility gate, §5.1) → `App.jsx` central loader drills live events to screens (hardcoded `SUGGESTED_EVENTS` kept as fallback) → config-driven event connectors under `api/_lib/ingestion/connectors/` reusing the `fetchRaw`/`parseX` shape, including a `place_website` crawler that fans out over DB places (§10); event venues resolve to places via dedupe-or-create through the existing Google + OpenAI place pipeline (§4.1) → event orchestrator + extended CLI → full-CRUD admin `EventsManager` plus a per-place events panel with one-click scraping in the Place CRUD detail (§8.1).
 
 ## Constraints inherited from the codebase
 
@@ -76,6 +76,22 @@ create index if not exists events_kind_idx on public.events (kind);
 ```
 
 Backfill curated rows: `update public.events set kind='recurring', review_status='approved' where review_status='needs_review' and visible=true;`
+
+**Provenance marker on `places`** (additive; this migration spans both tables) — distinguishes how a place was created so the admin can tell event-generated places apart and filter the review queue:
+
+```sql
+alter table public.places
+  add column if not exists origin            text not null default 'curated',
+  add column if not exists generated_from_event_id uuid references public.events(id) on delete set null;
+alter table public.places drop constraint if exists places_origin_check;
+alter table public.places add constraint places_origin_check
+  check (origin in ('curated','google','event'));
+create index if not exists places_origin_idx on public.places (origin);
+-- Backfill existing ingested places (have a google_place_id) to origin='google'; curated stay 'curated'.
+update public.places set origin='google' where origin='curated' and google_place_id is not null and visible = false;
+```
+
+`origin='event'` is the "generated from event ingestion" tag the user asked for: it is admin-filterable, renders as a **"From event"** badge in the Places review queue, and `generated_from_event_id` records which event spawned it. (A column is used rather than a `tags[]` entry so the marker never leaks into the public app card.)
 
 `day_of_week`/`bucket`/`time_label` stay NOT-NULL. The normalizer **always** derives them from `starts_at` for dated events, so the constraints hold.
 
@@ -190,12 +206,27 @@ Same shape as `google-places.js`: a pure `parseX(body|text)` (fixture-tested, ne
   - `hue` gradient fallback via `images.js` `gradientForName` when no photo.
   - **slug** = `<sourcePrefix>-<normalized name>-<local YYYY-MM-DD>`, namespaced by source id so it can never collide with curated `e-*` ids.
   - `eventType` mapped from source category/query via a `mapEventType(keywords)` lookup over the full event taxonomy (matches source category + title/description keywords against per-type keyword lists); **always returns a value, defaulting to `'other'`** so `event_type` is never null. Secondary matches are emitted as `eventCategories[]` for the `event_categories` join. Low-confidence maps keep `review_status='needs_review'` + explanatory tags.
-- **`linkEventToPlace(candidate, existingPlaces)`** (new, in `dedupe.js` or a `place-link.js`): match `placeName`/geo against `places` — exact normalized name + same city → match; geo ~75 m + name-similar → match (reuse `haversineMeters`). On match set `placeId`. On miss leave `placeId` null, keep `placeName`. **Never auto-creates a place.**
+- **`resolveEventPlace(...)`** — venue→place resolution with dedupe-or-create (§4.1). Returns a `placeId` (always, when a venue is present), creating the place through the full place pipeline when no existing match is found. Replaces the earlier link-only helper.
 - **`classifyEventCandidate(cand, existingEvents)`** (in `dedupe.js`), per data-contract:
   1. exact `source_records(source_id, external_id, 'event')` → `update`.
   2. same normalized name + same `starts_at` + same `place_id` → `review`.
   3. same `source_url` + same start date → `review`.
   4. else `create`. Never duplicate on description/image change alone.
+
+### 4.1 Venue → place resolution (dedupe-or-create)
+
+New module `api/_lib/ingestion/resolve-place.js`, function `resolveEventPlace({ candidate, existingPlaces, venueCache, sb, apiKey, env, dryRun, logger })`. It reuses the *exact* place-ingestion modules — no parallel pipeline:
+
+1. **Skip** when the event has no venue (`placeName` empty) → `placeId=null` (e.g. an online event). Such events keep `place_id` null and are exempt from the §5.1 place-visibility gate.
+2. **Per-run venue cache.** Many events share one venue, so key by normalized `placeName`+city. If already resolved this run, reuse the `placeId` — one place per venue, no repeat Google/OpenAI calls.
+3. **Local dedupe first (no API cost).** `classifyCandidate({ name: placeName, city, lat, lng }, existingPlaces)` (reuse `dedupe.js`). Exact `google_place_id`/name+city/geo-75m+name match → **link** the event to `matchId`; done.
+4. **Google resolution (capture all the API).** On a local miss, call `google-places.fetchRaw({ query: "<placeName>, <address|city>", bias, limit: 1, apiKey })` → top result → `normalizeGooglePlace(p, { category: inferPlaceCategory(eventType), city })`. This captures the same fields as the places slice (google_place_id, geo, address, phone, website, rating, hours, photos, etc.).
+5. **Dedupe the resolved candidate** against `existingPlaces` again (now we have a `googlePlaceId` + precise geo): `update`/`review` (existing google_place_id or geo match) → **link** to `matchId` (optionally `refreshPlace`); `create` → step 6.
+6. **Create via the place pipeline** (mirrors `runIngestion`'s create branch): `createPlace(sb, { ...candidate, review_status:'needs_review', visible:false, origin:'event', generated_from_event_id: <event id once known> })` → `linkCategory` → photos (Google refs via `addPhoto`, else `makeGradientPng`+`uploadGeneratedPng`) → `recordSource({ sourceId: <event source id>, externalId: googlePlaceId, placeId, record_type:'place' })`.
+7. **OpenAI enrichment inline** (best-effort, non-fatal): `enrichOne(openai, placeRow, model)` from `enrich.js` to fill `description`/`tags`/`good_for`/`age_min`/`age_max`/`amenities`, plus `deriveArea(lat,lng)` and `buildHeroPhoto(photos)`. The standing `runEnrich` batch is the safety net (the new place has a `google_place_id`, so it is picked up automatically) — inline enrichment just means the place is review-ready immediately. Requires `OPENAI_API_KEY`; if absent, skip inline and let the batch handle it.
+8. **Bound cost.** Per-run caps on Google + OpenAI calls (`--venue-limit`), surfaced in the run summary (`venuesResolved`, `placesCreatedFromVenues`, `venuesLinked`). `dryRun` performs no Google/OpenAI/DB writes — it reports would-create/would-link counts from the local dedupe pass only.
+
+Net: every event with a real venue ends up linked to a place; new places are full-fidelity (Google + OpenAI), deduped, marked `origin='event'`, and staged in the **places** review queue alongside Google-ingested places — so the venue places flow through the *same* place CRUD/review the places slice built. (Events from the `place_website` source skip this entirely — their `place_id` is already known and exact.)
 
 ## 5. Public read API — `GET /api/events`
 
@@ -223,10 +254,10 @@ Net effect (the user's rule): website-discovered events land hidden/`needs_revie
 
 ## 7. Orchestration & CLI
 
-- `api/_lib/ingestion/runEventIngestion.js` — per source → `fetchRaw` → `normalizeEvent` → `linkEventToPlace` → `classifyEventCandidate` → writer. Per-source failures isolated + logged in the run summary (`ingestion_runs`). `dryRun` ⇒ no writes, counts only.
+- `api/_lib/ingestion/runEventIngestion.js` — per source → `fetchRaw` → `normalizeEvent` → `resolveEventPlace` (§4.1: dedupe-or-create the venue place, set `place_id`) → `classifyEventCandidate` → writer. Per-source failures isolated + logged in the run summary (`ingestion_runs`, incl. `venuesResolved`/`placesCreatedFromVenues`/`venuesLinked`). `dryRun` ⇒ no writes, counts only. **Env:** event ingestion now needs `GOOGLE_PLACES_API_KEY` (venue resolution) and benefits from `OPENAI_API_KEY` (inline enrichment) in addition to Supabase + the per-source token; venue resolution degrades gracefully (link-only, no create) if `GOOGLE_PLACES_API_KEY` is absent.
 - `writer.js` gains: `createEvent`, `refreshEvent` (never clobbers curator fields; refreshes facts + `last_seen_at`), `linkEventCategory`, `recordSource({record_type:'event', event_id})`, `loadExistingEvents`.
 - For `type:'place_website'`, `runEventIngestion` first calls `loadIngestablePlaces(sb, { onlyApproved, placeId })` then loops places, running `place-website.fetchRaw` per place with `place.id`/`place.name`/`place.city`/`place.area` pre-bound (no place-linking step needed — `place_id` is known). Per-place failures are isolated and counted; the run summary records `placesScanned`, `placesWithEvents`, `eventsCreated`.
-- `scripts/ingest-family-data.mjs` — dispatch by source `type`: `google_places` → place pipeline; `eventbrite|ics|json_ld|facebook_graph|place_website` → event pipeline. Flags: `--source --dry-run --limit --since`, plus **`--place <uuid>`** (scope `place-websites` to one place) and **`--all-places`** (include non-approved places; default scans only `review_status='approved'` places that have a `website`). Dry-run prints fetched/normalized/deduped/would-create/would-update/skipped/errors (+ `placesScanned` for place-website runs).
+- `scripts/ingest-family-data.mjs` — dispatch by source `type`: `google_places` → place pipeline; `eventbrite|ics|json_ld|facebook_graph|place_website` → event pipeline. Flags: `--source --dry-run --limit --since`, plus **`--place <uuid>`** (scope `place-websites` to one place), **`--all-places`** (include non-approved places; default scans only `review_status='approved'` places that have a `website`), and **`--venue-limit <n>`** (cap venue→place Google/OpenAI resolutions per run; §4.1). Dry-run prints fetched/normalized/deduped/would-create/would-update/skipped/errors (+ `placesScanned` for place-website runs, + `venuesResolved`/`placesCreatedFromVenues`/`venuesLinked` for venue resolution).
 
 ## 8. Admin CRUD
 
@@ -242,9 +273,13 @@ The existing `PlaceEditModal` (places slice) gains an **Events** section so even
 - **"Scrape events from website" button** — enabled when the place has a `website`. Calls **`POST /api/admin/places/ingest-events`** with `{ placeId }`, which runs the `place-website` connector for that single place synchronously (bounded `limit`, server-side service-role), writing new events `visible=false`/`needs_review` linked to the place. Returns counts; the panel reloads to show freshly discovered events. A disabled-with-tooltip state explains when no `website` is set.
 - This is the UI parallel of `npm run ingest -- --source place-websites --place <id>` — same orchestrator path, invoked from the admin instead of the CLI.
 
+### 8.2 Event-generated places in the Places review queue
+
+Places auto-created from event venues (§4.1) flow into the **existing** `PlacesManager` review queue (places slice), not a new surface. Additions there: an `origin` filter chip (`curated`/`google`/`event`) and a small **"From event"** badge on `origin='event'` rows, with a link to the spawning event (`generated_from_event_id`). Approving such a place uses the same place CRUD already built; once it is `approved`+`visible`, its linked events become eligible to publish (§5.1).
+
 ## 9. Validation
 
-- `node:test` fixtures: `parseEventbrite`, `parseIcs`, `parseJsonLd`, `parseGraphEvents`, `discoverEventPage` + `extractPlaceEvents` (checked-in raw samples — incl. a place homepage HTML with an events link + an event page — under `scripts/ingestion/fixtures/`); `normalizeEvent` (derived day/bucket/time + tz correctness, slug namespacing); `linkEventToPlace`; `classifyEventCandidate`; `reshapeEvents`; `normalizeEventsPayload`; the `events-shape.js` place-visibility gate (event with hidden place is filtered out). No test hits a live network.
+- `node:test` fixtures: `parseEventbrite`, `parseIcs`, `parseJsonLd`, `parseGraphEvents`, `discoverEventPage` + `extractPlaceEvents` (checked-in raw samples — incl. a place homepage HTML with an events link + an event page — under `scripts/ingestion/fixtures/`); `normalizeEvent` (derived day/bucket/time + tz correctness, slug namespacing); `resolveEventPlace` (with an injected fake Google `fetchRaw` + stub `enrichOne`: local-match→link, miss→create-with-`origin='event'`, venue-cache reuse, dryRun no-writes); `classifyEventCandidate`; `reshapeEvents`; `normalizeEventsPayload`; the `events-shape.js` place-visibility gate (event with hidden place is filtered out). No test hits a live network (Google/OpenAI clients are injected).
 - `node --check` on every new `.mjs`/`.js`; `npm run build` for `src/` changes.
 - Live: `npm run ingest -- --source eventbrite-tampa-family --dry-run --limit 5`, then a bounded live run; verify rows land `visible=false`/`needs_review` with provenance; approve a batch in `/admin` → Events; confirm they appear in `/prototype` "This week"; toggling `visible=false` removes them on next load; offline → app still renders `SUGGESTED_EVENTS` fallback.
 
@@ -273,10 +308,10 @@ Every place already in the DB that has a `website` is a potential recurring even
 - Approved dated events surface in the app's "This week"; recurring events render through existing cards unchanged; fallback keeps the app non-blank.
 - Places with a `website` can be crawled for their own events (batch CLI or per-place admin button); discovered events are linked to the place and never appear in the app while the place is hidden (public-API place-visibility gate).
 - A place's events are viewable and manageable from the Place CRUD detail panel, including a one-click "scrape events from this place's website".
+- Event venues resolve to places: an existing place is linked (deduped), or a new place is created through the full Google + OpenAI place pipeline, marked `origin='event'`, staged `needs_review`/`visible=false`, and never duplicated on re-run.
 
 ## Out of scope (this slice)
 
-- Auto-creating place rows from event venues (admin links manually).
 - Live Meta Graph ingestion (connector built; source disabled until a token exists).
 - RSS connector (registry supports the `rss` type; an RSS connector can be added later with no control-flow change — ICS + JSON-LD cover the official-calendar need now).
 - Recommendation engine matching events ↔ moms (event types + `kid_ages` are captured to enable it later).
