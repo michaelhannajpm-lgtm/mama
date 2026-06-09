@@ -1,19 +1,13 @@
 // GET /api/dev/mom-profiles
-// Development-only seeded mom login helper. This intentionally returns only
-// source='seed' rows, and is disabled in production unless explicitly enabled.
+// Seeded-mom login helper. Returns only source='seed' rows (fake demo
+// profiles, no real PII). Open in all environments so the "Pick seeded mom"
+// shortcut works for everyone, including production.
 import { json, sbHeaders, supabaseCreds } from '../_lib/supabase.js';
-
-const isAllowed = () =>
-  process.env.ALLOW_SEEDED_MOM_LOGIN === 'true' ||
-  process.env.NODE_ENV !== 'production' ||
-  process.env.VERCEL_ENV === 'development' ||
-  process.env.VERCEL_ENV === 'preview';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
-  if (!isAllowed()) return json(res, 404, { error: 'Not found' });
 
   const creds = supabaseCreds();
   if (!creds) return json(res, 500, { error: 'Supabase env not configured' });
