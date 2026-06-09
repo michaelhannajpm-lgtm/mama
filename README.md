@@ -1,6 +1,6 @@
 # Go Mama
 
-Go Mama is a React/Vite app for a mom-friendship product. The public entry point is a waitlist landing page, and the interactive mobile prototype lives at a clean `/prototype` route.
+Go Mama is a React/Vite app for a mom-friendship product. The public entry point is the interactive mobile app prototype.
 
 The product is scheduling-first: Go Mama helps moms find nearby people who overlap on real availability, shared kid stages, values, interests, and preferred meetup places.
 
@@ -21,21 +21,18 @@ GitHub:     git@github.com:michaelhannajpm-lgtm/mama.git
 
 The database is **Postgres**, managed by Supabase. Schema lives in `supabase/*.sql`. Tables in use:
 
-- `public.waitlist_signups` — marketing waitlist captures
 - `public.onboarding_profiles` — prototype onboarding data, one row per mom
+- `public.places` / `public.events` — local family places and events surfaced in the app
 - `auth.users` — Supabase-managed auth records (linked from `onboarding_profiles.auth_user_id`)
 
 ## Current App
 
-- `/` renders the marketing waitlist page.
 - `/prototype` renders the phone-framed product prototype.
-- `/api/waitlist` stores public waitlist submissions in Supabase.
 - `/api/onboarding/*` is the in-progress onboarding persistence layer.
 - `vercel.json` rewrites `/prototype` to the SPA entrypoint so direct links work on Vercel.
 
 ## Product Areas
 
-- Waitlist marketing page for early demand capture
 - 3-screen GoMama-style onboarding (AboutYou → VillagePreview → Account) capturing Tampa-Bay area, kid ages, mom type, available days, and interests
 - Matching cards based on schedule overlap and profile fit
 - 4-tab main app: Meetups (1:1 + group toggle), Places, Favorites, Profile (with verification + upcoming meetups)
@@ -58,7 +55,6 @@ The database is **Postgres**, managed by Supabase. Schema lives in `supabase/*.s
 ```txt
 api/
   _lib/supabase.js            Shared Vercel API helpers
-  waitlist.js                 Waitlist signup endpoint
   onboarding/
     step.js                   Save partial onboarding progress
     signup.js                 Password signup + profile promotion
@@ -66,9 +62,7 @@ api/
     get.js                    Load saved onboarding profile
 
 src/
-  App.jsx                     Route switch between waitlist and prototype
-  WaitlistPage.jsx            Public marketing page
-  waitlist.css                Marketing page styles
+  App.jsx                     Route switch between admin and prototype
   lib/
     onboarding.js             Client helpers for onboarding persistence
     supabase.js               Browser Supabase auth client
@@ -80,7 +74,7 @@ src/
   theme.js                    Shared color tokens
 
 supabase/
-  waitlist_schema.sql         waitlist_signups table
+  _remove_waitlist.sql        Cleanup for retired waitlist table
   onboarding_schema.sql       onboarding_profiles table
 
 vercel.json                   SPA rewrites
@@ -131,7 +125,6 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 Browser code uses:
 
 ```txt
-VITE_WAITLIST_ENDPOINT=/api/waitlist
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
@@ -141,38 +134,6 @@ Security notes:
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
 - `VITE_` variables are public to anyone visiting the site.
 - Do not commit real secrets to `.env`, `.env.local`, or `.env.example`.
-
-## Waitlist Backend
-
-Endpoint:
-
-```txt
-POST /api/waitlist
-```
-
-Example body:
-
-```json
-{
-  "firstName": "Maya",
-  "email": "maya@example.com",
-  "city": "Tampa, FL",
-  "audience": "New mom",
-  "source": "marketing-waitlist"
-}
-```
-
-The endpoint validates the email, normalizes fields, captures user agent/referrer, and writes to:
-
-```txt
-public.waitlist_signups
-```
-
-Schema:
-
-```txt
-supabase/waitlist_schema.sql
-```
 
 ## Onboarding Backend
 
@@ -209,10 +170,9 @@ Client flow:
 
 ## Supabase Setup
 
-Run both SQL files in the Supabase SQL editor:
+Run the current SQL files in the Supabase SQL editor as needed:
 
 ```txt
-supabase/waitlist_schema.sql
 supabase/onboarding_schema.sql
 ```
 
@@ -276,7 +236,6 @@ the full mapping.
 ## Notes For Contributors
 
 - Keep UI changes consistent with the existing phone-frame prototype style.
-- Keep marketing-page changes in `WaitlistPage.jsx` and `waitlist.css`.
 - Keep server secrets in Vercel/Supabase configuration, not committed files.
 - Before pushing, check the working tree:
 

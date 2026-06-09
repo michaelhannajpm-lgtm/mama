@@ -10,7 +10,7 @@ src/
 ├── main.jsx                      # entry
 ├── index.css                     # Google Fonts @import + 4 keyframes (slideUp, fadeIn, fadeInUp, popBadge)
 ├── theme.js                      # named export `C` — design tokens (coral/navy palette)
-├── AdminPage.jsx                 # /admin dashboard (Overview, Waitlist, Moms, Mom profiles, Feedback)
+├── AdminPage.jsx                 # /admin dashboard (Overview, Onboarding, Mom profiles, Places, Events, Ingestion, Quick Actions)
 ├── WaitlistPage.jsx              # public / waitlist marketing page
 ├── waitlist.css                  # marketing-page-specific styles
 │

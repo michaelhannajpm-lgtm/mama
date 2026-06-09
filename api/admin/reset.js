@@ -1,11 +1,11 @@
-// POST /api/admin/reset — truncates all five admin-visible tables.
+// POST /api/admin/reset — truncates admin-visible product tables.
 // SECURITY: gated by requireAdmin — needs a valid admin bearer token (see _lib/admin-auth.js).
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
 import { requireAdmin } from '../_lib/admin-auth.js';
 
 // Order matters: events FK references places, so wipe events first.
 // mom_profiles is independent at this stage.
-const TABLES = ['events', 'mom_profiles', 'onboarding_profiles', 'waitlist_signups', 'places'];
+const TABLES = ['events', 'mom_profiles', 'onboarding_profiles', 'places'];
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');

@@ -6,7 +6,12 @@ export const FIRST_NAMES = [
   'Maria', 'Jessica', 'Ashley', 'Kayla', 'Samantha', 'Brittany',
   'Stephanie', 'Nicole', 'Megan', 'Lauren', 'Rachel', 'Emily',
   'Hannah', 'Lakshmi', 'Yuki', 'Fatima', 'Olivia', 'Sophia',
-  'Isabella', 'Amara', 'Camila', 'Zara', 'Daniela', 'Sana'
+  'Isabella', 'Amara', 'Camila', 'Zara', 'Daniela', 'Sana',
+  'Nadia', 'Elena', 'Bianca', 'Jasmine', 'Naomi', 'Leah',
+  'Maya', 'Anika', 'Noor', 'Layla', 'Valeria', 'Gabriela',
+  'Marisol', 'Alina', 'Kavya', 'Nora', 'Ivy', 'Grace',
+  'Avery', 'Chloe', 'Mila', 'Lucia', 'Adriana', 'Carolina',
+  'Imani', 'Tess', 'Brielle', 'Ana', 'Mariam', 'Kelsey'
 ];
 
 export const LAST_INITIALS = [
@@ -14,7 +19,7 @@ export const LAST_INITIALS = [
   'M', 'N', 'O', 'P', 'R', 'S', 'T', 'V', 'W', 'Y',
 ];
 
-// Generate up to 30 × 20 = 600 unique (firstName, lastInitial) combos
+// Generate up to 60 x 20 = 1200 unique (firstName, lastInitial) combos
 // before we need to add a numeric suffix.
 export const generateDisplayName = (idx) => {
   const first = FIRST_NAMES[idx % FIRST_NAMES.length];

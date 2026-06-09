@@ -12,28 +12,28 @@ import { C } from '../theme';
 
 const SLIDES = [
   {
-    img: '/Hero%201%20V3.png',
+    img: '/landing/hero-this-week.png',
     eyebrow: 'THIS WEEK',
     title: 'Things to do this week',
     stat: 'Family days out, picked for Tampa moms',
     badge: 'calendar',
   },
   {
-    img: '/hero-moms.png',
+    img: '/landing/hero-connect.png',
     eyebrow: 'CONNECT',
     title: 'Meet other moms nearby',
     stat: 'Real moms in your neighborhood who get it',
     badge: 'live',
   },
   {
-    img: '/Hero%203.png',
+    img: '/landing/hero-programs.png',
     eyebrow: 'PROGRAMS',
     title: 'Kids programs',
     stat: 'Swim, sports, music & classes your kids will love',
     badge: 'school',
   },
   {
-    img: '/hero%204.png',
+    img: '/landing/hero-trusted-picks.png',
     eyebrow: 'TRUSTED PICKS',
     title: 'Trusted local picks',
     stat: 'Schools, sitters & services other moms swear by',

@@ -3,13 +3,14 @@
 //   api/admin/seed.js           (HTTP wrapper)
 //
 // Idempotent: places + events upsert by `slug`, mom_profiles by `username`.
-// `reset: true` deletes mom_profiles where source='seed' before insert; places
-// and events are upsert-by-slug so they don't need wiping.
+// `reset: true` deletes mom_profiles before insert. The default reset scope is
+// `seed`; pass `resetMoms: 'all'` for a full mom directory wipe.
 
 import { createClient } from '@supabase/supabase-js';
 import { PLACES as LOCAL_PLACES } from '../../src/data/places.js';
 import { SUGGESTED_EVENTS as LOCAL_EVENTS } from '../../src/data/events.js';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES } from '../../src/data/taxonomy.js';
+import { TAMPA_BAY_AREAS } from '../../src/data/tampa-bay-areas.js';
 import { lookupCoords, DEFAULT_COORDS } from '../../scripts/seed-data/place-coords.js';
 import { generateDisplayName, generateUsername } from '../../scripts/seed-data/name-pool.js';
 import { photosForMom } from '../../scripts/seed-data/photo-pool.js';
@@ -116,15 +117,25 @@ const pickN = (arr, n, rand) => {
   return out;
 };
 
-const NEIGHBORHOODS_FOR_SEED = [
-  'Hyde Park', 'Seminole Heights', 'Downtown', 'South Tampa',
-  'Tampa Heights', 'Channelside', 'Davis Islands', 'West Tampa',
-  'New Tampa', 'Carrollwood', 'Westchase', 'Ybor City',
-];
 const SLOT_DAYS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const SLOT_BUCKETS = ['morning','noon','afternoon','night-owl'];
 
-const buildMomProfilePayload = (idx, placesById) => {
+const MOM_TYPE_LABEL_BY_ID = Object.fromEntries(MOM_TYPES.map(t => [t.id, t.label]));
+const RESET_MOM_SCOPES = new Set(['seed', 'all']);
+
+const momBio = ({ momTypeIds, kidCount, area, interestsList, rand }) => {
+  const type = MOM_TYPE_LABEL_BY_ID[momTypeIds[0]] || 'Mom';
+  const where = area.neighborhood || area.label || area.city || 'Tampa Bay';
+  const hooks = [
+    `usually up for ${interestsList[0]?.toLowerCase() || 'park hangs'}`,
+    `looking for kid-friendly plans near ${where}`,
+    'happy to trade local tips and low-pressure playdates',
+    'always saving ideas for easy weekends around Tampa Bay',
+  ];
+  return `${type} of ${kidCount} in ${where}. ${hooks[Math.floor(rand() * hooks.length)]}.`;
+};
+
+const buildMomProfilePayload = (idx, placeIds, eventIds) => {
   const rand = seededRand(idx + 1);
 
   const displayName = generateDisplayName(idx);
@@ -139,7 +150,7 @@ const buildMomProfilePayload = (idx, placesById) => {
   }
 
   const momTypeIds = pickN(MOM_TYPES.filter(t => t.id !== 'prefer_not'), 1 + (rand() < 0.3 ? 1 : 0), rand)
-    .map(t => t.label);
+    .map(t => t.id);
 
   const valuesList    = pickN(VALUES, 2 + Math.floor(rand() * 2), rand);
   const interestsList = pickN(INTERESTS.map(i => i.label), 2 + Math.floor(rand() * 3), rand);
@@ -153,18 +164,12 @@ const buildMomProfilePayload = (idx, placesById) => {
   }
   const freeSlots = [...slotSet];
 
-  const placeIds = Object.values(placesById);
   const pickedPlaces = pickN(placeIds, 2 + Math.floor(rand() * 3), rand);
+  const pickedEvents = pickN(eventIds, 1 + Math.floor(rand() * 4), rand);
 
-  const neighborhood = NEIGHBORHOODS_FOR_SEED[Math.floor(rand() * NEIGHBORHOODS_FOR_SEED.length)];
-  const coords = lookupCoords(neighborhood);
-  const home_lat = +(coords.lat + (rand() - 0.5) * 0.05).toFixed(6);
-  const home_lng = +(coords.lng + (rand() - 0.5) * 0.05).toFixed(6);
-
-  const cityRoll = rand();
-  const city = cityRoll < 0.85 ? 'Tampa, FL'
-             : cityRoll < 0.95 ? 'St. Petersburg, FL'
-             : 'Clearwater, FL';
+  const area = TAMPA_BAY_AREAS[Math.floor(rand() * TAMPA_BAY_AREAS.length)] || TAMPA_BAY_AREAS[0];
+  const home_lat = +(area.lat + (rand() - 0.5) * 0.045).toFixed(6);
+  const home_lng = +(area.lng + (rand() - 0.5) * 0.045).toFixed(6);
 
   const distance_miles = [5, 10, 20, 30, 50][Math.floor(rand() * 5)];
 
@@ -173,13 +178,16 @@ const buildMomProfilePayload = (idx, placesById) => {
   const lastActive = rand() < 0.9
     ? new Date(Date.now() - Math.floor(rand() * 30) * 86400000).toISOString()
     : new Date(Date.now() - (30 + Math.floor(rand() * 60)) * 86400000).toISOString();
+  const socialLinks = {};
+  if (rand() < 0.55) socialLinks.instagram = `@${username}`;
+  if (rand() < 0.2) socialLinks.tiktok = `@${username}mama`;
 
   return {
     auth_user_id: null,
     display_name: displayName,
     username,
     age,
-    bio: `${momTypeIds[0] || 'Mom'} of ${kidCount} living in ${neighborhood}. Looking for nearby moms with similar values and free time.`,
+    bio: momBio({ momTypeIds, kidCount, area, interestsList, rand }),
     photos: photosForMom(idx),
     kids_ages: kidsAges,
     mom_types: momTypeIds,
@@ -187,16 +195,18 @@ const buildMomProfilePayload = (idx, placesById) => {
     interests: interestsList,
     free_slots: freeSlots,
     places: pickedPlaces,
-    preferred_event_ids: [],
-    city,
-    neighborhood,
+    preferred_event_ids: pickedEvents,
+    city: area.city,
+    neighborhood: area.neighborhood,
+    county: area.county,
+    place_id: area.id,
     home_lat,
     home_lng,
     distance_miles,
     visible,
     verified,
     blocked_global: false,
-    social_links: {},
+    social_links: socialLinks,
     source: 'seed',
     last_active_at: lastActive,
   };
@@ -209,8 +219,9 @@ export const runSeed = async ({
   serviceRoleKey,
   wantPlaces = 50,
   wantEvents = 30,
-  wantMoms = 200,
+  wantMoms = 1000,
   reset = true,
+  resetMoms = 'seed',
   onProgress = () => {},
 }) => {
   if (!supabaseUrl || !serviceRoleKey) {
@@ -218,14 +229,23 @@ export const runSeed = async ({
   }
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-  const result = { reset: { deleted: 0 }, places: 0, events: 0, moms: 0 };
+  const momResetScope = RESET_MOM_SCOPES.has(resetMoms) ? resetMoms : 'seed';
+  const result = { reset: { deleted: 0, scope: momResetScope }, places: 0, events: 0, moms: 0 };
 
   if (reset) {
-    onProgress({ phase: 'reset', message: "deleting mom_profiles where source='seed'" });
-    const { count, error } = await sb
+    onProgress({
+      phase: 'reset',
+      message: momResetScope === 'all'
+        ? 'deleting all mom_profiles'
+        : "deleting mom_profiles where source='seed'",
+    });
+    let resetQuery = sb
       .from('mom_profiles')
-      .delete({ count: 'exact' })
-      .eq('source', 'seed');
+      .delete({ count: 'exact' });
+    resetQuery = momResetScope === 'all'
+      ? resetQuery.not('id', 'is', null)
+      : resetQuery.eq('source', 'seed');
+    const { count, error } = await resetQuery;
     if (error) throw new Error(`reset failed: ${error.message}`);
     result.reset.deleted = count || 0;
   }
@@ -274,10 +294,13 @@ export const runSeed = async ({
   if (wantMoms > 0) {
     const { data: places, error: placesErr } = await sb.from('places').select('id');
     if (placesErr) throw new Error(`places fetch failed: ${placesErr.message}`);
-    const placesById = Object.fromEntries(places.map(p => [p.id, p.id]));
+    const placeIds = (places || []).map(p => p.id);
+    const { data: events, error: eventsErr } = await sb.from('events').select('id');
+    if (eventsErr) throw new Error(`events fetch failed: ${eventsErr.message}`);
+    const eventIds = (events || []).map(e => e.id);
 
     const rows = [];
-    for (let i = 0; i < wantMoms; i++) rows.push(buildMomProfilePayload(i, placesById));
+    for (let i = 0; i < wantMoms; i++) rows.push(buildMomProfilePayload(i, placeIds, eventIds));
 
     onProgress({ phase: 'moms', message: `seeding ${rows.length} mom_profiles` });
     const chunk = 100;

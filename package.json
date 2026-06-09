@@ -10,19 +10,20 @@
     "seed": "node scripts/seed-supabase.mjs",
     "ingest": "node scripts/ingest-family-data.mjs",
     "enrich": "node scripts/enrich-places.mjs",
+    "backfill:photos": "node scripts/backfill-place-photos.mjs",
+    "portraits": "node scripts/generate-mom-portraits.mjs",
     "test": "node --test"
   },
   "dependencies": {
-    "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.0.8",
     "@supabase/supabase-js": "^2.105.3",
+    "@vercel/blob": "^2.4.0",
+    "@vercel/functions": "^3.6.3",
     "cheerio": "^1.2.0",
     "lucide-react": "^0.383.0",
     "node-ical": "^0.26.1",
     "openai": "^6.42.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "resend": "^6.12.3"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",

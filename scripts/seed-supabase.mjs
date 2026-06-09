@@ -4,7 +4,7 @@
 // Usage:
 //   SUPABASE_URL=https://<ref>.supabase.co \
 //   SUPABASE_SERVICE_ROLE_KEY=sb_secret_... \
-//   node scripts/seed-supabase.mjs [--moms 200] [--places 50] [--events 30] [--reset]
+//   node scripts/seed-supabase.mjs [--moms 1000] [--places 50] [--events 30] [--reset] [--reset-all-moms]
 
 import { runSeed } from '../api/_lib/seed.js';
 
@@ -15,8 +15,9 @@ const flagValue = (name, fallback) => {
 };
 const wantPlaces = parseInt(flagValue('--places', '50'), 10);
 const wantEvents = parseInt(flagValue('--events', '30'), 10);
-const wantMoms   = parseInt(flagValue('--moms',   '200'), 10);
+const wantMoms   = parseInt(flagValue('--moms',   '1000'), 10);
 const reset      = flags.includes('--reset');
+const resetMoms  = flags.includes('--reset-all-moms') ? 'all' : 'seed';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -33,6 +34,7 @@ const main = async () => {
     wantEvents,
     wantMoms,
     reset,
+    resetMoms,
     onProgress: ({ phase, message }) => {
       console.log(`[${phase}] ${message}…`);
     },
@@ -40,7 +42,7 @@ const main = async () => {
   console.log(
     `Phase 1 seed complete ✓  ` +
     `places=${result.places} events=${result.events} moms=${result.moms}` +
-    (reset ? ` (reset deleted ${result.reset.deleted})` : '')
+    (reset ? ` (reset ${result.reset.scope} deleted ${result.reset.deleted})` : '')
   );
 };
 

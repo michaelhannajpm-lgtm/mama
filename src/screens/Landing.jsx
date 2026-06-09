@@ -1,4 +1,4 @@
-import { Plus, ArrowRight, MapPin, Users, Calendar, Zap } from 'lucide-react';
+import { Plus, ArrowRight, MapPin, Users, Calendar, Zap, Settings } from 'lucide-react';
 import { C } from '../theme';
 import { StatusBar } from '../components/StatusBar';
 import { HeroCarousel } from '../components/HeroCarousel';
@@ -33,6 +33,24 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
     }}
   >
     <StatusBar/>
+
+    {/* Admin shortcut — muted gear in the top-right corner, full reload into /admin */}
+    <button
+      onClick={() => { window.location.href = '/admin'; }}
+      aria-label="Admin dashboard"
+      title="Admin dashboard"
+      className="flex items-center justify-center active:scale-90 transition-transform"
+      style={{
+        position: 'absolute', top: 8, right: 10, zIndex: 5,
+        width: 30, height: 30, borderRadius: 15,
+        background: 'rgba(255,255,255,.55)',
+        border: `1px solid ${C.line}`,
+        color: C.muted, cursor: 'pointer',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <Settings size={15} strokeWidth={2}/>
+    </button>
 
     {/* Soft pink corner blobs — atmospheric decoration */}
     <div style={{
@@ -200,7 +218,7 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
         </button>
       </div>
 
-      {/* Dev shortcut — auto-login as the test mom (Sana). Dev-only:
+      {/* Dev shortcut — pick any seeded mom. Dev-only:
           tree-shaken out of production builds via import.meta.env.DEV. */}
       {import.meta.env.DEV && (
         <div className="text-center" style={{ marginTop: 8 }}>
@@ -217,7 +235,7 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
             }}
           >
             <Zap size={10} strokeWidth={2.6} fill="currentColor"/>
-            Dev · Auto-login as Sana
+            Dev · Pick seeded mom
           </button>
         </div>
       )}

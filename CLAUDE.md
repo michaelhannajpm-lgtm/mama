@@ -27,6 +27,7 @@ Dispatch them via the Task tool when their description matches the work.
 ## Project skills
 
 - **`family-data-ingestion`** — read `.claude/skills/family-data-ingestion/SKILL.md` when building background jobs that import Tampa-area family places/events from Google Places, Eventbrite, public social APIs, civic calendars, libraries, museums, attractions, local media, YMCA, kids gyms, or similar sources.
+- **`store-image`** — read `.claude/skills/store-image/SKILL.md` when storing, uploading, importing, generating, or persisting images. Images must go to Vercel Blob first, then the returned public blob URL should be saved in Supabase or app data.
 
 ## Quick reference
 

@@ -60,20 +60,20 @@ export const GROUP_DISCUSSIONS = [
   {
     id: 'd-daycare',
     title: 'Daycare picks · South Tampa',
-    blurb: 'Waitlists, prices, what tours are actually like',
+    blurb: 'Openings, prices, what tours are actually like',
     members: 218,
     online: 12,
     Icon: BookOpen,
     bg: C.sage, fg: C.sageDark,
     posts: [
       post('p1', 'amanda', 'Amanda R.', AVATARS.amanda, '1h',
-        'Just toured Primrose South Tampa — bright, clean, but waitlist is 8 months 😬 Anyone with experience there?',
+        'Just toured Primrose South Tampa — bright, clean, but openings are limited 😬 Anyone with experience there?',
         9, [
           reply('c1', 'Hannah F.', AVATARS.hannah, '50m', 'We pulled our daughter for ratio reasons. Happy to chat offline.'),
           reply('c2', 'Sophia M.', AVATARS.sophia, '30m', 'Loved Primrose for our oldest. Honest answer: it gets better past 18mo.'),
         ]),
       post('p2', 'ava', 'Ava S.', AVATARS.ava, '4h',
-        'Goddard Westshore opened a new infant room — got off the waitlist in 3 weeks. Reach out if you want a referral.',
+        'Goddard Westshore opened a new infant room — enrollment moved quickly for us. Reach out if you want a referral.',
         15, []),
       post('p3', 'maya', 'Maya P.', AVATARS.maya, '8h',
         "Anyone using a nanny-share in Hyde Park? Cost / nanny rec / how y'all handle sick days?",

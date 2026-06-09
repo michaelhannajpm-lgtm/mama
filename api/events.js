@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const select = 'id,slug,name,kind,event_type,day_of_week,bucket,time_label,starts_at,ends_at,' +
       'recurring,place_id,place_name,city,area,tags,kid_ages,indoor,hue,hero_photo,going_count,visible,' +
-      'places(name,area,lat,lng,hero_photo,visible)';
+      'places:places!events_place_id_fkey(name,area,lat,lng,hero_photo,visible)';
     const url = `${creds.supabaseUrl}/rest/v1/events` +
       `?select=${select}&visible=eq.true&order=starts_at.asc.nullslast&limit=5000`;
     const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });

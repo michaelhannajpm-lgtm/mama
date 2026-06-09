@@ -18,8 +18,9 @@ export default async function handler(req, res) {
   const body = readJsonBody(req) || {};
   const wantPlaces = Number.isFinite(body.places) ? Math.max(0, Math.min(500, body.places)) : 50;
   const wantEvents = Number.isFinite(body.events) ? Math.max(0, Math.min(500, body.events)) : 30;
-  const wantMoms   = Number.isFinite(body.moms)   ? Math.max(0, Math.min(2000, body.moms))  : 200;
+  const wantMoms   = Number.isFinite(body.moms)   ? Math.max(0, Math.min(2000, body.moms))  : 1000;
   const reset      = body.reset !== false; // default true
+  const resetMoms  = body.resetMoms === 'all' ? 'all' : 'seed';
 
   try {
     const result = await runSeed({
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
       wantEvents,
       wantMoms,
       reset,
+      resetMoms,
     });
     return json(res, 200, { ok: true, result });
   } catch (e) {
