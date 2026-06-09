@@ -39,7 +39,7 @@ export async function runIngestion({ sourceId, limit = 20, dryRun = false, offse
     for (const { q, category } of slice) {
       let raw;
       try {
-        raw = await fetchRaw({ query: q, bias: source.bias, limit, apiKey, logger });
+        raw = await fetchRaw({ query: q, bias: source.bias, city: source.city, limit, apiKey, logger });
       } catch (e) {
         counts.errors++;
         logger.error?.(`query "${q}" fetch failed: ${e.message}`);

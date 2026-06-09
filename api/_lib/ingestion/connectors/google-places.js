@@ -14,9 +14,9 @@ export const parseSearchText = (body) => (body && Array.isArray(body.places) ? b
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // fetchRaw runs one query, returns raw Google place objects. Bounded retry/backoff.
-export async function fetchRaw({ query, bias, limit = 20, apiKey, logger = console }) {
+export async function fetchRaw({ query, bias, city = 'Tampa, FL', limit = 20, apiKey, logger = console }) {
   const body = {
-    textQuery: `${query} in Tampa, FL`,
+    textQuery: `${query} in ${city}`,
     maxResultCount: Math.min(limit, 20),
     locationBias: bias ? { circle: { center: { latitude: bias.lat, longitude: bias.lng }, radius: bias.radiusM } } : undefined,
   };
