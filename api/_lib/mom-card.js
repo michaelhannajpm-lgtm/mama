@@ -34,13 +34,15 @@ const HUES = [
 
 const WINDOW_LABEL = { morning: 'Morning', noon: 'Midday', afternoon: 'Afternoon', 'night-owl': 'Evening' };
 
+// display_name follows the `${firstName}.` convention from mom-profile-helpers.js,
+// so we strip dots then take the first token.
 export const firstNameOf = (row) =>
   (row?.display_name || row?.username || 'Mama').replace(/\./g, '').trim().split(/\s+/)[0] || 'Mama';
 
 export const kidsLabel = (kidsAges) => {
   const buckets = truthyKeys(kidsAges);
   if (!buckets.length) return 'Kids';
-  return `${buckets.slice(0, 2).join(' · ')} yrs`;
+  return `${buckets.slice(0, 2).join(' · ')} yrs`; // cap at 2 buckets for display brevity
 };
 
 export const formatSlot = (slot) => {
@@ -77,7 +79,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     age: row.age ?? null,
     kids: kidsLabel(row.kids_ages),
     type: pres.label,
-    tag: pres.label,
+    tag: pres.label,          // alias of `type`: MomCard reads `tag`, ProfileSheet reads `type`
     tagBg: pres.tagBg,
     tagFg: pres.tagFg,
     iconKey: pres.iconKey,
@@ -87,7 +89,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     tags: sharedTags,
     sharedTags,
     nextSlot,
-    nextPlace: null,
+    nextPlace: null,          // mom_profiles has no named next-place; sheets supply a fallback
     hue: hueFor(row.id),
     photo: asArray(row.photos)[0] || null,
     bio: row.bio || null,

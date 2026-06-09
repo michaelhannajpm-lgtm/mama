@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { momCardFromRow, kidsLabel, formatSlot, firstNameOf, MOM_TYPE_PRESENTATION } from './mom-card.js';
+import { momCardFromRow, kidsLabel, formatSlot, firstNameOf } from './mom-card.js';
 
 test('kidsLabel joins up to two truthy buckets, else fallback', () => {
   assert.equal(kidsLabel({ '1–3': true, '3–5': true }), '1–3 · 3–5 yrs');
@@ -54,7 +54,7 @@ test('momCardFromRow falls back gracefully on sparse rows', () => {
   assert.equal(card.distance, null);
   assert.equal(card.photo, null);
   assert.equal(card.bio, null);
-  assert.equal(card.type, MOM_TYPE_PRESENTATION ? 'Verified' : 'Verified');
+  assert.equal(card.type, 'Verified');
   assert.equal(card.nextSlot, null);
   assert.deepEqual(card.sharedTags, []);
 });
