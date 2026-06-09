@@ -371,6 +371,7 @@ export const HomeTab = ({
           <>
             <SectionHead title="Moms near you" onLink={goToConnect}/>
             <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {/* Tapping a mom routes to the Connect tab for now; per-mom deep-link is a follow-up. */}
               {moms.map(m => <MomChip key={m.id} item={m} onClick={goToConnect}/>)}
             </div>
           </>
@@ -380,6 +381,7 @@ export const HomeTab = ({
         {topGroups.length > 0 && (
           <>
             <SectionHead title="Groups for you" onLink={goToHub}/>
+            {/* Tapping a group routes to My Hub for now; opening the specific discussion is a follow-up. */}
             {topGroups.map(g => <GroupRow key={g.id} item={g} onClick={goToHub}/>)}
           </>
         )}
@@ -411,19 +413,21 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* See all activities CTA */}
-        <button
-          onClick={() => activities.length && setSeeAll(true)}
-          style={{
-            marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '12px 14px', borderRadius: 24,
-            background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-            border: 'none', color: '#fff', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
-            boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)', cursor: 'pointer',
-          }}
-        >
-          See all activities <ChevronRight size={14}/>
-        </button>
+        {/* See all activities CTA — only when the current filter has activities */}
+        {activities.length > 0 && (
+          <button
+            onClick={() => setSeeAll(true)}
+            style={{
+              marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '12px 14px', borderRadius: 24,
+              background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+              border: 'none', color: '#fff', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+              boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)', cursor: 'pointer',
+            }}
+          >
+            See all activities <ChevronRight size={14}/>
+          </button>
+        )}
       </div>
 
       {seeAll && (
