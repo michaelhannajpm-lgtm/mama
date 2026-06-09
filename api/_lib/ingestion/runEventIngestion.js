@@ -6,7 +6,9 @@ import { resolveEventPlace } from './resolve-place.js';
 import {
   makeClient, createEvent, refreshEvent, linkEventCategory, recordEventSource,
   loadExistingEvents, loadIngestablePlaces, upsertSource, startRun, finishRun, loadExistingPlaces,
+  setEventImage,
 } from './writer.js';
+import { storeEventImage } from './image-blob.js';
 import { parseEventbrite, fetchRaw as ebFetch } from './connectors/eventbrite.js';
 import { fetchRaw as icsFetch } from './connectors/ics.js';
 import { fetchRaw as jsonLdFetch } from './connectors/json-ld.js';
@@ -16,10 +18,7 @@ import { fetchRaw as placeWebFetch } from './connectors/place-website.js';
 // Yields { intermediate, raw } intermediates for a source (dispatch by type).
 async function* fetchIntermediates(source, { env, limit, since, placeId, allPlaces, logger, sb }) {
   if (source.type === 'eventbrite') {
-    for (const { q } of source.queries || [{ q: 'family kids' }]) {
-      const items = await ebFetch({ query: q, since, limit, token: env.EVENTBRITE_API_TOKEN, logger });
-      for (const it of items) yield { intermediate: it };
-    }
+    for (const it of await ebFetch({ since, limit, token: env.EVENTBRITE_API_TOKEN, logger })) yield { intermediate: it };
   } else if (source.type === 'ics') {
     if (!source.url) { logger.warn?.(`ics source ${source.id} has no url`); return; }
     for (const it of await icsFetch({ url: source.url, defaultCity: source.city, sourceCategory: source.defaultType, logger })) yield { intermediate: it };
@@ -89,12 +88,23 @@ export async function runEventIngestion({ sourceId, limit = 50, since = null, dr
           await refreshEvent(sb, verdict.matchId, cand, placeId2);
           await linkEventCategory(sb, verdict.matchId, cand.eventType);
           await recordEventSource(sb, { sourceId: source.id, externalId: cand.externalId, eventId: verdict.matchId, sourceUrl: cand.sourceUrl, raw: raw || intermediate });
+          if (cand.imageUrl) {
+            const ex = existingEvents.find(e => e.id === verdict.matchId);
+            if (ex && !ex.hero_photo) {
+              const stored = await storeEventImage({ imageUrl: cand.imageUrl, slug: cand.slug, logger });
+              if (stored?.url) { try { await setEventImage(sb, verdict.matchId, { heroPhoto: stored.url, imageSourceUrl: cand.imageUrl }); } catch (e) { logger.warn?.(`set image: ${e.message}`); } }
+            }
+          }
           counts.updated++;
         } else {
           const eventId = await createEvent(sb, cand, placeId2);
           for (const c of cand.eventCategories || [cand.eventType]) await linkEventCategory(sb, eventId, c);
           await recordEventSource(sb, { sourceId: source.id, externalId: cand.externalId, eventId, sourceUrl: cand.sourceUrl, raw: raw || intermediate });
           existingEvents.push({ id: eventId, external_id: cand.externalId, name: cand.name, starts_at: cand.startsAt, place_id: placeId2, source_url: cand.sourceUrl });
+          if (cand.imageUrl) {
+            const stored = await storeEventImage({ imageUrl: cand.imageUrl, slug: cand.slug, logger });
+            if (stored?.url) { try { await setEventImage(sb, eventId, { heroPhoto: stored.url, imageSourceUrl: cand.imageUrl }); } catch (e) { logger.warn?.(`set image: ${e.message}`); } }
+          }
           if (verdict.action === 'review') counts.review++;
           counts.created++;
         }

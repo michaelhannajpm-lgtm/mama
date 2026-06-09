@@ -154,7 +154,7 @@ export const recordEventSource = async (sb, { sourceId, externalId, eventId, sou
 };
 
 export const loadExistingEvents = async (sb) => {
-  const { data, error } = await sb.from('events').select('id,external_id,name,starts_at,place_id,source_url');
+  const { data, error } = await sb.from('events').select('id,external_id,name,starts_at,place_id,source_url,hero_photo');
   if (error) throw new Error(`load events failed: ${error.message}`);
   return data || [];
 };
@@ -167,4 +167,9 @@ export const loadIngestablePlaces = async (sb, { onlyApproved = true, placeId = 
   const { data, error } = await q;
   if (error) throw new Error(`load ingestable places failed: ${error.message}`);
   return (data || []).filter(p => p.website);
+};
+
+export const setEventImage = async (sb, eventId, { heroPhoto, imageSourceUrl }) => {
+  const { error } = await sb.from('events').update({ hero_photo: heroPhoto, image_source_url: imageSourceUrl || null }).eq('id', eventId);
+  if (error) throw new Error(`set event image failed: ${error.message}`);
 };
