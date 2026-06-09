@@ -28,11 +28,16 @@ const searchableOf = (r) => {
 };
 
 // Apply every filter EXCEPT status. Shared by `filtered` and the per-status counts.
-const matchesNonStatus = (r, { type, kind, city, hasPlace, q }) => {
+const matchesNonStatus = (r, { type, kind, city, hasPlace, photo, q }) => {
   if (type !== 'all' && r.event_type !== type) return false;
   if (kind !== 'all' && r.kind !== kind) return false;
   if (city !== 'all' && (r.city || '') !== city) return false;
   if (hasPlace && !r.place_id) return false;
+  if (photo !== 'any') {
+    const has = !!r.hero_photo;
+    if (photo === 'has' && !has) return false;
+    if (photo === 'none' && has) return false;
+  }
   if (q && !searchableOf(r).includes(q.toLowerCase())) return false;
   return true;
 };
@@ -44,6 +49,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const [kind, setKind] = useState('all');
   const [city, setCity] = useState('all');
   const [hasPlace, setHasPlace] = useState(false);
+  const [photo, setPhoto] = useState('any');
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [editing, setEditing] = useState(null);
@@ -51,7 +57,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
-  const nonStatusFilters = { type, kind, city, hasPlace, q };
+  const nonStatusFilters = { type, kind, city, hasPlace, photo, q };
 
   const cities = useMemo(
     () => [...new Set((rows || []).map(r => r.city).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -61,7 +67,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const filtered = useMemo(() => (rows || []).filter(r => {
     if (status !== 'all' && r.review_status !== status) return false;
     return matchesNonStatus(r, nonStatusFilters);
-  }), [rows, status, type, kind, city, hasPlace, q]);
+  }), [rows, status, type, kind, city, hasPlace, photo, q]);
 
   // Per-status counts: rows matching every active filter EXCEPT status.
   const statusCounts = useMemo(() => {
@@ -69,10 +75,10 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
     const counts = { all: base.length };
     for (const s of STATUSES) counts[s] = base.filter(r => r.review_status === s).length;
     return counts;
-  }, [rows, type, kind, city, hasPlace, q]);
+  }, [rows, type, kind, city, hasPlace, photo, q]);
 
   // Reset pagination when filters or page size change.
-  useEffect(() => { setPage(1); }, [status, type, kind, city, hasPlace, q, pageSize]);
+  useEffect(() => { setPage(1); }, [status, type, kind, city, hasPlace, photo, q, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -168,6 +174,12 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
         <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft }}>
           <input type="checkbox" checked={hasPlace} onChange={e => setHasPlace(e.target.checked)} /> has place
         </label>
+        <select value={photo} onChange={e => setPhoto(e.target.value)}
+          style={{ border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 8px', fontFamily: 'Albert Sans', fontSize: 12.5 }}>
+          <option value="any">Any photo</option>
+          <option value="has">Has photo</option>
+          <option value="none">No photo</option>
+        </select>
         <div className="flex items-center gap-1" style={{ border: `1px solid ${C.divider}`, borderRadius: 8, padding: '2px 8px', background: C.paper }}>
           <Search size={13} style={{ color: C.inkMuted }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="search all fields"

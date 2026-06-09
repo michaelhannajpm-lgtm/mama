@@ -19,12 +19,16 @@ const searchableOf = (r) => {
 };
 
 // Apply every filter EXCEPT status. Shared by `filtered` and the per-status counts.
-const matchesNonStatus = (r, { cat, origin, city, area, hasPhoto, minRating, q }) => {
+const matchesNonStatus = (r, { cat, origin, city, area, photo, minRating, q }) => {
   if (cat !== 'all' && r.category !== cat) return false;
   if (origin !== 'all' && (r.origin || 'curated') !== origin) return false;
   if (city !== 'all' && (r.city || '') !== city) return false;
   if (area !== 'all' && (r.area || '') !== area) return false;
-  if (hasPhoto && !(r.place_photos?.length || r.hero_photo)) return false;
+  if (photo !== 'any') {
+    const has = !!(r.place_photos?.length || r.hero_photo);
+    if (photo === 'has' && !has) return false;
+    if (photo === 'none' && has) return false;
+  }
   if (minRating && !(r.rating >= minRating)) return false;
   if (q && !searchableOf(r).includes(q.toLowerCase())) return false;
   return true;
@@ -37,7 +41,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const [origin, setOrigin] = useState('all');
   const [city, setCity] = useState('all');
   const [area, setArea] = useState('all');
-  const [hasPhoto, setHasPhoto] = useState(false);
+  const [photo, setPhoto] = useState('any');
   const [minRating, setMinRating] = useState(0);
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState(() => new Set());
@@ -46,7 +50,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
-  const nonStatusFilters = { cat, origin, city, area, hasPhoto, minRating, q };
+  const nonStatusFilters = { cat, origin, city, area, photo, minRating, q };
 
   const cities = useMemo(
     () => [...new Set((rows || []).map(r => r.city).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -60,7 +64,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const filtered = useMemo(() => (rows || []).filter(r => {
     if (status !== 'all' && r.review_status !== status) return false;
     return matchesNonStatus(r, nonStatusFilters);
-  }), [rows, status, cat, origin, city, area, hasPhoto, minRating, q]);
+  }), [rows, status, cat, origin, city, area, photo, minRating, q]);
 
   // Per-status counts: rows matching every active filter EXCEPT status.
   const statusCounts = useMemo(() => {
@@ -68,10 +72,10 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
     const counts = { all: base.length };
     for (const s of STATUSES) counts[s] = base.filter(r => r.review_status === s).length;
     return counts;
-  }, [rows, cat, origin, city, area, hasPhoto, minRating, q]);
+  }, [rows, cat, origin, city, area, photo, minRating, q]);
 
   // Reset pagination when filters or page size change.
-  useEffect(() => { setPage(1); }, [status, cat, origin, city, area, hasPhoto, minRating, q, pageSize]);
+  useEffect(() => { setPage(1); }, [status, cat, origin, city, area, photo, minRating, q, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -168,9 +172,12 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
           <option value="all">All areas</option>
           {areas.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft }}>
-          <input type="checkbox" checked={hasPhoto} onChange={e => setHasPhoto(e.target.checked)} /> has photo
-        </label>
+        <select value={photo} onChange={e => setPhoto(e.target.value)}
+          style={{ border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 8px', fontFamily: 'Albert Sans', fontSize: 12.5 }}>
+          <option value="any">Any photo</option>
+          <option value="has">Has photo</option>
+          <option value="none">No photo</option>
+        </select>
         <select value={minRating} onChange={e => setMinRating(+e.target.value)} style={selectStyle}>
           <option value={0}>any rating</option><option value={4}>4.0+</option><option value={4.5}>4.5+</option>
         </select>
