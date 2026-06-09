@@ -9,6 +9,7 @@ const CATS = ['fun','sports','wellness','schools','childcare','extracurricular',
 export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const [status, setStatus] = useState('needs_review');
   const [cat, setCat] = useState('all');
+  const [origin, setOrigin] = useState('all');
   const [hasPhoto, setHasPhoto] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [q, setQ] = useState('');
@@ -19,11 +20,12 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const filtered = useMemo(() => (rows || []).filter(r => {
     if (status !== 'all' && r.review_status !== status) return false;
     if (cat !== 'all' && r.category !== cat) return false;
+    if (origin !== 'all' && (r.origin || 'curated') !== origin) return false;
     if (hasPhoto && !(r.place_photos?.length || r.hero_photo)) return false;
     if (minRating && !(r.rating >= minRating)) return false;
     if (q && !(`${r.name} ${r.area || ''}`.toLowerCase().includes(q.toLowerCase()))) return false;
     return true;
-  }), [rows, status, cat, hasPhoto, minRating, q]);
+  }), [rows, status, cat, origin, hasPhoto, minRating, q]);
 
   const toggle = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -63,6 +65,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
           <option value="all">All categories</option>
           {CATS.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        {['all','curated','google','event'].map(o => chip(origin === o, () => setOrigin(o), o))}
         <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft }}>
           <input type="checkbox" checked={hasPhoto} onChange={e => setHasPhoto(e.target.checked)} /> has photo
         </label>
@@ -108,7 +111,8 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
       {/* Rows */}
       <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.divider}`, background: C.paper }}>
         {filtered.map(r => {
-          const hero = r.hero_photo || r.place_photos?.find(p => p.is_hero)?.url;
+          const heroPhotoRow = r.place_photos?.find(p => p.is_hero) || r.place_photos?.[0];
+          const hero = r.hero_photo || heroPhotoRow?.blob_url || heroPhotoRow?.url;
           return (
             <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
               <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
@@ -117,6 +121,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
                 <div style={{ fontFamily: 'Fraunces', fontSize: 14, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
                 <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted }}>
                   {r.category} · {r.area || '—'} {r.rating ? `· ★${r.rating}` : ''} · <span style={{ color: r.visible ? C.sageDark : C.inkMuted }}>{r.review_status}</span>
+                  {r.origin === 'event' && <span style={{ marginLeft: 6, background: `${C.saffron}33`, color: C.saffron, borderRadius: 999, padding: '1px 6px', fontSize: 10.5, fontWeight: 700 }}>From event</span>}
                 </div>
               </div>
               <button title="Approve" disabled={busy} onClick={() => setRow(r.id, { review_status: 'approved', visible: true })}
