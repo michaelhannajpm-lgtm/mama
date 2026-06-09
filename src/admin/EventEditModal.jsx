@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { C } from '../theme';
 import { X, ExternalLink } from 'lucide-react';
+import { StatusBadge, VisibilityBadge } from './AdminFilters';
 
 const TYPES = [
   'storytime','class','workshop','stem','art-class','music-class','dance-class','cooking-class',
@@ -135,6 +136,12 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>{form.kind}</span>
           <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.inkSoft, background: C.lilac, borderRadius: 999, padding: '3px 10px' }}>{form.event_type}</span>
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
+        </div>
+
+        {/* Status pills — reflect the live form selections below */}
+        <div className="flex items-center gap-2 mb-2">
+          <StatusBadge status={form.review_status} />
+          <VisibilityBadge visible={form.visible} />
         </div>
 
         {/* 2. Image */}

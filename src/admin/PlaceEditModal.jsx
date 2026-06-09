@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { C } from '../theme';
 import { X, Star, ExternalLink } from 'lucide-react';
+import { StatusBadge, VisibilityBadge } from './AdminFilters';
 
 const CATS = ['fun','sports','wellness','schools','childcare','extracurricular','camps','health'];
 const REVIEW_STATUSES = ['needs_review','approved','rejected','archived'];
@@ -165,6 +166,12 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
             <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>From event</span>
           )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
+        </div>
+
+        {/* Status pills — reflect the live form selections below */}
+        <div className="flex items-center gap-2 mb-2">
+          <StatusBadge status={form.review_status} />
+          <VisibilityBadge visible={form.visible} />
         </div>
 
         {/* 2. Photo gallery */}
