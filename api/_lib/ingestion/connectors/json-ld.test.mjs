@@ -11,6 +11,7 @@ test('parseJsonLd extracts schema.org Event nodes', async () => {
   assert.equal(e.city, 'Tampa, FL');
   assert.equal(e.lat, 27.9487);
   assert.equal(e.sourceUrl, 'https://glazermuseum.org/events/family-art-day');
+  assert.equal(e.imageUrl, 'https://glazermuseum.org/art-day.jpg');
 });
 
 test('parseJsonLd tolerates pages with no JSON-LD', () => {

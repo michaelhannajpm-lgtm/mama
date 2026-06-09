@@ -41,6 +41,7 @@ export const parseJsonLd = (html, { sourceCategory = 'json_ld' } = {}) => {
       sourceUrl: typeof n.url === 'string' ? n.url : null,
       externalId: typeof n.url === 'string' ? n.url : (n.name || null),
       sourceCategory,
+      imageUrl: (() => { const im = Array.isArray(n.image) ? n.image[0] : n.image; return typeof im === 'string' ? im : (im?.url || null); })(),
     };
   });
 };

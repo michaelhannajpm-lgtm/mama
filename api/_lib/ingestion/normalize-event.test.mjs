@@ -33,6 +33,11 @@ test('normalizes an intermediate into a dated event candidate', () => {
   assert.ok(c.confidence > 0 && c.confidence <= 1);
 });
 
+test('carries imageUrl through', () => {
+  const c = normalizeEvent({ name: 'X', city: 'Tampa, FL', imageUrl: 'https://x/y.jpg' }, { source: { id: 's' } });
+  assert.equal(c.imageUrl, 'https://x/y.jpg');
+});
+
 test('missing startsAt yields null UI fields but still a candidate', () => {
   const c = normalizeEvent({ name: 'Mystery Event', city: 'Tampa, FL' }, { source: SOURCE });
   assert.equal(c.dayOfWeek, null);

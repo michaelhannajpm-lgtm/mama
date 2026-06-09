@@ -13,6 +13,7 @@ test('parseEventbrite → intermediate[]', async () => {
   assert.equal(e.lat, 27.9506);
   assert.equal(e.externalId, '111');
   assert.equal(e.priceSummary, 'Free');
+  assert.equal(e.imageUrl, 'https://img.evbuc.com/original.jpg');
 });
 
 test('parseEventbrite tolerates empty body', () => {

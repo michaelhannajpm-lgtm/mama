@@ -50,6 +50,7 @@ export const normalizeEvent = (i, { source, fetchedAt } = {}) => {
     ageMin: i.ageMin ?? null,
     ageMax: i.ageMax ?? null,
     priceSummary: i.priceSummary || null,
+    imageUrl: i.imageUrl || null,
     kidAges: Array.isArray(i.kidAges) ? i.kidAges : [],
     tags: Array.isArray(i.tags) ? i.tags : [],
     hue: `linear-gradient(135deg, ${gradientForName(i.name || '')[0]} 0%, ${gradientForName(i.name || '')[1]} 100%)`,
