@@ -87,3 +87,51 @@ export const seedSourcesFromRegistry = async (sb) => {
   if (error) throw new Error(`seed sources failed: ${error.message}`);
   return rows.length;
 };
+
+export const SOURCE_TYPES = ['google_places', 'eventbrite', 'ics', 'json_ld', 'facebook_graph', 'place_website'];
+
+// Returns an error string, or null when valid. `s` is the lifted (orchestrator)
+// shape: { id, name, type, kind, city, county, cadenceHours, parserVersion, notes,
+// enabled, bias, queries, url, defaultType, pageId }.
+export const validateSource = (s) => {
+  if (!s || typeof s !== 'object') return 'source object required';
+  if (!s.id || !/^[a-z0-9-]+$/.test(s.id)) return 'id must be a lowercase-hyphen slug';
+  if (!s.name) return 'name required';
+  if (!SOURCE_TYPES.includes(s.type)) return `bad type: ${s.type}`;
+  if (s.kind !== 'places' && s.kind !== 'events') return 'kind must be places or events';
+  if (s.type === 'google_places') {
+    if (!s.bias || s.bias.lat == null || s.bias.lng == null) return 'google_places needs bias { lat, lng, radiusM }';
+    if (!Array.isArray(s.queries) || s.queries.length === 0) return 'google_places needs at least one query';
+  }
+  if ((s.type === 'ics' || s.type === 'json_ld') && !s.url) return `${s.type} needs a url`;
+  if (s.type === 'facebook_graph' && !s.pageId) return 'facebook_graph needs a pageId';
+  return null;
+};
+
+export const createSource = async (sb, s) => {
+  const { data: exists } = await sb.from('ingestion_sources').select('id').eq('id', s.id).maybeSingle();
+  if (exists) throw new Error(`source ${s.id} already exists`);
+  const { error } = await sb.from('ingestion_sources').insert(sourceToRow(s, s.kind));
+  if (error) throw new Error(`create source failed: ${error.message}`);
+};
+
+export const updateSource = async (sb, id, patch) => {
+  const { data: row, error: gErr } = await sb.from('ingestion_sources').select('*').eq('id', id).maybeSingle();
+  if (gErr) throw new Error(`load source failed: ${gErr.message}`);
+  if (!row) throw new Error(`no source ${id}`);
+  const merged = { ...dbRowToSource(row), ...patch, id }; // id is immutable
+  const dbRow = sourceToRow(merged, merged.kind);
+  delete dbRow.id;
+  const { error } = await sb.from('ingestion_sources').update({ ...dbRow, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`update source failed: ${error.message}`);
+};
+
+export const setSourceEnabled = async (sb, id, enabled) => {
+  const { error } = await sb.from('ingestion_sources').update({ enabled: !!enabled, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`toggle source failed: ${error.message}`);
+};
+
+export const deleteSource = async (sb, id) => {
+  const { error } = await sb.from('ingestion_sources').delete().eq('id', id);
+  if (error) throw new Error(`delete source failed: ${error.message}`);
+};
