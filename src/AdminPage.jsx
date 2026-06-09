@@ -2,9 +2,10 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MessageSquare,
+  ChevronLeft, ChevronRight, MessageSquare, MapPin,
 } from 'lucide-react';
 import { C } from './theme';
+import { PlacesManager } from './admin/PlacesManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -1925,6 +1926,7 @@ export const AdminPage = () => {
             { id: 'mom-profiles', icon: Users,         label: 'Mom profiles' },
             { id: 'waitlist',     icon: ListChecks,    label: 'Waitlist' },
             { id: 'feedback',     icon: MessageSquare, label: 'Feedback' },
+            { id: 'places',       icon: MapPin,        label: 'Places' },
             { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
@@ -1973,6 +1975,7 @@ export const AdminPage = () => {
             {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
             {tab === 'waitlist'     && <WaitlistTable rows={waitlist}/>}
             {tab === 'feedback'     && <FeedbackTab rows={feedback}/>}
+            {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>
         )}
