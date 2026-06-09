@@ -697,6 +697,24 @@ const matchesFilters = (row, f, userCoords) => {
 export const anyLive = (places) =>
   !!places && typeof places === 'object' && Object.values(places).some(v => Array.isArray(v) && v.length);
 
+// Count of distinct live places matching the advanced filters — drives the
+// filter sheet's live "Show N places" CTA. Returns null when there's no live
+// data (so the sheet falls back to a plain "Done" rather than a misleading 0).
+export const countMatchingPlaces = (places, filters, userCoords) => {
+  if (!anyLive(places)) return null;
+  const f = filters || {};
+  const keys = ['fun', 'sports', 'wellness', 'schools', 'childcare', 'extracurricular', 'camps', 'health'];
+  const seen = new Set();
+  let n = 0;
+  for (const k of keys) {
+    for (const r of (Array.isArray(places?.[k]) ? places[k] : [])) {
+      if (r?.id != null) { if (seen.has(r.id)) continue; seen.add(r.id); }
+      if (matchesFilters(r, f, userCoords)) n++;
+    }
+  }
+  return n;
+};
+
 // Popularity score for the auto-top tier: quality weighted by review volume.
 const topScore = (r) => (r.rating || 0) * Math.log10((r.review_count || 0) + 1);
 
@@ -801,6 +819,12 @@ export const LocalPicksTab = ({
     });
   }, [places, filters, userCoords, placesRadius]);
 
+  // Live count for the filter sheet's "Show N places" CTA.
+  const placeMatchCount = useMemo(
+    () => countMatchingPlaces(places, filters, userCoords),
+    [places, filters, userCoords],
+  );
+
   // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [shareItem, setShareItem] = useState(null);
@@ -904,6 +928,7 @@ export const LocalPicksTab = ({
         <PlacesFilterSheet
           filters={filters}
           setFilters={setFilters}
+          resultCount={placeMatchCount}
           onClose={() => setFilterOpen?.(false)}
         />
       )}
