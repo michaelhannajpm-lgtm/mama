@@ -19,6 +19,10 @@ insert into public.app_config (key, value) values
   ('default_places_radius_miles', '50'::jsonb)
 on conflict (key) do nothing;
 
+-- Lock down: only service-role server routes touch app_config. RLS on with no
+-- policy denies anon/public PostgREST access; service role bypasses RLS.
+alter table public.app_config enable row level security;
+
 drop trigger if exists app_config_updated_at on public.app_config;
 create trigger app_config_updated_at before update on public.app_config
   for each row execute function public.touch_updated_at();
