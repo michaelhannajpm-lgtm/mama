@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     }
     const rows = await r.json();
     const { recurring, thisWeek } = splitEvents(rows, { now: new Date(), windowDays: 14 });
-    return json(res, 200, { ok: true, count: rows.length, recurring, thisWeek });
+    return json(res, 200, { ok: true, count: recurring.length + thisWeek.length, recurring, thisWeek });
   } catch (e) {
     return json(res, 502, { error: e?.message || 'Could not reach Supabase' });
   }
