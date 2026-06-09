@@ -15,7 +15,7 @@ Use this reference when designing schema migrations, mapping source data, or wri
 - `sports`
 - `fun`
 
-`supabase/places_schema.sql` currently allows an older taxonomy:
+`supabase/places_schema.sql` on disk still *lists* an older taxonomy in its CHECK constraint:
 
 - `cafes`
 - `parks`
@@ -28,7 +28,13 @@ Use this reference when designing schema migrations, mapping source data, or wri
 - `water`
 - `pools`
 
-Do not build ingestion until this is intentionally resolved. Prefer updating the database to the app taxonomy unless the user asks to keep the older categories.
+**But the on-disk `.sql` is stale.** `api/_lib/seed.js` writes the new taxonomy keys (`schools` … `fun`) straight into `places.category` and seeding succeeds — which means the *live* deployed constraint already accepts the new taxonomy. So:
+
+1. Inspect the live constraint before doing anything (`select pg_get_constraintdef(oid) from pg_constraint where conname like '%places_category%';` via service-role/SQL editor). Trust the live DB, not the file.
+2. If the live constraint already matches `src/data/places.js`, no migration is needed — just import into the new taxonomy. Optionally update the `.sql` file to stop misleading future readers.
+3. Only if the live constraint is genuinely still the old set, migrate the DB to the app taxonomy (unless the user asks to keep the old one).
+
+Either way: never import into the old taxonomy.
 
 ## Recommended Place Fields
 
@@ -50,6 +56,12 @@ Useful review statuses:
 - `archived`
 
 Existing `visible` should remain the public visibility gate. New imported rows should start as `visible=false`.
+
+**Field-format conventions to match existing rows:**
+
+- `city` is stored *with state*: `'Tampa, FL'`, `'St. Petersburg, FL'`, `'Clearwater, FL'`. Normalize ingested `city` to this exact form — bare `'Tampa'` will break city-based dedupe and admin filters.
+- `area` is the neighborhood (`'Hyde Park'`, `'Channelside'`, …). `scripts/seed-data/place-coords.js` maps area→`{lat,lng}`; reuse `lookupCoords(area)` / `DEFAULT_COORDS` as a geo fallback when a source lacks coordinates.
+- `tags text[]` defaults to `'{}'` — pass an array, never null.
 
 ## Recommended Event Fields
 
@@ -175,3 +187,5 @@ Use stable slugs:
 - Events: normalized name plus local date, or normalized name plus recurring marker.
 
 Do not change an existing slug during updates.
+
+**Collision hazard with curated rows.** `slug` is the upsert key (`onConflict: 'slug'`), and curated rows use short hand-authored ids — places like `'bayshore'`, `'glazer'`; events like `'e-coffee-mom'`. A generated slug that happens to equal a curated id would *clobber* a curated, admin-owned row on upsert. Guard against this: generated `name+city` slugs are long enough to rarely collide, but to be safe, namespace ingested slugs (e.g. prefix with the source id) or check against existing slugs before writing. Curated rows are the ones you must never overwrite.
