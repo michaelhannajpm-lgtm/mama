@@ -101,6 +101,7 @@ export const IngestionManager = ({ adminFetch }) => {
               <div className="flex items-center gap-2">
                 <span style={{ fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: '#fff', background: STATUS_COLOR(j.status), borderRadius: 999, padding: '2px 8px' }}>{j.status}</span>
                 <span style={{ fontFamily: 'Fraunces', fontSize: 14, color: C.ink }}>{j.kind} · {j.source_id}</span>
+                {j.total ? <span style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted }}>{j.cursor || 0}/{j.total}</span> : null}
                 <span style={{ marginLeft: 'auto', fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted }}>{fmt(j.created_at)}</span>
               </div>
               <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft, marginTop: 2 }}>
