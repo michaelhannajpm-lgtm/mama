@@ -17,6 +17,13 @@ const DISTANCE_PRESETS = [
   { val: null, label: 'Any' },
 ];
 
+const CATEGORY_OPTS = [
+  'Top places nearby',
+  'Fun & entertainment',
+  'Schools & childcare',
+  'Extracurricular & camps',
+  'Health & wellness',
+];
 const COST_OPTS    = ['Free', 'Paid', 'Membership', 'Sliding scale'];
 const AMENITY_OPTS = [
   'Stroller-friendly','Highchairs','Changing table','Nursing room',
@@ -27,7 +34,7 @@ const AGE_OPTS     = ['Under 1','1–3','3–5','5–8','8+'];
 const VISIT_OPTS   = ['Drop-off welcome','Parent-required','Open weekends','Mom-vetted'];
 
 export const PLACES_FILTER_DEFAULT = {
-  distance: null, cost: [], amenities: [], parking: [], ages: [], visit: [],
+  categories: [], distance: null, cost: [], amenities: [], parking: [], ages: [], visit: [],
 };
 
 const Chip = ({ active, onClick, children, accent = C.navy }) => (
@@ -91,6 +98,22 @@ export const PlacesFilterSheet = ({ filters, setFilters, onClose }) => {
         >
           Find the <span style={{ fontStyle: 'italic', color: C.coral }}>right</span> spot
         </h3>
+
+        <div className="mt-5">
+          <SectionLabel>Category</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORY_OPTS.map(c => (
+              <Chip
+                key={c}
+                active={(draft.categories || []).includes(c)}
+                onClick={() => toggleArr('categories', c)}
+                accent={C.coral}
+              >
+                {c}
+              </Chip>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-5">
           <SectionLabel>Distance</SectionLabel>

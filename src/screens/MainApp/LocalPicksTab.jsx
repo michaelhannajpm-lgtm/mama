@@ -1,72 +1,119 @@
 import { useState } from 'react';
 import {
-  Search, MapPin, GraduationCap, School, Brain, Star,
+  MapPin, School, Brain, Star,
   Music, Activity, Sparkles, ChevronRight,
-  HeartHandshake, Scale, Wallet, Stethoscope, Smile, Users,
-  SlidersHorizontal,
+  HeartHandshake, Stethoscope, Users,
+  SlidersHorizontal, ShieldCheck, Palette, BookOpen,
+  Tent, Trees,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
+import { SeeAllSheet } from '../../sheets/SeeAllSheet';
+import { ShareSheet } from '../../sheets/ShareSheet';
 
 // ==========================================================================
 // LocalPicksTab — V5 "Local Picks" surface.
 //
-//   • Search bar with location pin icon
-//   • 4 quick-jump tiles: Top Places · Programs · Schools · Mental
-//   • "Top Places" — 3 photo cards w/ rating + distance
-//   • "Programs For Your Child" — 3 program cards
-//   • "Schools Near You" — 3 school cards w/ rating + tag
-//   • "Support You Can Count On" — 4 support chips
+//   Sections (in order):
+//     1. Top places nearby      — photo cards w/ rating + distance
+//     2. Fun & entertainment    — photo cards (zoos, museums, attractions)
+//     3. Schools & childcare    — photo cards w/ rating + tag
+//     4. Extracurricular & camps — icon cards (classes, camps, programs)
+//     5. Health & wellness       — photo cards (pediatric, mental, postpartum)
 // ==========================================================================
 
-const QUICK_TILES = [
-  { id: 'places',   label: 'Top Places',  icon: MapPin,         fg: C.coralDeep, bg: C.coralSoft },
-  { id: 'programs', label: 'Programs',    icon: GraduationCap,  fg: '#5E4A8A',   bg: C.lilac     },
-  { id: 'schools',  label: 'Schools',     icon: School,         fg: C.sageDark,  bg: C.sage      },
-  { id: 'support',  label: 'Mental',      icon: Brain,          fg: '#8A6610',   bg: '#FFF4D6'   },
-];
-
-const TOP_PLACES = [
+// 1. Top places nearby — curated nearby family-friendly spots.
+const TOP_PLACES_NEARBY = [
   {
     id: 'tp1', title: 'Tampa Riverwalk Splash Pad',
     rating: 4.8, distance: '0.4 mi away',
     photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
   },
   {
-    id: 'tp2', title: 'ZooTampa at Lowry Park',
+    id: 'tp5', title: 'Curtis Hixon Waterfront Park',
+    rating: 4.7, distance: '0.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'tp6', title: 'Hyde Park Village',
+    rating: 4.6, distance: '0.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+];
+
+const TOP_PLACES_NEARBY_ALL = [
+  ...TOP_PLACES_NEARBY,
+  {
+    id: 'tp7', title: 'Little Explorers Play Cafe',
+    rating: 4.9, distance: '2.1 mi away',
+    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'tp9', title: 'The Yard · Tampa',
+    rating: 4.5, distance: '0.7 mi away',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'tp10', title: 'Davis Islands Dog & Kid Park',
+    rating: 4.6, distance: '1.1 mi away',
+    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'tp11', title: 'Armature Works Riverfront',
+    rating: 4.7, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop',
+  },
+];
+
+// 2. Fun & entertainment — destinations for a fun day out.
+const FUN_ENTERTAINMENT = [
+  {
+    id: 'fe1', title: 'ZooTampa at Lowry Park',
     rating: 4.7, distance: '2.1 mi away',
     photo: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
   },
   {
-    id: 'tp3', title: "Glazer Children's Museum",
+    id: 'fe2', title: "Glazer Children's Museum",
     rating: 4.9, distance: '1.5 mi away',
     photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
   },
-];
-
-const PROGRAMS = [
   {
-    id: 'pr1', title: 'Music Together', ages: 'Ages 0–5',
-    distance: '0.6 mi away', Icon: Music,
-    bg: C.coralSoft, fg: C.coralDeep,
-  },
-  {
-    id: 'pr2', title: 'Soccer Kids', ages: 'Ages 3–12',
-    distance: '0.9 mi away', Icon: Activity,
-    bg: C.lilac, fg: '#5E4A8A',
-  },
-  {
-    id: 'pr3', title: 'Swim Lessons', ages: 'Ages 0–8',
-    distance: '0.9 mi away', Icon: Sparkles,
-    bg: C.sage, fg: C.sageDark,
+    id: 'fe3', title: 'Florida Aquarium',
+    rating: 4.8, distance: '1.3 mi away',
+    photo: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&auto=format&fit=crop',
   },
 ];
 
-const SCHOOLS = [
+const FUN_ENTERTAINMENT_ALL = [
+  ...FUN_ENTERTAINMENT,
+  {
+    id: 'fe4', title: 'Tampa Bay History Center',
+    rating: 4.6, distance: '1.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'fe5', title: 'Adventure Island Water Park',
+    rating: 4.5, distance: '8.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1572883454114-1cf0031ede2a?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'fe6', title: 'Sky Zone Trampoline Park',
+    rating: 4.4, distance: '3.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'fe7', title: 'Big Cat Rescue',
+    rating: 4.7, distance: '10.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=400&auto=format&fit=crop',
+  },
+];
+
+// 3. Schools & childcare — preschools, daycares, K-8.
+const SCHOOLS_CHILDCARE = [
   {
     id: 's1', title: 'Bright Horizons at Harbour Island',
-    rating: 4.7, distance: '0.7 mi away', tag: 'Sports available',
+    rating: 4.7, distance: '0.7 mi away', tag: 'Open enrollment',
     tagBg: C.sage, tagFg: C.sageDark,
     photo: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?w=400&auto=format&fit=crop',
   },
@@ -78,20 +125,254 @@ const SCHOOLS = [
   },
   {
     id: 's3', title: 'Sunshine Preschool & VPK',
-    rating: 4.6, distance: '1.5 mi away', tag: 'Sports available',
-    tagBg: C.sage, tagFg: C.sageDark,
+    rating: 4.6, distance: '1.5 mi away', tag: 'VPK',
+    tagBg: C.lilac, tagFg: '#5E4A8A',
     photo: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=400&auto=format&fit=crop',
   },
 ];
 
-const SUPPORT = [
-  { id: 'pp',  label: 'Postpartum Support', icon: HeartHandshake, bg: C.coralSoft, fg: C.coralDeep },
-  { id: 'leg', label: 'Legal Help',         icon: Scale,          bg: C.lilac,     fg: '#5E4A8A'   },
-  { id: 'fin', label: 'Financial Help',     icon: Wallet,         bg: '#FFF4D6',   fg: '#8A6610'   },
-  { id: 'ped', label: 'Pediatric Care',     icon: Stethoscope,    bg: C.sage,      fg: C.sageDark  },
-  { id: 'men', label: 'Mental Health',      icon: Smile,          bg: C.coralSoft, fg: C.coralDeep },
-  { id: 'par', label: 'Parenting Groups',   icon: Users,          bg: C.lilac,     fg: '#5E4A8A'   },
+const SCHOOLS_CHILDCARE_ALL = [
+  ...SCHOOLS_CHILDCARE,
+  {
+    id: 's4', title: 'Goddard School Westshore',
+    rating: 4.7, distance: '1.0 mi away', tag: 'Open enrollment',
+    tagBg: C.sage, tagFg: C.sageDark,
+    photo: 'https://images.unsplash.com/photo-1587653263995-422546a7a569?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 's5', title: 'Kiddie Academy of Tampa Palms',
+    rating: 4.5, distance: '4.2 mi away', tag: 'Tour available',
+    tagBg: C.lilac, tagFg: '#5E4A8A',
+    photo: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 's6', title: 'KinderCare South Tampa',
+    rating: 4.6, distance: '1.8 mi away', tag: 'Waitlist',
+    tagBg: '#FFF4D6', tagFg: '#8A6610',
+    photo: 'https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 's7', title: 'St. Mary\'s Episcopal Day School',
+    rating: 4.9, distance: '0.9 mi away', tag: 'Open enrollment',
+    tagBg: C.sage, tagFg: C.sageDark,
+    photo: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 's8', title: 'Children\'s Board Family Resource',
+    rating: 4.7, distance: '1.4 mi away', tag: 'Subsidized',
+    tagBg: C.coralSoft, tagFg: C.coralDeep,
+    photo: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 's9', title: 'Tampa Day School',
+    rating: 4.8, distance: '2.6 mi away', tag: 'K-8',
+    tagBg: C.lilac, tagFg: '#5E4A8A',
+    photo: 'https://images.unsplash.com/photo-1581726690015-c9861fa5057f?w=400&auto=format&fit=crop',
+  },
 ];
+
+// 4. Extracurricular & camps — classes, camps, programs.
+const EXTRACURRICULAR_CAMPS = [
+  {
+    id: 'pr1', title: 'Music Together', ages: 'Ages 0–5',
+    distance: '0.6 mi away', Icon: Music,
+    bg: C.coralSoft, fg: C.coralDeep,
+  },
+  {
+    id: 'ec_camp1', title: 'Summer Adventure Camp', ages: 'Ages 5–12',
+    distance: '1.2 mi away', Icon: Tent,
+    bg: C.sage, fg: C.sageDark,
+  },
+  {
+    id: 'pr4', title: 'Toddler Art Studio', ages: 'Ages 1–4',
+    distance: '0.8 mi away', Icon: Palette,
+    bg: '#FFF4D6', fg: '#8A6610',
+  },
+];
+
+const EXTRACURRICULAR_CAMPS_ALL = [
+  ...EXTRACURRICULAR_CAMPS,
+  {
+    id: 'pr6', title: 'Story Time Spanish', ages: 'Ages 2–5',
+    distance: '1.0 mi away', Icon: BookOpen,
+    bg: C.lilac, fg: '#5E4A8A',
+  },
+  {
+    id: 'pr7', title: 'Mini Chefs Cooking', ages: 'Ages 4–8',
+    distance: '1.6 mi away', Icon: Sparkles,
+    bg: C.sage, fg: C.sageDark,
+  },
+  {
+    id: 'pr8', title: 'Baby Sign Class', ages: 'Ages 0–2',
+    distance: '0.7 mi away', Icon: HeartHandshake,
+    bg: '#FFF4D6', fg: '#8A6610',
+  },
+  {
+    id: 'pr9', title: 'STEM for Toddlers', ages: 'Ages 2–4',
+    distance: '1.9 mi away', Icon: Brain,
+    bg: C.coralSoft, fg: C.coralDeep,
+  },
+  {
+    id: 'ec_camp2', title: 'Nature Day Camp', ages: 'Ages 4–10',
+    distance: '2.4 mi away', Icon: Trees,
+    bg: C.sage, fg: C.sageDark,
+  },
+  {
+    id: 'ec_camp3', title: 'Coding Kids Camp', ages: 'Ages 6–12',
+    distance: '2.0 mi away', Icon: Brain,
+    bg: C.lilac, fg: '#5E4A8A',
+  },
+];
+
+// 5. Health & wellness — pediatric, mental, postpartum, OT, sleep.
+const HEALTH_WELLNESS = [
+  {
+    id: 'hw_ped', title: 'Tampa Pediatric Care',
+    rating: 4.8, distance: '0.9 mi away',
+    photo: 'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_men', title: 'Brightside Mental Health',
+    rating: 4.7, distance: '1.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_pp', title: 'Postpartum Wellness Center',
+    rating: 4.9, distance: '1.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1556139943-4bdca53adf1e?w=400&auto=format&fit=crop',
+  },
+];
+
+const HEALTH_WELLNESS_ALL = [
+  ...HEALTH_WELLNESS,
+  {
+    id: 'hw_lac', title: 'Lactation Consultant Co.',
+    rating: 4.9, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_sle', title: 'Tampa Sleep Consultants',
+    rating: 4.8, distance: '1.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1566275529824-cca6d008f3da?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_ot', title: 'OT & Speech Therapy Clinic',
+    rating: 4.7, distance: '1.9 mi away',
+    photo: 'https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_doc', title: 'Bay Area Doula Collective',
+    rating: 4.8, distance: '2.1 mi away',
+    photo: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_yog', title: 'Mom & Baby Yoga Studio',
+    rating: 4.7, distance: '1.0 mi away',
+    photo: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'hw_dent', title: 'Little Smiles Pediatric Dental',
+    rating: 4.8, distance: '1.7 mi away',
+    photo: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=400&auto=format&fit=crop',
+  },
+];
+
+// Section metadata — keeps the rendering loop declarative and lets the
+// Category filter map titles to data sources without a giant switch.
+const SECTIONS = [
+  {
+    key: 'places',
+    title: 'Top places nearby',
+    kind: 'photo',
+    items: TOP_PLACES_NEARBY,
+    allItems: TOP_PLACES_NEARBY_ALL,
+    seeAllSubtitle: 'Curated near you',
+  },
+  {
+    key: 'fun',
+    title: 'Fun & entertainment',
+    kind: 'photo',
+    items: FUN_ENTERTAINMENT,
+    allItems: FUN_ENTERTAINMENT_ALL,
+    seeAllSubtitle: 'Days out, weekend ideas',
+  },
+  {
+    key: 'schools',
+    title: 'Schools & childcare',
+    kind: 'school',
+    items: SCHOOLS_CHILDCARE,
+    allItems: SCHOOLS_CHILDCARE_ALL,
+    seeAllSubtitle: `${SCHOOLS_CHILDCARE_ALL.length} options within 5 mi`,
+  },
+  {
+    key: 'extras',
+    title: 'Extracurricular & camps',
+    kind: 'program',
+    items: EXTRACURRICULAR_CAMPS,
+    allItems: EXTRACURRICULAR_CAMPS_ALL,
+    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
+  },
+  {
+    key: 'health',
+    title: 'Health & wellness',
+    kind: 'photo',
+    items: HEALTH_WELLNESS,
+    allItems: HEALTH_WELLNESS_ALL,
+    seeAllSubtitle: 'Pediatric, mental, postpartum',
+  },
+];
+
+// Map section keys to filter Category labels for filtering visibility.
+const SECTION_CATEGORY = {
+  places:  'Top places nearby',
+  fun:     'Fun & entertainment',
+  schools: 'Schools & childcare',
+  extras:  'Extracurricular & camps',
+  health:  'Health & wellness',
+};
+
+const QUICK_FILTERS_BY_SECTION = {
+  places: [
+    { id: 'top',      label: 'Top rated',         icon: Star       },
+    { id: 'outdoor',  label: 'Outdoor'                              },
+    { id: 'indoor',   label: 'Indoor'                               },
+    { id: 'free',     label: 'Free'                                 },
+    { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
+    { id: 'near',     label: 'Near me',           icon: MapPin      },
+  ],
+  fun: [
+    { id: 'indoor',  label: 'Indoor'                            },
+    { id: 'outdoor', label: 'Outdoor'                           },
+    { id: 'rainy',   label: 'Rainy day'                         },
+    { id: 'free',    label: 'Free'                              },
+    { id: 'event',   label: 'Live events', icon: Sparkles       },
+    { id: 'animal',  label: 'Animals',     icon: Trees          },
+  ],
+  schools: [
+    { id: 'enrolling',label: 'Open enrollment', icon: ShieldCheck },
+    { id: 'waitlist', label: 'Waitlist'                           },
+    { id: 'tour',     label: 'Tour available',  icon: School      },
+    { id: 'preschool',label: 'Preschool'                          },
+    { id: 'vpk',      label: 'VPK'                                },
+    { id: 'private',  label: 'Private'                            },
+  ],
+  extras: [
+    { id: 'baby',   label: 'Baby (0–1)',    icon: Sparkles },
+    { id: 'tod',    label: 'Toddler (1–3)', icon: Activity },
+    { id: 'pre',    label: 'Pre-K (3–5)',   icon: BookOpen },
+    { id: 'kid',    label: 'Kid (5+)',      icon: Users    },
+    { id: 'camp',   label: 'Camps',         icon: Tent     },
+    { id: 'art',    label: 'Art',           icon: Palette  },
+  ],
+  health: [
+    { id: 'health',  label: 'Pediatric',     icon: Stethoscope    },
+    { id: 'mental',  label: 'Mental',        icon: Brain          },
+    { id: 'pp',      label: 'Postpartum',    icon: HeartHandshake },
+    { id: 'sleep',   label: 'Sleep',         icon: Sparkles       },
+    { id: 'ot',      label: 'OT & Speech',   icon: Activity       },
+    { id: 'group',   label: 'Groups',        icon: Users          },
+  ],
+};
 
 // -------------------------- shared --------------------------
 
@@ -119,37 +400,6 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
   </div>
 );
 
-const QuickTile = ({ item, onClick }) => {
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink: 0,
-        background: '#fff', border: `1px solid ${C.line}`,
-        borderRadius: 14,
-        padding: '10px 12px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 4, minWidth: 70,
-        cursor: 'pointer',
-      }}
-    >
-      <div style={{
-        width: 26, height: 26, borderRadius: 8,
-        background: item.bg, color: item.fg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={14}/>
-      </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
-        color: C.navy, marginTop: 2,
-      }}>
-        {item.label}
-      </div>
-    </button>
-  );
-};
 
 const PhotoCard = ({ item, onClick }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
@@ -274,26 +524,6 @@ const SchoolCard = ({ item, onClick }) => (
   </button>
 );
 
-const SupportChip = ({ item, onClick }) => {
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 5,
-        padding: '8px 12px', borderRadius: 18,
-        background: item.bg, color: item.fg,
-        border: 'none', cursor: 'pointer',
-        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-      }}
-    >
-      <Icon size={12}/>
-      {item.label}
-    </button>
-  );
-};
-
 // -------------------------- screen --------------------------
 
 export const LocalPicksTab = ({
@@ -301,10 +531,10 @@ export const LocalPicksTab = ({
   filterOpen, setFilterOpen,
 }) => {
   void location;
-  const [query, setQuery] = useState('');
 
   // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [shareItem, setShareItem] = useState(null);
 
   const isSaved = (id) => savedItems.includes(id);
   const isInterested = (id) => savedItems.includes(`int-${id}`);
@@ -329,51 +559,30 @@ export const LocalPicksTab = ({
     kind: 'School',
   });
 
-  // Advanced place filters — distance, cost, amenities (stroller-friendly,
-  // changing table, nursing room, …), parking, kid ages, visit style.
+  // Advanced place filters — category, distance, cost, amenities, parking,
+  // kid ages, visit style.
   const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
   const advCount =
+    (filters.categories?.length || 0) +
     (filters.distance != null ? 1 : 0) + filters.cost.length +
     filters.amenities.length + filters.parking.length +
     filters.ages.length + filters.visit.length;
 
+  // When category chips are picked, hide non-matching sections. Empty = show all.
+  const activeCats = filters.categories || [];
+  const visibleSections = activeCats.length
+    ? SECTIONS.filter(s => activeCats.includes(SECTION_CATEGORY[s.key]))
+    : SECTIONS;
+
+  // Which "See all" view is open (null = none).
+  const [seeAll, setSeeAll] = useState(null);
+  const seeAllSection = SECTIONS.find(s => s.key === seeAll);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Search */}
-      <div className="px-5" style={{ paddingBottom: 6 }}>
-        <div
-          className="flex items-center gap-2 rounded-full px-3"
-          style={{ background: C.paper, border: `1px solid ${C.divider}`, height: 40 }}
-        >
-          <Search size={14} color={C.muted}/>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search places, programs, schools, support…"
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              fontFamily: 'Albert Sans', fontSize: 12, color: C.navy,
-            }}
-          />
-          <MapPin size={14} color={C.coralDeep}/>
-        </div>
-      </div>
-
-      {/* Quick tiles + advanced filter button. */}
+      {/* Lone filter button — replaces the old quick-tiles jump row */}
       <div className="px-5" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 4 }}>
-            {QUICK_TILES.map(item => (
-              <QuickTile
-                key={item.id}
-                item={item}
-                onClick={() => {
-                  const el = document.getElementById(`localpicks-section-${item.id}`);
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-              />
-            ))}
-          </div>
+        <div className="flex items-center justify-end">
           <LocalPicksFilterIconBtn
             count={advCount}
             onClick={() => setFilterOpen?.(true)}
@@ -382,50 +591,54 @@ export const LocalPicksTab = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
-        {/* Top Places */}
-        <div id="localpicks-section-places">
-          <SectionHead title="Top Places" onLink={() => flash?.('Top Places — full list coming soon')}/>
-          <div className="grid grid-cols-3" style={{ gap: 8 }}>
-            {TOP_PLACES.map(item => (
-              <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>
-            ))}
+        {visibleSections.map(section => (
+          <div key={section.key} id={`localpicks-section-${section.key}`}>
+            <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
+            <div className="grid grid-cols-3" style={{ gap: 8 }}>
+              {section.items.map(item => {
+                if (section.kind === 'program') {
+                  return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
+                }
+                if (section.kind === 'school') {
+                  return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
+                }
+                return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
+              })}
+            </div>
           </div>
-        </div>
+        ))}
 
-        {/* Programs For Your Child */}
-        <div id="localpicks-section-programs">
-          <SectionHead title="Programs For Your Child" onLink={() => flash?.('Programs — full list coming soon')}/>
-          <div className="grid grid-cols-3" style={{ gap: 8 }}>
-            {PROGRAMS.map(item => (
-              <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>
-            ))}
+        {visibleSections.length === 0 && (
+          <div style={{
+            marginTop: 28, textAlign: 'center',
+            fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
+          }}>
+            No categories selected · clear filters to see everything
           </div>
-        </div>
-
-        {/* Schools Near You */}
-        <div id="localpicks-section-schools">
-          <SectionHead title="Schools Near You" onLink={() => flash?.('Schools — full list coming soon')}/>
-          <div className="grid grid-cols-3" style={{ gap: 8 }}>
-            {SCHOOLS.map(item => (
-              <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>
-            ))}
-          </div>
-        </div>
-
-        {/* Support You Can Count On */}
-        <div id="localpicks-section-support">
-          <SectionHead title="Support You Can Count On" onLink={() => flash?.('Support resources coming soon')}/>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {SUPPORT.map(item => (
-              <SupportChip
-                key={item.id}
-                item={item}
-                onClick={() => flash?.(`${item.label} · resources coming soon`)}
-              />
-            ))}
-          </div>
-        </div>
+        )}
       </div>
+
+      {seeAllSection && (
+        <SeeAllSheet
+          title={seeAllSection.title}
+          subtitle={seeAllSection.seeAllSubtitle}
+          items={seeAllSection.allItems}
+          renderItem={(item) => {
+            if (seeAllSection.kind === 'program') {
+              return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
+            }
+            if (seeAllSection.kind === 'school') {
+              return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
+            }
+            return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
+          }}
+          columns={2}
+          quickFilters={QUICK_FILTERS_BY_SECTION[seeAllSection.key]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
 
       {filterOpen && (
         <PlacesFilterSheet
@@ -451,10 +664,23 @@ export const LocalPicksTab = ({
           onShare={(_, action) => {
             if (action === 'call') flash?.('Opening dialer…');
             else if (action === 'web') flash?.('Opening website…');
-            else flash?.('Link copied · share with another mom');
+            else setShareItem({
+              title: selectedPlace.title,
+              kind: selectedPlace.kind || 'Place',
+              place: selectedPlace.distance,
+              photo: selectedPlace.photo,
+            });
           }}
           onDirections={() => flash?.('Opening directions…')}
           onClose={() => setSelectedPlace(null)}
+        />
+      )}
+
+      {shareItem && (
+        <ShareSheet
+          item={shareItem}
+          flash={flash}
+          onClose={() => setShareItem(null)}
         />
       )}
     </div>

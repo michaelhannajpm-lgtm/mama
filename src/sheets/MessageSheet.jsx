@@ -4,9 +4,9 @@ import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 
 export const MessageSheet = ({ mom, history, onSend, isPremium, onClose, openPremium }) => {
-  // GoMama redesign: free tier softened from 10 → 25 messages per mom.
-  // Premium still unlocks unlimited; gating mechanism unchanged.
-  const FREE_LIMIT = 25;
+  // 2026-06-08: tightened free tier from 25 → 3 messages per mom to drive
+  // Plus conversion harder. Premium still unlocks unlimited.
+  const FREE_LIMIT = 3;
   const userMessages = history.filter(m => m.fromUser);
   const used = userMessages.length;
   const remaining = FREE_LIMIT - used;

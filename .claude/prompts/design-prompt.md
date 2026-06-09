@@ -81,7 +81,7 @@ Meetups · Places · Favorites · Profile
 
 # What never changes
 
-1. **25-message free chat limit per mom** — intentional friction (softened from 10 on 2026-06-01).
+1. **3-message free chat limit per mom** — intentional friction (tightened from 25 on 2026-06-08).
 2. **Partial profile blur with full reveal in Plus.**
 3. **Verified-only positioning** — social + photo.
 4. **"Shared ground" coral card stays free** on every profile.

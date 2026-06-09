@@ -75,7 +75,7 @@ The `CreateAccountSheet` opens; on completion, `handleAccountComplete()` replays
 - Profile: blurred bio + 2 values vs. full bio + all values
 - Events: first 3 attendees + count vs. all attendees + DM access
 - Group chat: read-only vs. read + post
-- Messaging: **25 messages per mom** free (softened from 10 on 2026-06-01) vs. unlimited
+- Messaging: **3 messages per mom** free (tightened from 25 on 2026-06-08) vs. unlimited
 
 `PremiumSheet`'s `onActivate` callback flips `isPremium: true` and starts a 7-day trial timer (visual only).
 

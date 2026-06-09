@@ -19,6 +19,9 @@ const TIME_OPTS    = [
   { id: 'night-owl', label: 'Evening'   },
 ];
 const AGE_OPTS     = ['Under 1', '1–3', '3–5', '5–8', '8+'];
+const FORMAT_OPTS  = [
+  'Event','Meetup','Class','Program','Camp','Workshop','Drop-in',
+];
 const TYPE_OPTS    = [
   'Storytime','Music','Yoga','Playgroup','Stroller walk',
   'Park','Brunch','Art','Class','Splash pad',
@@ -36,7 +39,7 @@ const DISTANCE_PRESETS = [
 
 export const ACTIVITIES_FILTER_DEFAULT = {
   cost: [], setting: [], days: [], times: [], ages: [],
-  types: [], amenities: [], distance: null,
+  formats: [], types: [], amenities: [], distance: null,
 };
 
 const Chip = ({ active, onClick, children, accent = C.navy }) => (
@@ -164,6 +167,15 @@ export const ActivitiesFilterSheet = ({ filters, setFilters, onClose }) => {
 
         <div className="mt-5">
           <SectionLabel>Activity type</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {FORMAT_OPTS.map(f => (
+              <Chip key={f} active={draft.formats.includes(f)} onClick={() => toggleArr('formats', f)} accent={C.coral}>{f}</Chip>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <SectionLabel>Activity focus</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
             {TYPE_OPTS.map(t => (
               <Chip key={t} active={draft.types.includes(t)} onClick={() => toggleArr('types', t)} accent={C.coral}>{t}</Chip>

@@ -1,27 +1,31 @@
 import { useState } from 'react';
 import {
-  MapPin, Calendar, Users, GraduationCap, ChevronRight,
+  MapPin, ChevronRight,
   Star, Palette, Music, Sparkles, SlidersHorizontal, Clock,
+  Sun, BookOpen, Baby, Smile, Activity, Heart, ShieldCheck, Calendar, Users,
+  Home, Tag,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { ActivitiesFilterSheet, ACTIVITIES_FILTER_DEFAULT } from '../../sheets/ActivitiesFilterSheet';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
+import { SeeAllSheet } from '../../sheets/SeeAllSheet';
+import { ShareSheet } from '../../sheets/ShareSheet';
 
 // ==========================================================================
 // ThisWeekTab — curated weekly discovery surface (V5 layout).
 //
 //   • Location chip ("Tampa, FL")
-//   • 4 pill filters: Events · Meetups · Programs · Free
+//   • 3 pill filters: Indoor · Outdoor · Free  + advanced filter button
 //   • Today / This Weekend / Popular sections, each a 3-col card grid
 //   • "Because your child is 0-3 years old" age-targeted categories
-//   • Coral "More filters" CTA at the bottom
+//   • Coral "See all activities" CTA at the bottom (opens combined feed)
 // ==========================================================================
 
 const PILL_FILTERS = [
-  { id: 'events',   label: 'Events',   icon: Calendar,      fg: C.coralDeep, bg: C.coralSoft },
-  { id: 'meetups',  label: 'Meetups',  icon: Users,         fg: '#5E4A8A',   bg: C.lilac     },
-  { id: 'programs', label: 'Programs', icon: GraduationCap, fg: C.sageDark,  bg: C.sage      },
+  { id: 'indoor',  label: 'Indoor',  icon: Home, fg: '#5E4A8A',   bg: C.lilac     },
+  { id: 'outdoor', label: 'Outdoor', icon: Sun,  fg: C.sageDark,  bg: C.sage      },
+  { id: 'free',    label: 'Free',    icon: Tag,  fg: C.coralDeep, bg: C.coralSoft },
 ];
 
 const TODAY_ITEMS = [
@@ -39,6 +43,40 @@ const TODAY_ITEMS = [
     id: 't3', time: '11:30 AM', title: 'Mini Makers Art Class',
     place: 'Little Explorers Play Cafe', tag: 'Indoor', distance: '2.1 mi',
     photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+];
+
+const TODAY_ITEMS_ALL = [
+  ...TODAY_ITEMS,
+  {
+    id: 't4', time: '12:30 PM', title: 'Music & Movement',
+    place: 'Curtis Hixon Park', tag: 'Outdoor', distance: '0.9 mi',
+    photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 't5', time: '1:00 PM', title: 'Baby Yoga Drop-in',
+    place: 'Sunshine Studio', tag: 'Indoor', distance: '1.6 mi',
+    photo: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 't6', time: '2:00 PM', title: 'Toddler Tumble Time',
+    place: 'Move & Grow Gym', tag: 'Indoor', distance: '2.4 mi',
+    photo: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 't7', time: '3:30 PM', title: 'Library Sing-Along',
+    place: 'John F. Germany Library', tag: 'Indoor', distance: '1.2 mi',
+    photo: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 't8', time: '4:00 PM', title: 'Sensory Bin Social',
+    place: 'Little Explorers Play Cafe', tag: 'Indoor', distance: '2.1 mi',
+    photo: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 't9', time: '5:00 PM', title: 'Sunset Stroller Walk',
+    place: 'Bayshore Boulevard', tag: 'Outdoor', distance: '0.5 mi',
+    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
   },
 ];
 
@@ -60,6 +98,40 @@ const WEEKEND_ITEMS = [
   },
 ];
 
+const WEEKEND_ITEMS_ALL = [
+  ...WEEKEND_ITEMS,
+  {
+    id: 'w4', dow: 'SAT', day: 17, title: 'Farmers Market Stroll',
+    place: 'Ybor City Saturday Market', meta: 'All ages', distance: '1.7 mi',
+    photo: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'w5', dow: 'SAT', day: 17, title: 'Little Picassos Workshop',
+    place: 'Tampa Museum of Art', meta: 'Ages 3+', distance: '1.0 mi',
+    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'w6', dow: 'SAT', day: 17, title: 'Aquarium Family Hour',
+    place: 'Florida Aquarium', meta: 'All ages', distance: '1.3 mi',
+    photo: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'w7', dow: 'SUN', day: 18, title: 'Pancakes in the Park',
+    place: 'Al Lopez Park', meta: 'All ages', distance: '2.2 mi',
+    photo: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'w8', dow: 'SUN', day: 18, title: 'Beach Cleanup with Kids',
+    place: 'Davis Islands Beach', meta: 'Ages 4+', distance: '1.8 mi',
+    photo: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'w9', dow: 'SUN', day: 18, title: 'Big Cat Rescue Tour',
+    place: 'Big Cat Rescue', meta: 'Ages 5+', distance: '7.4 mi',
+    photo: 'https://images.unsplash.com/photo-1551825687-f9de1603ed8b?w=400&auto=format&fit=crop',
+  },
+];
+
 const POPULAR_PLACES = [
   {
     id: 'pp1', title: 'Tampa Riverwalk Splash Pad',
@@ -78,11 +150,57 @@ const POPULAR_PLACES = [
   },
 ];
 
+const POPULAR_PLACES_ALL = [
+  ...POPULAR_PLACES,
+  {
+    id: 'pp4', title: 'ZooTampa at Lowry Park',
+    rating: 4.7, reviews: 211, tag: '90% recommend',
+    photo: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'pp5', title: 'Curtis Hixon Waterfront Park',
+    rating: 4.8, reviews: 173, tag: '93% recommend',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'pp6', title: 'The Yard · Tampa',
+    rating: 4.6, reviews: 89, tag: '88% recommend',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'pp7', title: 'Hyde Park Village',
+    rating: 4.7, reviews: 154, tag: '90% recommend',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'pp8', title: 'Florida Aquarium',
+    rating: 4.8, reviews: 248, tag: '94% recommend',
+    photo: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'pp9', title: 'Tampa Bay History Center',
+    rating: 4.6, reviews: 117, tag: '87% recommend',
+    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
+  },
+];
+
 const AGE_CATEGORIES = [
   { id: 'art',     label: 'Art Classes',     count: 12, icon: Palette,  fg: C.coralDeep, bg: C.coralSoft },
   { id: 'play',    label: 'Playdates',       count: 8,  icon: Users,    fg: '#5E4A8A',   bg: C.lilac     },
   { id: 'music',   label: 'Music & Movement', count: 18, icon: Music,   fg: C.sageDark,  bg: C.sage      },
   { id: 'sensory', label: 'Sensory Play',    count: 5,  icon: Sparkles, fg: '#8A6610',   bg: '#FFF4D6'   },
+];
+
+const AGE_CATEGORIES_ALL = [
+  ...AGE_CATEGORIES,
+  { id: 'storytime', label: 'Storytime',      count: 14, icon: BookOpen, fg: C.coralDeep, bg: C.coralSoft },
+  { id: 'baby',      label: 'Baby Classes',   count: 9,  icon: Baby,     fg: '#5E4A8A',   bg: C.lilac     },
+  { id: 'outdoor',   label: 'Outdoor Play',   count: 22, icon: Sun,      fg: C.sageDark,  bg: C.sage      },
+  { id: 'swim',      label: 'Swim Lessons',   count: 7,  icon: Activity, fg: '#8A6610',   bg: '#FFF4D6'   },
+  { id: 'social',    label: 'Social Skills',  count: 6,  icon: Smile,    fg: C.coralDeep, bg: C.coralSoft },
+  { id: 'movement',  label: 'Toddler Yoga',   count: 4,  icon: Heart,    fg: '#5E4A8A',   bg: C.lilac     },
+  { id: 'discover',  label: 'Nature Walks',   count: 11, icon: Sparkles, fg: C.sageDark,  bg: C.sage      },
+  { id: 'safe',      label: 'Verified Spots', count: 26, icon: ShieldCheck, fg: '#8A6610', bg: '#FFF4D6'  },
 ];
 
 // -------------------------- shared bits --------------------------
@@ -361,6 +479,7 @@ export const ThisWeekTab = ({
   // Detail-sheet state — only one open at a time.
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [shareItem, setShareItem] = useState(null);
 
   const isSaved      = (id) => savedItems.includes(id);
   const isGoing      = (id) => goingItems.includes(id);
@@ -387,6 +506,22 @@ export const ThisWeekTab = ({
     kind: 'Place',
   });
 
+  // Advanced filters — Cost/Setting/Day/Time/Ages/Distance/Type/Amenities.
+  // Sheet is opened by the lone round filter icon next to the section list.
+  const [filters, setFilters] = useState(ACTIVITIES_FILTER_DEFAULT);
+  const advCount =
+    filters.cost.length + filters.setting.length + filters.days.length +
+    filters.times.length + filters.ages.length +
+    filters.formats.length + filters.types.length +
+    filters.amenities.length + (filters.distance != null ? 1 : 0);
+
+  // Which "See all" view is open (null = none). Each section's full-screen
+  // overlay reuses the ActivitiesFilterSheet above.
+  const [seeAll, setSeeAll] = useState(null);
+
+  // Inline pill filters — Indoor / Outdoor / Free. Visual toggle only in
+  // the prototype; the source of truth for real filtering is the advanced
+  // sheet (which the round button to the right opens).
   const [activeFilters, setActiveFilters] = useState(new Set());
   const toggleFilter = (id) => setActiveFilters(prev => {
     const next = new Set(prev);
@@ -394,20 +529,11 @@ export const ThisWeekTab = ({
     return next;
   });
 
-  // Advanced filters — Cost/Setting/Day/Time/Ages/Distance/Type/Amenities.
-  // Sheet is opened by the inline filter button (next to the pill row) and
-  // also by the header sliders icon (which lifts `filterOpen` from MainApp).
-  const [filters, setFilters] = useState(ACTIVITIES_FILTER_DEFAULT);
-  const advCount =
-    filters.cost.length + filters.setting.length + filters.days.length +
-    filters.times.length + filters.ages.length + filters.types.length +
-    filters.amenities.length + (filters.distance != null ? 1 : 0);
-
   void location;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Filter pills */}
+      {/* Pill filters: Indoor · Outdoor · Free + advanced filter button */}
       <div className="px-5" style={{ paddingBottom: 4 }}>
         <div className="flex items-center gap-2" style={{ paddingBottom: 2 }}>
           <div className="flex-1 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
@@ -444,7 +570,7 @@ export const ThisWeekTab = ({
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
         {/* Today */}
-        <TodayLine onSeeAll={() => flash?.("All of today's picks coming soon")}/>
+        <TodayLine onSeeAll={() => setSeeAll('today')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {TODAY_ITEMS.map(item => (
             <TodayCard key={item.id} item={item} onClick={() => openTodayEvent(item)}/>
@@ -452,7 +578,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* This Weekend */}
-        <SectionHead title="This Weekend" onLink={() => flash?.('Weekend picks coming soon')}/>
+        <SectionHead title="This Weekend" onLink={() => setSeeAll('weekend')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {WEEKEND_ITEMS.map(item => (
             <WeekendCard key={item.id} item={item} onClick={() => openWeekendEvent(item)}/>
@@ -460,7 +586,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* Popular with moms near you */}
-        <SectionHead title="Popular with moms near you" onLink={() => flash?.('Popular picks coming soon')}/>
+        <SectionHead title="Popular with moms near you" onLink={() => setSeeAll('popular')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {POPULAR_PLACES.map(item => (
             <PopularCard key={item.id} item={item} onClick={() => openPopularPlace(item)}/>
@@ -468,7 +594,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* Because your child is 0–3 years old */}
-        <SectionHead title="Because your child is 0–3 years old" onLink={() => flash?.('Age-tailored picks coming soon')}/>
+        <SectionHead title="Because your child is 0–3 years old" onLink={() => setSeeAll('ages')}/>
         <div className="grid grid-cols-4" style={{ gap: 6 }}>
           {AGE_CATEGORIES.map(item => (
             <AgeTile
@@ -479,23 +605,143 @@ export const ThisWeekTab = ({
           ))}
         </div>
 
-        {/* More filters */}
+        {/* See all activities — opens a combined view of every Today /
+            Weekend activity, in a single scrollable feed. */}
         <button
-          onClick={() => setFilterOpen?.(true)}
+          onClick={() => setSeeAll('all')}
           style={{
             marginTop: 16, width: '100%',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '12px 14px', borderRadius: 24,
-            background: '#fff', border: `1px solid ${C.line}`,
-            color: C.navy,
+            background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+            border: 'none', color: '#fff',
             fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+            boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)',
             cursor: 'pointer',
           }}
         >
-          <SlidersHorizontal size={13}/>
-          More filters
+          See all activities
+          <ChevronRight size={14}/>
         </button>
       </div>
+
+      {seeAll === 'all' && (
+        <SeeAllSheet
+          title="All activities this week"
+          subtitle={`${TODAY_ITEMS_ALL.length + WEEKEND_ITEMS_ALL.length} ideas for you`}
+          items={[...TODAY_ITEMS_ALL, ...WEEKEND_ITEMS_ALL]}
+          renderItem={(item) =>
+            item.dow
+              ? <WeekendCard key={item.id} item={item} onClick={() => openWeekendEvent(item)}/>
+              : <TodayCard   key={item.id} item={item} onClick={() => openTodayEvent(item)}/>
+          }
+          columns={2}
+          quickFilters={[
+            { id: 'today',   label: 'Today',    icon: Clock   },
+            { id: 'weekend', label: 'Weekend',  icon: Calendar },
+            { id: 'indoor',  label: 'Indoor',   icon: Home    },
+            { id: 'outdoor', label: 'Outdoor',  icon: Sun     },
+            { id: 'free',    label: 'Free',     icon: Tag     },
+            { id: 'near',    label: 'Near me',  icon: MapPin  },
+          ]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
+
+      {seeAll === 'today' && (
+        <SeeAllSheet
+          title="Today's picks"
+          subtitle="Thursday, May 16"
+          items={TODAY_ITEMS_ALL}
+          renderItem={(item) => (
+            <TodayCard key={item.id} item={item} onClick={() => openTodayEvent(item)}/>
+          )}
+          columns={2}
+          quickFilters={[
+            { id: 'morning',  label: 'Morning',  icon: Sun     },
+            { id: 'afternoon',label: 'Afternoon',icon: Clock   },
+            { id: 'indoor',   label: 'Indoor'                  },
+            { id: 'outdoor',  label: 'Outdoor'                 },
+            { id: 'free',     label: 'Free'                    },
+            { id: 'near',     label: 'Near me',  icon: MapPin  },
+          ]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
+
+      {seeAll === 'weekend' && (
+        <SeeAllSheet
+          title="This Weekend"
+          subtitle="Sat May 17 — Sun May 18"
+          items={WEEKEND_ITEMS_ALL}
+          renderItem={(item) => (
+            <WeekendCard key={item.id} item={item} onClick={() => openWeekendEvent(item)}/>
+          )}
+          columns={2}
+          quickFilters={[
+            { id: 'sat',     label: 'Saturday', icon: Calendar },
+            { id: 'sun',     label: 'Sunday',   icon: Calendar },
+            { id: 'family',  label: 'All ages', icon: Users    },
+            { id: 'outdoor', label: 'Outdoor'                  },
+            { id: 'free',    label: 'Free'                     },
+          ]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
+
+      {seeAll === 'popular' && (
+        <SeeAllSheet
+          title="Popular with moms near you"
+          subtitle="Rated 4.6★ and above"
+          items={POPULAR_PLACES_ALL}
+          renderItem={(item) => (
+            <PopularCard key={item.id} item={item} onClick={() => openPopularPlace(item)}/>
+          )}
+          columns={2}
+          quickFilters={[
+            { id: 'top',      label: 'Top rated',  icon: Star    },
+            { id: 'verified', label: 'Verified',   icon: ShieldCheck },
+            { id: 'indoor',   label: 'Indoor'                       },
+            { id: 'outdoor',  label: 'Outdoor'                      },
+            { id: 'near',     label: 'Near me',    icon: MapPin     },
+          ]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
+
+      {seeAll === 'ages' && (
+        <SeeAllSheet
+          title="Picked for ages 0–3"
+          subtitle="Categories tailored to your kid"
+          items={AGE_CATEGORIES_ALL}
+          renderItem={(item) => (
+            <AgeTile
+              key={item.id}
+              item={item}
+              onClick={() => flash?.(`✦ ${item.label} · ${item.count} ideas near you`)}
+            />
+          )}
+          columns={3}
+          quickFilters={[
+            { id: 'art',      label: 'Art',        icon: Palette },
+            { id: 'music',    label: 'Music',      icon: Music   },
+            { id: 'movement', label: 'Movement',   icon: Activity },
+            { id: 'social',   label: 'Social',     icon: Smile   },
+            { id: 'verified', label: 'Verified',   icon: ShieldCheck },
+          ]}
+          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          advancedFilterCount={advCount}
+          onClose={() => setSeeAll(null)}
+        />
+      )}
 
       {filterOpen && (
         <ActivitiesFilterSheet
@@ -527,7 +773,13 @@ export const ThisWeekTab = ({
             toggleSave(selectedEvent.id);
             flash?.(isSaved(selectedEvent.id) ? 'Removed from saved' : '✦ Saved');
           }}
-          onShare={() => flash?.('Link copied · share with another mom')}
+          onShare={() => setShareItem({
+            title: selectedEvent.title,
+            kind: selectedEvent.kind || 'Event',
+            when: selectedEvent.when,
+            place: selectedEvent.place,
+            photo: selectedEvent.photo,
+          })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -545,9 +797,22 @@ export const ThisWeekTab = ({
             toggleGoing(selectedPlace.id);
             flash?.(isGoing(selectedPlace.id) ? 'Removed interest' : '✦ Marked as interested');
           }}
-          onShare={() => flash?.('Link copied · share with another mom')}
+          onShare={() => setShareItem({
+            title: selectedPlace.title,
+            kind: selectedPlace.kind || 'Place',
+            place: selectedPlace.distance,
+            photo: selectedPlace.photo,
+          })}
           onDirections={() => flash?.('Opening directions…')}
           onClose={() => setSelectedPlace(null)}
+        />
+      )}
+
+      {shareItem && (
+        <ShareSheet
+          item={shareItem}
+          flash={flash}
+          onClose={() => setShareItem(null)}
         />
       )}
     </div>

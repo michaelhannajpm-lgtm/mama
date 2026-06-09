@@ -35,6 +35,12 @@ const ACTIVITIES = [
     place: 'Westchase Library', going: 28,
     photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&auto=format&fit=crop',
   },
+  {
+    id: 'a3', dateLabel: 'SUN, MAY 12', dateBg: C.sage, dateFg: C.sageDark,
+    title: 'Family Beach Day', time: 'Sun, May 12 · 11:00 AM',
+    place: 'Clearwater Beach', going: 36,
+    photo: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop',
+  },
 ];
 
 const MEETUPS = [
@@ -50,6 +56,12 @@ const MEETUPS = [
     place: 'Cypress Point Park', going: 18,
     photo: 'https://images.unsplash.com/photo-1526635467535-09354c1bdd66?w=600&auto=format&fit=crop',
   },
+  {
+    id: 'm3', dateLabel: 'MON, MAY 13', dateBg: C.coralSoft, dateFg: C.coralDeep,
+    title: 'Stroller Walk Club', time: 'Mon, May 13 · 8:00 AM',
+    place: 'Bayshore Boulevard', going: 14,
+    photo: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=600&auto=format&fit=crop',
+  },
 ];
 
 const MOMS_NEARBY = [
@@ -64,6 +76,12 @@ const MOMS_NEARBY = [
     interest: 'Coffee lover', interestIcon: Coffee, interestColor: C.coralDeep,
     bg: C.coralSoft,
     photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=240&auto=format&fit=crop',
+  },
+  {
+    id: 'mn3', name: 'Priya', age: '2-year-old', distance: '1.1 miles away',
+    interest: 'Park days', interestIcon: TreePine, interestColor: C.sageDark,
+    bg: C.sage,
+    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=240&auto=format&fit=crop',
   },
 ];
 
@@ -159,7 +177,7 @@ const EventCard = ({ item, saved, onToggleSave }) => (
         {item.dateLabel}
       </div>
       <button
-        onClick={onToggleSave}
+        onClick={(e) => { e.stopPropagation(); onToggleSave?.(); }}
         aria-label={saved ? 'Remove from saved' : 'Save'}
         style={{
           position: 'absolute', top: 6, right: 6,
@@ -271,6 +289,7 @@ const MomChip = ({ item }) => {
         </span>
       </div>
       <button
+        onClick={(e) => e.stopPropagation()}
         aria-label={`Message ${item.name}`}
         style={{
           position: 'absolute', bottom: 8, right: 8,
@@ -286,12 +305,45 @@ const MomChip = ({ item }) => {
   );
 };
 
+// PeekRow — horizontal row of fixed-width cards. The first two fit fully;
+// the third extends past the phone's right edge, gets blurred + faded by
+// a gradient overlay, signaling "more behind the unlock" (Hinge-style).
+const PEEK_CARD_W = 152;
+
+const PeekRow = ({ children }) => (
+  <div style={{ position: 'relative', marginRight: -16, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', gap: 10 }}>
+      {children}
+    </div>
+    <div style={{
+      position: 'absolute', top: 0, right: 0, bottom: 0, width: 72,
+      background: `linear-gradient(to right, rgba(251,245,239,0), ${C.cream} 70%)`,
+      pointerEvents: 'none',
+    }}/>
+  </div>
+);
+
+const PeekCell = ({ children, blurred, onClick }) => (
+  <div
+    role={onClick && !blurred ? 'button' : undefined}
+    onClick={blurred ? undefined : onClick}
+    style={{
+      flex: `0 0 ${PEEK_CARD_W}px`,
+      cursor: onClick && !blurred ? 'pointer' : 'default',
+      ...(blurred ? { filter: 'blur(6px)', opacity: 0.7, pointerEvents: 'none' } : {}),
+    }}
+  >
+    {children}
+  </div>
+);
+
 // Category tile — 3-up row at the bottom. Color-coded, with an arrow
 // chevron in the corner suggesting tap-through.
-const CategoryTile = ({ item }) => {
+const CategoryTile = ({ item, onClick }) => {
   const Icon = item.Icon;
   return (
     <button
+      onClick={onClick}
       className="text-left active:scale-[.98] transition-transform"
       style={{
         background: item.bg, borderRadius: 14,
@@ -407,42 +459,48 @@ export const VillagePreview = ({
         </div>
 
         {/* Things to do this week */}
-        <SectionHead title="Things to do this week" link="See all"/>
-        <div className="grid grid-cols-2" style={{ gap: 10 }}>
-          {ACTIVITIES.map(item => (
-            <EventCard
-              key={item.id} item={item}
-              saved={isSaved(item.id)}
-              onToggleSave={() => toggleSave(item.id)}
-            />
+        <SectionHead title="Things to do this week" link="See all" onLink={onNext}/>
+        <PeekRow>
+          {ACTIVITIES.map((item, i) => (
+            <PeekCell key={item.id} blurred={i === 2} onClick={onNext}>
+              <EventCard
+                item={item}
+                saved={isSaved(item.id)}
+                onToggleSave={() => toggleSave(item.id)}
+              />
+            </PeekCell>
           ))}
-        </div>
+        </PeekRow>
 
         {/* Meetups this week */}
-        <SectionHead title="Meetups this week" link="See all"/>
-        <div className="grid grid-cols-2" style={{ gap: 10 }}>
-          {MEETUPS.map(item => (
-            <EventCard
-              key={item.id} item={item}
-              saved={isSaved(item.id)}
-              onToggleSave={() => toggleSave(item.id)}
-            />
+        <SectionHead title="Meetups this week" link="See all" onLink={onNext}/>
+        <PeekRow>
+          {MEETUPS.map((item, i) => (
+            <PeekCell key={item.id} blurred={i === 2} onClick={onNext}>
+              <EventCard
+                item={item}
+                saved={isSaved(item.id)}
+                onToggleSave={() => toggleSave(item.id)}
+              />
+            </PeekCell>
           ))}
-        </div>
+        </PeekRow>
 
         {/* Moms near you */}
-        <SectionHead title="Moms near you" link="See all"/>
-        <div className="grid grid-cols-2" style={{ gap: 10 }}>
-          {MOMS_NEARBY.map(item => (
-            <MomChip key={item.id} item={item}/>
+        <SectionHead title="Moms near you" link="See all" onLink={onNext}/>
+        <PeekRow>
+          {MOMS_NEARBY.map((item, i) => (
+            <PeekCell key={item.id} blurred={i === 2} onClick={onNext}>
+              <MomChip item={item}/>
+            </PeekCell>
           ))}
-        </div>
+        </PeekRow>
 
         {/* Trusted local picks */}
-        <SectionHead title="Trusted local picks" link="See all"/>
+        <SectionHead title="Trusted local picks" link="See all" onLink={onNext}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {CATEGORIES.map(item => (
-            <CategoryTile key={item.id} item={item}/>
+            <CategoryTile key={item.id} item={item} onClick={onNext}/>
           ))}
         </div>
 
