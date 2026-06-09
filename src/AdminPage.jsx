@@ -2,10 +2,11 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MessageSquare, MapPin,
+  ChevronLeft, ChevronRight, MessageSquare, MapPin, Calendar,
 } from 'lucide-react';
 import { C } from './theme';
 import { PlacesManager } from './admin/PlacesManager';
+import { EventsManager } from './admin/EventsManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -1812,6 +1813,7 @@ export const AdminPage = () => {
   const [waitlist, setWaitlist] = useState(null);
   const [momProfiles, setMomProfiles] = useState(null);
   const [places, setPlaces] = useState(null);
+  const [events, setEvents] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1820,7 +1822,7 @@ export const AdminPage = () => {
   const signOut = () => {
     clearAdminToken();
     setAuthed(false);
-    setMoms(null); setWaitlist(null); setMomProfiles(null); setPlaces(null); setFeedback(null);
+    setMoms(null); setWaitlist(null); setMomProfiles(null); setPlaces(null); setFeedback(null); setEvents(null);
   };
 
   // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
@@ -1860,18 +1862,20 @@ export const AdminPage = () => {
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const [a, b, c, d, e] = await Promise.all([
+      const [a, b, c, d, e, f] = await Promise.all([
         fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
         fetchEndpoint('/api/admin/waitlist',     'Waitlist'),
         fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
         fetchEndpoint('/api/admin/places',       'Places'),
         fetchEndpoint('/api/admin/feedback',     'Feedback'),
+        fetchEndpoint('/api/admin/events',       'Events'),
       ]);
       setMoms(a.rows || []);
       setWaitlist(b.rows || []);
       setMomProfiles(c.rows || []);
       setPlaces(d.rows || []);
       setFeedback(e.rows || []);
+      setEvents(f.rows || []);
     } catch (e) {
       setError(e?.message || 'Could not load data');
     } finally {
@@ -1927,6 +1931,7 @@ export const AdminPage = () => {
             { id: 'waitlist',     icon: ListChecks,    label: 'Waitlist' },
             { id: 'feedback',     icon: MessageSquare, label: 'Feedback' },
             { id: 'places',       icon: MapPin,        label: 'Places' },
+            { id: 'events',       icon: Calendar,      label: 'Events' },
             { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
           ].map(t => {
             const active = tab === t.id;
@@ -1976,6 +1981,7 @@ export const AdminPage = () => {
             {tab === 'waitlist'     && <WaitlistTable rows={waitlist}/>}
             {tab === 'feedback'     && <FeedbackTab rows={feedback}/>}
             {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
+            {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} waitlistCount={waitlist.length}/>}
           </>
         )}
