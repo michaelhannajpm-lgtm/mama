@@ -28,7 +28,6 @@ import { PremiumSheet } from './sheets/PremiumSheet';
 import { SeededMomLoginSheet } from './sheets/SeededMomLoginSheet';
 import { Landing }        from './screens/Landing';
 import { AboutYou }       from './screens/onboarding/AboutYou';
-import { VillagePreview } from './screens/onboarding/VillagePreview';
 import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
@@ -315,12 +314,6 @@ function PrototypeApp({ bare = false }) {
     setPendingAction(null);
   };
 
-  // Wraps onNext for an onboarding screen: persist this step's slice, then advance.
-  const advance = (currentStepIndex, patch) => {
-    recordStep(currentStepIndex, patch);
-    setStep(currentStepIndex + 1);
-  };
-
   const inner = (
     <div className="w-full h-full relative">
       {!splashShown && loginOpen ? (
@@ -340,7 +333,7 @@ function PrototypeApp({ bare = false }) {
               onDevLogin={openSeededLogin}/>
           ) : (<>
           {step===0 && <AboutYou
-            onNext={()=>advance(0, {
+            onNext={()=>{ recordStep(0, {
               location,
               distance_miles: distance,
               location_place_id:     locationGeo?.id ?? null,
@@ -351,23 +344,15 @@ function PrototypeApp({ bare = false }) {
               location_lng:          locationGeo?.lng ?? null,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
-            })}
+            }); setStep(2); }}
             onBack={()=>{ setSplashShown(false); }}
             profile={profile} setProfile={setProfile}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
             locationGeo={locationGeo} setLocationGeo={setLocationGeo}
           />}
-          {step===1 && <VillagePreview
-            onNext={()=>advance(1, {})}
-            onBack={()=>setStep(0)}
-            savedItems={savedItems}
-            setSavedItems={setSavedItems}
-            profile={profile} setProfile={setProfile}
-            location={location}
-          />}
           {step===2 && <Account
-            onBack={()=>setStep(1)}
+            onBack={()=>setStep(0)}
             onLogin={()=>{ setSplashShown(false); setLoginOpen(true); }}
             account={account}
             onComplete={(acct) => { setAccount(acct); setStep(3); }}
