@@ -10,9 +10,13 @@
 
 ---
 
-### Task 1 — Backend: widen editable place fields
+### Task 1 — Backend: widen editable fields + bulk delete
 
-`api/admin/places/update.js` — add to the `EDITABLE` set: `city, badge, lat, lng, business_status, price_level`. (`slug` stays read-only — it's the upsert key.) `node --check`; commit.
+`api/admin/places/update.js`:
+- Add to the `EDITABLE` set: `city, badge, lat, lng, business_status, price_level`. (`slug` stays read-only.)
+- Add a **bulk delete** body variant `{ deleteIds: [uuid, ...] }` → validate every id is a uuid, `DELETE places?id=in.(...)`, return `{ ok, deleted: n }`. (Single `{ delete }` and bulk `{ ids, patch }` stay.)
+
+`node --check`; commit.
 
 ### Task 2 — Google Maps loader util
 
@@ -42,8 +46,9 @@ Wider (~780px), scrollable, sectioned. Keep the existing save (`/api/admin/place
   - Row 1 — status chips with counts: `All (n)`, `needs_review (n)`, `approved (n)`, `rejected (n)`, `archived (n)`. Counts computed over rows matching all OTHER active filters.
   - Row 2 — category(select), origin chips (all/curated/google/event — labelled "Source"), city(select, distinct), area(select, distinct), has-photo(checkbox), min-rating(select), and an all-field search box.
 - **All-field search:** match the query (lowercased, includes) against a built string of name, slug, area, city, address, phone, description, category, badge, website, tags, good_for, aka.
-- **Bulk bar:** keep approve/reject/merge.
-- **Grid view:** rows; clicking the **thumbnail or the name** opens the rich modal (keep the row action buttons). Add the per-row quick actions as today.
+- **Selection across pages + select-all:** a header checkbox toggles select-all of the **entire filtered set** (across pages, not just the current page); a per-row checkbox toggles one. Selection (a `Set` of ids) persists across pagination/filtering. Show `N selected of M filtered` with a "Select all M" / "Clear" control.
+- **Bulk bar (appears when ≥1 selected):** Approve + Publish (`review_status:'approved', visible:true`), Reject (`rejected, visible:false`), **Set visible** (`visible:true`), **Set hidden** (`visible:false`), **Archive** (`review_status:'archived'`), **Delete** (confirm → `{ deleteIds }`), and Merge (only when exactly 2 selected). Each posts once for the whole selection (`{ ids, patch }` or `{ deleteIds }`), then clears the selection and reloads. Disable while busy.
+- **Grid view:** rows; clicking the **thumbnail or the name** opens the rich modal (keep the per-row quick actions).
 - **Pagination (grid only):** page-size select [10,25,50,100] (default 25), prev/next/first/last, current page indicator, go-to-page number input. Reset to page 1 when filters change.
 - **Map view:** `<PlacesMap places={filtered} onSelect={setEditing} />` (all filtered places, no pagination).
 - `npm run build`; commit.
