@@ -426,10 +426,14 @@ const PhotoCard = ({ item, onClick }) => (
         display: 'flex', alignItems: 'center', gap: 3, marginTop: 4,
         fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700, color: C.navy,
       }}>
-        <Star size={9} fill={C.saffron} color={C.saffron}/>
-        {item.rating}
+        {item.rating != null && (
+          <>
+            <Star size={9} fill={C.saffron} color={C.saffron}/>
+            {item.rating}
+          </>
+        )}
         <span style={{
-          fontWeight: 500, color: C.muted, marginLeft: 4,
+          fontWeight: 500, color: C.muted, marginLeft: item.rating != null ? 4 : 0,
           display: 'flex', alignItems: 'center', gap: 2,
         }}>
           <MapPin size={8}/> {item.distance}
@@ -503,10 +507,14 @@ const SchoolCard = ({ item, onClick }) => (
         display: 'flex', alignItems: 'center', gap: 3, marginTop: 3,
         fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700, color: C.navy,
       }}>
-        <Star size={9} fill={C.saffron} color={C.saffron}/>
-        {item.rating}
+        {item.rating != null && (
+          <>
+            <Star size={9} fill={C.saffron} color={C.saffron}/>
+            {item.rating}
+          </>
+        )}
         <span style={{
-          fontWeight: 500, color: C.muted, marginLeft: 3,
+          fontWeight: 500, color: C.muted, marginLeft: item.rating != null ? 3 : 0,
           display: 'flex', alignItems: 'center', gap: 2,
         }}>
           <MapPin size={8}/> {item.distance}
@@ -612,12 +620,11 @@ const buildLiveSections = (places) => {
 // -------------------------- screen --------------------------
 
 export const LocalPicksTab = ({
-  places, topPicks,
+  places,
   savedItems = [], setSavedItems, location, flash,
   filterOpen, setFilterOpen,
 }) => {
   void location;
-  void topPicks;
 
   // Live-or-curated sections: when /api/places returns rows for a section,
   // show the mapped live cards; otherwise keep that section's curated list.

@@ -35,7 +35,7 @@ const HEADER_SUBTITLES = {
 };
 
 export const MainApp = ({
-  places, topPicks,
+  places,
   profile, setProfile, prefs, setPrefs,
   location, setLocation, distance, setDistance,
   scheduled1to1, joinedEvents, setJoinedEvents,
@@ -163,7 +163,7 @@ export const MainApp = ({
         account={account} requestAccount={requestAccount} flash={flash}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}/>}
       {tab === 'localpicks' && <LocalPicksTab
-        places={places} topPicks={topPicks}
+        places={places}
         savedItems={savedItems} setSavedItems={setSavedItems}
         location={location} flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}

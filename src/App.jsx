@@ -83,7 +83,6 @@ function PrototypeApp({ bare = false }) {
     return () => { alive = false; };
   }, []);
   const placesData = livePlaces?.places || null;
-  const topPicksData = livePlaces?.topPicks || null;
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };
 
@@ -265,7 +264,7 @@ function PrototypeApp({ bare = false }) {
             flash={flash}
           />}
           {step===3 && <MainApp
-            places={placesData} topPicks={topPicksData}
+            places={placesData}
             profile={profile} setProfile={setProfile} prefs={prefs} setPrefs={setPrefs}
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
