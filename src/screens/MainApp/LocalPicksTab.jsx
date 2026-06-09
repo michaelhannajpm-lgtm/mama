@@ -283,7 +283,7 @@ const HEALTH_WELLNESS_ALL = [
 const SECTIONS = [
   {
     key: 'places',
-    title: 'Top places',
+    title: 'Top Spots',
     kind: 'photo',
     items: TOP_PLACES_NEARBY,
     allItems: TOP_PLACES_NEARBY_ALL,
@@ -325,7 +325,7 @@ const SECTIONS = [
 
 // Map section keys to filter Category labels for filtering visibility.
 const SECTION_CATEGORY = {
-  places:  'Top places',
+  places:  'Top Spots',
   fun:     'Fun & entertainment',
   schools: 'Schools & childcare',
   extras:  'Extracurricular & camps',

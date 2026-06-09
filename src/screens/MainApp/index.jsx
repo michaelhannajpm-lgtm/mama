@@ -25,7 +25,7 @@ import { GROUP_DISCUSSIONS } from '../../data/discussions';
 const TABS = [
   { id: 'thisweek',   icon: CalendarDays, label: 'This Week',   headerLabel: 'This Week'   },
   { id: 'connect',    icon: Users,        label: 'Connect',     headerLabel: 'Connect'     },
-  { id: 'localpicks', icon: MapPin,       label: 'Local Picks', headerLabel: 'Local Picks' },
+  { id: 'localpicks', icon: MapPin,       label: 'Go-To Spots', headerLabel: 'Go-To Spots' },
   { id: 'hub',        icon: LayoutGrid,   label: 'My Hub',      headerLabel: 'My Hub'      },
 ];
 
@@ -40,7 +40,7 @@ const HEADER_SUBTITLES = {
 // Header title for the active content view (profile is reached via the
 // top-right button, so it isn't in the bottom TABS list).
 const HEADER_LABELS = {
-  thisweek: 'This Week', connect: 'Connect', localpicks: 'Local Picks',
+  thisweek: 'This Week', connect: 'Connect', localpicks: 'Go-To Spots',
   hub: 'My Hub', profile: 'My Profile',
 };
 

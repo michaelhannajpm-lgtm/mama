@@ -20,7 +20,7 @@ const DISTANCE_PRESETS = [
 ];
 
 const CATEGORY_OPTS = [
-  'Top places',
+  'Top Spots',
   'Fun & entertainment',
   'Schools & childcare',
   'Extracurricular & camps',

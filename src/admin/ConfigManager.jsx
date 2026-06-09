@@ -58,10 +58,10 @@ export const ConfigManager = ({ adminFetch }) => {
 
       <div style={card}>
         <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>
-          Default top-places radius
+          Default Top Spots radius
         </div>
         <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2 }}>
-          The fallback radius for the “Top places” section when a user hasn’t set their own.
+          The fallback radius for the “Top Spots” section when a user hasn’t set their own.
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
