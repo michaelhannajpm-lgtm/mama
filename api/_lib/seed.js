@@ -34,6 +34,8 @@ const buildPlacesPayload = (wantPlaces) => {
         lat: coords.lat,
         lng: coords.lng,
         visible: true,
+        review_status: 'approved',
+        last_seen_at: new Date().toISOString(),
       });
     }
   }
@@ -235,6 +237,28 @@ export const runSeed = async ({
     const { error } = await sb.from('places').upsert(placesRows, { onConflict: 'slug' });
     if (error) throw new Error(`places upsert failed: ${error.message}`);
     result.places = placesRows.length;
+  }
+
+  // Categories metadata (idempotent) + primary-category memberships.
+  {
+    const CATS = [
+      ['fun','Fun','PartyPopper',1],['sports','Sports','Trophy',2],['wellness','Wellness','Heart',3],
+      ['schools','Schools','GraduationCap',4],['childcare','Childcare','Baby',5],
+      ['extracurricular','Extracurricular','Palette',6],['camps','Camps','Tent',7],['health','Health','Stethoscope',8],
+    ];
+    const { error: catErr } = await sb.from('categories').upsert(
+      CATS.map(([id, label, icon, sort_order]) => ({ id, label, icon, kind: 'place', sort_order })),
+      { onConflict: 'id' });
+    if (catErr) throw new Error(`categories upsert failed: ${catErr.message}`);
+
+    const { data: seededPlaces, error: spErr } = await sb.from('places').select('id, category');
+    if (spErr) throw new Error(`places re-fetch failed: ${spErr.message}`);
+    if (seededPlaces?.length) {
+      const { error: pcErr } = await sb.from('place_categories').upsert(
+        seededPlaces.map(p => ({ place_id: p.id, category_id: p.category })),
+        { onConflict: 'place_id,category_id' });
+      if (pcErr) throw new Error(`place_categories upsert failed: ${pcErr.message}`);
+    }
   }
 
   // Events
