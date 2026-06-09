@@ -599,6 +599,8 @@ export const ConnectTab = ({
   // server-side (verified is a DB filter); the rest filter the loaded list.
   const [momQuickFilter, setMomQuickFilter] = useState(null);
 
+  // iconKey values ('new','working','home',…) are assigned by the server card
+  // shaper (api/_lib/mom-card.js MOM_TYPE_PRESENTATION).
   const applyMomFilter = (list) => {
     switch (momQuickFilter) {
       case 'similar': return list.filter(m => (m.sharedTags || []).includes('Same kid ages'));
@@ -809,7 +811,7 @@ export const ConnectTab = ({
             { id: 'stay',     label: 'Stay-at-home',  icon: Home },
             { id: 'near',     label: 'Near me',       icon: MapPin },
           ]}
-          activeQuickFilter={momQuickFilter}
+          activeQuickFilter={momQuickFilter ?? (nearbyVerifiedOnly ? 'verified' : null)}
           onQuickFilter={(id) => {
             if (id === 'verified') {
               onSetVerifiedOnly?.(!nearbyVerifiedOnly);
@@ -820,7 +822,7 @@ export const ConnectTab = ({
           }}
           onOpenAdvancedFilter={() => setFilterOpen?.(true)}
           advancedFilterCount={advCount}
-          onClose={() => setSeeAll(null)}
+          onClose={() => { setSeeAll(null); setMomQuickFilter(null); }}
         />
       )}
 
@@ -894,8 +896,8 @@ export const ConnectTab = ({
             flash?.(`✦ Invite sent to ${selectedMom.name}`);
           }}
           onMessage={() => {
-            // MessageSheet expects SAMPLE_MOMS shape with .id (number) + .name; the
-            // ConnectTab MOMS shape is close enough to render the basic chat.
+            // MessageSheet renders from the mom's .id + .name; the live nearbyMoms
+            // card shape carries both, so the basic chat renders fine.
             openMessage?.(selectedMom);
             setSelectedMom(null);
           }}
