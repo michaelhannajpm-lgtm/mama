@@ -1,113 +1,43 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  MapPin, Heart, Calendar, Users, Star, ChevronRight, Pencil,
-  Bell, Lock, HelpCircle, Info, Gift, User as UserIcon,
-  LogOut,
+  MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift,
+  User as UserIcon, LogOut, BadgeCheck, ShieldCheck, Camera, Link2,
+  Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { EditProfileSheet } from '../../sheets/EditProfileSheet';
-import { signOut as signOutSession } from '../../lib/onboarding';
+import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
+import { ToggleSettingsSheet } from '../../sheets/ToggleSettingsSheet';
+import { signOut as signOutSession, updateMomProfile } from '../../lib/onboarding';
+import { linkFacebook, linkInstagram, getLinkedProviders, computeVerified } from '../../lib/social-verify';
 
 // ==========================================================================
-// YouTab — V5 "My Profile" surface.
-//
-//   • User card: round avatar + name + meta + "Edit profile" link
-//   • 4 quick stats: Saved · My Events · My Connections · Reviews
-//   • "My Family" — kid mini-cards on blush background
-//   • Settings list: Interests & Preferences · Notifications · Privacy ·
-//     Help & Support · About Go Mama
-//   • Coral "Refer a friend" CTA card at the bottom
+// YouTab — "My Profile". User card (+ verified chip) · bio · badges · connect
+// social (drives verification) · settings drawers (Interests & Preferences /
+// Notifications / Privacy, all persisted) · refer · sign out.
 // ==========================================================================
 
-const KIDS_FALLBACK = [
-  {
-    id: 'k1', name: 'Emma', age: '3 yrs 2 mos', tag: 'Toddler',
-    tagBg: C.coralSoft, tagFg: C.coralDeep,
-    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=160&auto=format&fit=crop',
-  },
-  {
-    id: 'k2', name: 'Liam', age: '18 mos', tag: 'Baby',
-    tagBg: '#FFF4D6', tagFg: '#8A6610',
-    photo: 'https://images.unsplash.com/photo-1490725263030-1f0521cec8ec?w=160&auto=format&fit=crop',
-  },
+const NOTIFICATION_ITEMS = [
+  { key: 'meetups',  label: 'Meetup reminders',   sub: 'Upcoming 1:1s and events',        default: true },
+  { key: 'messages', label: 'New messages',       sub: 'When a mom messages you',          default: true },
+  { key: 'groups',   label: 'Group activity',     sub: 'Posts in groups you joined',       default: true },
+  { key: 'digest',   label: 'Weekly digest',      sub: 'A roundup of picks near you',      default: false },
 ];
 
-const SETTINGS_ROWS = [
-  { id: 'prefs',  label: 'Interests & Preferences', sub: 'Update what matters to you',         icon: Heart,       iconBg: C.coralSoft, iconFg: C.coralDeep },
-  { id: 'notif',  label: 'Notifications',           sub: 'Manage your alerts',                icon: Bell,        iconBg: '#FFF4D6',   iconFg: '#8A6610'   },
-  { id: 'priv',   label: 'Privacy',                 sub: 'Control your data and privacy',     icon: Lock,        iconBg: C.sage,      iconFg: C.sageDark  },
-  { id: 'help',   label: 'Help & Support',          sub: 'Get help or contact support',       icon: HelpCircle,  iconBg: C.lilac,     iconFg: '#5E4A8A'   },
-  { id: 'about',  label: 'About GoMama',            sub: 'Learn more about us',               icon: Info,        iconBg: C.coralSoft, iconFg: C.coralDeep },
+const PRIVACY_ITEMS = [
+  { key: 'discoverable',     label: 'Discoverable',          sub: 'Appear in nearby-mom matching',     default: true },
+  { key: 'show_last_active', label: 'Show last active',      sub: 'Let others see when you were on',    default: true },
+  { key: 'verified_only_dms',label: 'Verified-only messages',sub: 'Only verified moms can DM you',      default: false },
 ];
 
-// -------------------------- shared --------------------------
-
-const StatTile = ({ Icon, value, label, fg, bg }) => (
-  <div style={{
-    flex: 1,
-    background: '#fff', border: `1px solid ${C.line}`,
-    borderRadius: 12,
-    padding: '10px 6px',
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: 3,
+const StatPill = ({ Icon, children, tone = C.coralDeep, bg = C.coralSoft }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    background: bg, color: tone, borderRadius: 999, padding: '4px 10px',
+    fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
   }}>
-    <div style={{
-      width: 26, height: 26, borderRadius: 13,
-      background: bg, color: fg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <Icon size={13}/>
-    </div>
-    <div style={{
-      fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
-      color: C.navy, marginTop: 1, lineHeight: 1.1,
-    }}>
-      {label}
-    </div>
-    <div style={{
-      fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800,
-      color: C.muted,
-    }}>
-      {value}
-    </div>
-  </div>
-);
-
-const KidCard = ({ kid }) => (
-  <div style={{
-    flex: 1, minWidth: 0,
-    background: '#fff', border: `1px solid ${C.line}`,
-    borderRadius: 12,
-    padding: '10px 10px',
-    display: 'flex', alignItems: 'center', gap: 9,
-  }}>
-    <img src={kid.photo} alt="" style={{
-      width: 38, height: 38, borderRadius: 19, objectFit: 'cover',
-      flexShrink: 0,
-    }}/>
-    <div style={{ minWidth: 0 }}>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-        color: C.navy, lineHeight: 1.1,
-      }}>
-        {kid.name}
-      </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 9.5, color: C.muted,
-        marginTop: 2,
-      }}>
-        {kid.age}
-      </div>
-      <div style={{
-        marginTop: 4, display: 'inline-block',
-        background: kid.tagBg, color: kid.tagFg,
-        fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 700,
-        padding: '1.5px 5px', borderRadius: 4,
-      }}>
-        {kid.tag}
-      </div>
-    </div>
-  </div>
+    <Icon size={11}/> {children}
+  </span>
 );
 
 const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick }) => (
@@ -115,131 +45,182 @@ const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick }) => (
     onClick={onClick}
     className="active:scale-[.99] transition-transform"
     style={{
-      width: '100%',
-      background: '#fff', border: 'none',
-      padding: '12px 6px',
+      width: '100%', background: '#fff', border: 'none', padding: '13px 6px',
       display: 'flex', alignItems: 'center', gap: 12,
-      borderTop: `1px solid ${C.line}`,
-      cursor: 'pointer', textAlign: 'left',
+      borderTop: `1px solid ${C.line}`, cursor: 'pointer', textAlign: 'left',
     }}
   >
     <div style={{
-      width: 30, height: 30, borderRadius: 9,
-      background: iconBg, color: iconFg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
+      width: 30, height: 30, borderRadius: 9, background: iconBg, color: iconFg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       <Icon size={14}/>
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
-        color: C.navy, lineHeight: 1.15,
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10, color: C.muted,
-        marginTop: 1,
-      }}>
-        {sub}
-      </div>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>{label}</div>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 10, color: C.muted, marginTop: 1 }}>{sub}</div>
     </div>
     <ChevronRight size={14} color={C.muted}/>
   </button>
 );
 
-// -------------------------- screen --------------------------
-
-const SETTINGS_FLASH = {
-  prefs: 'Preferences editor coming soon',
-  notif: 'Notification settings coming soon',
-  priv:  'Privacy controls coming soon',
-  help:  'Help center coming soon',
-  about: 'Go Mama · v0.1 prototype',
-};
-
-const RADIUS_OPTS = [10, 20, 30, 50, 100, 150];
+// One connect row per network. Linked → shows the handle + a checkmark.
+const SocialRow = ({ Icon, name, handle, linked, onConnect }) => (
+  <button
+    onClick={linked ? undefined : onConnect}
+    className="active:scale-[.99] transition-transform"
+    style={{
+      width: '100%', background: '#fff', border: 'none', padding: '12px 6px',
+      display: 'flex', alignItems: 'center', gap: 12,
+      borderTop: `1px solid ${C.line}`, cursor: linked ? 'default' : 'pointer', textAlign: 'left',
+    }}
+  >
+    <div style={{
+      width: 30, height: 30, borderRadius: 9, background: C.lilac, color: '#5E4A8A',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      <Icon size={15}/>
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>{name}</div>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: linked ? C.sageDark : C.muted, marginTop: 1,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {linked ? (handle || 'Connected') : 'Tap to connect'}
+      </div>
+    </div>
+    {linked
+      ? <BadgeCheck size={16} color={C.sageDark}/>
+      : <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, color: C.coralDeep }}>Connect</span>}
+  </button>
+);
 
 export const YouTab = ({
-  profile, setProfile, account, prefs,
+  profile, setProfile, account,
   location, setLocation, distance, setDistance,
-  placesRadius = 50, setPlacesRadius,
-  scheduled1to1 = {}, joinedEvents = [], goToMeetups,
-  openPlans, openPremium, savedCount = 0,
-  restart, flash,
+  openPlans, restart, flash,
 }) => {
-  void prefs; void goToMeetups; void openPremium;
-
   const [editOpen, setEditOpen] = useState(false);
+  const [sheet, setSheet] = useState(null); // 'prefs' | 'notif' | 'priv' | null
 
   const fullName = account?.firstName
     ? `${account.firstName}${account.lastName ? ' ' + account.lastName : ''}`
-    : 'Jessica Martin';
-
-  const kidsCount = Object.values(profile?.kidsAges || {}).reduce((s, n) => s + n, 0)
-    || KIDS_FALLBACK.length;
+    : 'Your profile';
+  const kidsCount = Object.values(profile?.kidsAges || {}).reduce((s, n) => s + n, 0);
   const cityLabel = location ? location.split(',')[0] + ', FL' : 'Tampa, FL';
-
-  const eventsCount = (joinedEvents?.length || 0) + Object.keys(scheduled1to1 || {}).length;
-  const reviewsCount = 3;
-  const connectionsCount = 12;
-  const kids = KIDS_FALLBACK; // visual fallback — onboarding only captures counts/buckets
-
   const primaryPhoto = profile?.photos?.[0];
+
+  const socialLinks = profile?.socialLinks || {};
+  const igLinked = !!socialLinks.instagram;
+  const fbLinked = !!socialLinks.facebook;
+  const hasPhoto = !!primaryPhoto;
+  const verified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: hasPhoto });
+
+  // Persist a local-shaped patch: merge into profile state + map → API fields.
+  const saveProfile = async (localPatch) => {
+    setProfile(prev => ({ ...prev, ...localPatch }));
+    const api = {};
+    if ('momTypes' in localPatch)    api.mom_types = localPatch.momTypes;
+    if ('values' in localPatch)      api.values = localPatch.values;
+    if ('interests' in localPatch)   api.interests = localPatch.interests;
+    if ('bio' in localPatch)         api.bio = localPatch.bio;
+    if ('settings' in localPatch)    api.settings = localPatch.settings;
+    if ('socialLinks' in localPatch) api.social_links = localPatch.socialLinks;
+    if ('verifiedFlag' in localPatch) api.verified = localPatch.verifiedFlag;
+    if (Object.keys(api).length) { try { await updateMomProfile(api); } catch { /* best-effort */ } }
+  };
+
+  const linkSocial = (network, handle) => {
+    const nextSocial = { ...socialLinks, [network]: handle };
+    const isVerified = computeVerified({
+      instagram: !!nextSocial.instagram, facebook: !!nextSocial.facebook, photo: hasPhoto,
+    });
+    saveProfile({ socialLinks: nextSocial, verifiedFlag: isVerified });
+  };
+
+  // On mount: pick up Instagram redirect-back (?ig=) and any linked FB identity.
+  useEffect(() => {
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const ig = params.get('ig');
+      if (ig) {
+        linkSocial('instagram', `@${ig}`);
+        flash?.('✦ Instagram connected');
+        ['ig', 'ig_error'].forEach(k => params.delete(k));
+        const qs = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+      }
+      const providers = await getLinkedProviders();
+      if (providers.includes('facebook') && !socialLinks.facebook) {
+        linkSocial('facebook', 'Connected');
+        flash?.('✦ Facebook connected');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connectFacebook = async () => {
+    try { await linkFacebook(); } catch (e) { flash?.(e?.message || 'Facebook sign-in not configured'); }
+  };
+  const connectInstagram = async () => {
+    try { await linkInstagram(); } catch (e) { flash?.(e?.message || 'Instagram sign-in not configured'); }
+  };
 
   const handleSignOut = async () => {
     try { await signOutSession(); } catch { /* swallow */ }
     restart?.();
   };
 
+  const badges = [
+    { id: 'verified', label: 'Verified Mom', Icon: ShieldCheck, earned: verified,            hint: 'Link a social + add a photo' },
+    { id: 'photo',    label: 'Photo added',  Icon: Camera,      earned: hasPhoto,            hint: 'Add a profile photo' },
+    { id: 'social',   label: 'Social linked',Icon: Link2,       earned: igLinked || fbLinked, hint: 'Connect Instagram or Facebook' },
+    { id: 'bio',      label: 'Bio written',  Icon: Pencil,      earned: !!profile?.bio,      hint: 'Write a short bio' },
+  ];
+
   return (
     <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 20 }}>
       {/* User card */}
       <div style={{
-        background: '#fff', border: `1px solid ${C.line}`,
-        borderRadius: 16,
-        padding: '14px 14px',
-        display: 'flex', alignItems: 'center', gap: 12,
+        background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16,
+        padding: 14, display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{ flexShrink: 0 }}>
           {primaryPhoto ? (
-            <img src={primaryPhoto} alt="" style={{
-              width: 64, height: 64, borderRadius: 32, objectFit: 'cover',
-            }}/>
+            <img src={primaryPhoto} alt="" style={{ width: 64, height: 64, borderRadius: 32, objectFit: 'cover' }}/>
           ) : (
             <div style={{
-              width: 64, height: 64, borderRadius: 32,
-              background: C.coralSoft, color: C.coralDeep,
+              width: 64, height: 64, borderRadius: 32, background: C.coralSoft, color: C.coralDeep,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <UserIcon size={28}/>
-            </div>
+            }}><UserIcon size={28}/></div>
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontFamily: 'Fraunces', fontSize: 17, fontWeight: 700,
-            color: C.navy, letterSpacing: '-.01em', lineHeight: 1.1,
-          }}>
-            {fullName}
+          <div className="flex items-center gap-1.5" style={{ flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'Fraunces', fontSize: 17, fontWeight: 700, color: C.navy, letterSpacing: '-.01em' }}>
+              {fullName}
+            </span>
+            {verified && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                background: `${C.sageDark}1A`, color: C.sageDark, borderRadius: 999,
+                padding: '2px 8px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+              }}>
+                <BadgeCheck size={11}/> Verified
+              </span>
+            )}
           </div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
-            fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
-            marginTop: 4,
+            fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 4,
           }}>
-            Mom of {kidsCount} · <MapPin size={11} color={C.muted}/> {cityLabel}
+            {kidsCount ? `Mom of ${kidsCount} · ` : ''}<MapPin size={11} color={C.muted}/> {cityLabel}
           </div>
           <button
             onClick={() => setEditOpen(true)}
             style={{
-              marginTop: 6,
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: 'transparent', border: 'none', padding: 0,
-              color: C.coralDeep,
-              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer',
+              marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
+              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
             }}
           >
             <Pencil size={11}/> Edit profile
@@ -247,173 +228,157 @@ export const YouTab = ({
         </div>
       </div>
 
-      {/* Quick stats */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <StatTile Icon={Heart}    value={savedCount}      label="Saved"          bg={C.coralSoft} fg={C.coralDeep}/>
-        <StatTile Icon={Calendar} value={eventsCount}     label="My Events"      bg={C.lilac}     fg="#5E4A8A"/>
-        <StatTile Icon={Users}    value={connectionsCount} label="My Connections" bg={C.sage}     fg={C.sageDark}/>
-        <StatTile Icon={Star}     value={reviewsCount}    label="Reviews"        bg="#FFF4D6"     fg="#8A6610"/>
-      </div>
-
-      {/* My Family */}
+      {/* Bio */}
       <div style={{
-        background: C.coralSoft, borderRadius: 16,
-        padding: '12px 14px', marginTop: 12,
+        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: 14,
       }}>
-        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            fontFamily: 'Fraunces', fontSize: 14, fontWeight: 700,
-            color: C.navy, letterSpacing: '-.01em',
-          }}>
-            <Users size={13} color={C.coralDeep}/>
-            My Family
+        <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700 }}>
+            About me
           </div>
-          <button
-            onClick={() => setEditOpen(true)}
-            style={{
-              background: 'transparent', border: 'none', padding: 0,
-              color: C.coralDeep,
-              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Edit
-          </button>
+          <button onClick={() => setEditOpen(true)} style={{
+            background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
+            fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}>Edit</button>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {kids.map(k => <KidCard key={k.id} kid={k}/>)}
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, lineHeight: 1.5, color: profile?.bio ? C.navySoft : C.muted }}>
+          {profile?.bio || 'Add a short bio so other moms get to know you.'}
         </div>
-      </div>
-
-      {/* Settings list */}
-      <div style={{
-        marginTop: 14,
-        background: '#fff', border: `1px solid ${C.line}`,
-        borderRadius: 16, overflow: 'hidden',
-      }}>
-        {SETTINGS_ROWS.map((row, i) => (
-          <div key={row.id} style={{ borderTop: i === 0 ? 'none' : undefined }}>
-            <SettingsRow
-              Icon={row.icon}
-              iconBg={row.iconBg}
-              iconFg={row.iconFg}
-              label={row.label}
-              sub={row.sub}
-              onClick={() => flash?.(SETTINGS_FLASH[row.id])}
-            />
+        {(igLinked || fbLinked) && (
+          <div className="flex gap-1.5" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+            {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone="#5E4A8A">{socialLinks.instagram}</StatPill>}
+            {fbLinked && <StatPill Icon={Facebook} bg="#E7EEF8" tone="#2B5CA8">Facebook</StatPill>}
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Top-places radius preference */}
+      {/* Badges */}
       <div style={{
-        marginTop: 14, background: '#fff', border: `1px solid ${C.line}`,
-        borderRadius: 16, padding: '14px 16px',
+        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: 14,
       }}>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>
-          How far for top places?
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, marginBottom: 10 }}>
+          Your badges
         </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 2 }}>
-          We’ll surface the best-rated spots within this radius.
-        </div>
-        <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
-          {RADIUS_OPTS.map(r => {
-            const active = placesRadius === r;
-            return (
-              <button key={r} onClick={() => setPlacesRadius?.(r)} style={{
-                padding: '7px 12px', borderRadius: 999,
-                background: active ? C.coral : C.paper,
-                color: active ? '#fff' : C.navy,
-                border: `1px solid ${active ? C.coral : C.divider}`,
-                fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {badges.map(b => (
+            <div key={b.id} title={b.earned ? b.label : b.hint} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center',
+              opacity: b.earned ? 1 : 0.45,
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 22,
+                background: b.earned ? C.sage : C.cream,
+                color: b.earned ? C.sageDark : C.muted,
+                border: `1px solid ${b.earned ? C.sageDark + '55' : C.divider}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {r} mi
-              </button>
-            );
-          })}
+                <b.Icon size={18}/>
+              </div>
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy, lineHeight: 1.15 }}>
+                {b.label}
+              </div>
+            </div>
+          ))}
         </div>
+      </div>
+
+      {/* Connect social → verification */}
+      <div style={{
+        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
+      }}>
+        <div style={{ padding: '13px 14px 2px' }}>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>
+            Get verified
+          </div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 2 }}>
+            Link a social account and add a photo to earn your Verified Mom badge.
+          </div>
+        </div>
+        <SocialRow Icon={Instagram} name="Instagram" handle={socialLinks.instagram} linked={igLinked} onConnect={connectInstagram}/>
+        <SocialRow Icon={Facebook}  name="Facebook"  handle={socialLinks.facebook}  linked={fbLinked} onConnect={connectFacebook}/>
+      </div>
+
+      {/* Settings */}
+      <div style={{
+        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
+      }}>
+        <div style={{ borderTop: 'none' }}>
+          <SettingsRow Icon={Heart} iconBg={C.coralSoft} iconFg={C.coralDeep}
+            label="Interests & Preferences" sub="Update what matters to you" onClick={() => setSheet('prefs')}/>
+        </div>
+        <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
+          label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
+        <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
+          label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
       </div>
 
       {/* Refer a friend */}
       <button
         onClick={openPlans}
         style={{
-          marginTop: 14, width: '100%',
-          background: C.lilac, border: 'none',
-          borderRadius: 16,
-          padding: '14px 14px',
-          display: 'flex', alignItems: 'center', gap: 12,
-          cursor: 'pointer', textAlign: 'left',
+          marginTop: 12, width: '100%', background: C.lilac, border: 'none', borderRadius: 16,
+          padding: 14, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left',
         }}
       >
         <div style={{
-          width: 38, height: 38, borderRadius: 12,
-          background: '#fff', color: '#5E4A8A',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <Gift size={18}/>
-        </div>
+          width: 38, height: 38, borderRadius: 12, background: '#fff', color: '#5E4A8A',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}><Gift size={18}/></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800,
-            color: C.navy, lineHeight: 1.1,
-          }}>
-            Refer a friend
-          </div>
-          <div style={{
-            fontFamily: 'Albert Sans', fontSize: 10.5, color: C.navySoft,
-            marginTop: 3,
-          }}>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800, color: C.navy }}>Refer a friend</div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.navySoft, marginTop: 3 }}>
             Invite a mom, get $10 in rewards
           </div>
         </div>
         <span style={{
-          background: C.coralDeep, color: '#fff',
-          fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800,
-          padding: '6px 12px', borderRadius: 14,
-          flexShrink: 0,
-        }}>
-          Invite Now
-        </span>
+          background: C.coralDeep, color: '#fff', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800,
+          padding: '6px 12px', borderRadius: 14, flexShrink: 0,
+        }}>Invite Now</span>
       </button>
 
       {/* Sign out + restart */}
       {account && (
-        <button onClick={handleSignOut}
-          style={{
-            marginTop: 12, width: '100%',
-            background: '#fff', border: `1px solid ${C.line}`,
-            borderRadius: 16,
-            padding: '10px 12px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            color: C.coralDeep,
-            fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
-            cursor: 'pointer',
-          }}
-        >
+        <button onClick={handleSignOut} style={{
+          marginTop: 12, width: '100%', background: '#fff', border: `1px solid ${C.line}`,
+          borderRadius: 16, padding: '10px 12px', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: 6, color: C.coralDeep,
+          fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
+        }}>
           <LogOut size={13}/> Sign out
         </button>
       )}
-      <button onClick={restart}
-        style={{
-          marginTop: 8, width: '100%',
-          background: 'transparent', border: 'none',
-          padding: '6px 0',
-          color: C.muted,
-          fontFamily: 'Albert Sans', fontSize: 11,
-          cursor: 'pointer',
-        }}
-      >
+      <button onClick={restart} style={{
+        marginTop: 8, width: '100%', background: 'transparent', border: 'none', padding: '6px 0',
+        color: C.muted, fontFamily: 'Albert Sans', fontSize: 11, cursor: 'pointer',
+      }}>
         ↺ Restart prototype tour
       </button>
 
+      {/* Drawers */}
       {editOpen && <EditProfileSheet
         profile={profile} setProfile={setProfile}
         location={location} setLocation={setLocation}
         distance={distance} setDistance={setDistance}
         onClose={() => setEditOpen(false)}/>}
+
+      {sheet === 'prefs' && <InterestsPreferencesSheet
+        profile={profile}
+        onSave={(patch) => saveProfile(patch)}
+        onClose={() => setSheet(null)}/>}
+
+      {sheet === 'notif' && <ToggleSettingsSheet
+        eyebrow="Stay in the loop" title="Notification" accentWord="settings"
+        items={NOTIFICATION_ITEMS}
+        values={profile?.settings?.notifications || {}}
+        onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), notifications: next } })}
+        onClose={() => setSheet(null)}/>}
+
+      {sheet === 'priv' && <ToggleSettingsSheet
+        eyebrow="Your space" title="Privacy" accentWord="controls"
+        items={PRIVACY_ITEMS}
+        values={profile?.settings?.privacy || {}}
+        onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), privacy: next } })}
+        onClose={() => setSheet(null)}/>}
     </div>
   );
 };

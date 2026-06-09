@@ -165,15 +165,10 @@ export const MainApp = ({
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
-        account={account} prefs={prefs}
+        account={account}
         location={location} setLocation={setLocation}
         distance={distance} setDistance={setDistance}
-        placesRadius={placesRadius} setPlacesRadius={setPlacesRadius}
-        scheduled1to1={scheduled1to1} joinedEvents={joinedEvents}
-        goToMeetups={() => setTab('connect')}
         openPlans={() => setVillageOpen(true)}
-        openPremium={openPremium}
-        savedCount={savedCount}
         restart={restart} flash={flash}/>}
       {tab === 'hub' && <MamaHubSheet
         asScreen

@@ -10,6 +10,7 @@ const ALLOWED_FIELDS = new Set([
   'free_slots', 'places', 'preferred_event_ids',
   'social_links', 'display_name', 'age',
   'neighborhood', 'home_lat', 'home_lng', 'distance_miles', 'city',
+  'verified', 'settings',
 ]);
 
 const sanitizePatch = (patch) => {
@@ -17,6 +18,11 @@ const sanitizePatch = (patch) => {
   const out = {};
   for (const [k, v] of Object.entries(patch)) {
     if (!ALLOWED_FIELDS.has(k)) continue;
+    if (k === 'verified') { out[k] = !!v; continue; }
+    if (k === 'settings' || k === 'social_links') {
+      if (v && typeof v === 'object' && !Array.isArray(v)) out[k] = v;
+      continue;
+    }
     out[k] = v;
   }
   return out;

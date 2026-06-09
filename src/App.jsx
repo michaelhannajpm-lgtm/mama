@@ -219,6 +219,8 @@ function PrototypeApp({ bare = false }) {
           interests: result.profile.interests || [],
           photos: result.profile.photos || [],
           bio: result.profile.bio || '',
+          socialLinks: result.profile.socialLinks || {},
+          settings: result.profile.settings || {},
         }));
         if (result.prefs) setPrefs({
           slots: result.prefs.slots || [],

@@ -139,6 +139,8 @@ const hydratedShape = (row, momProfile) => {
       interests: mp.interests || row.interests || [],
       photos:    mp.photos    || [],
       bio:       mp.bio       || '',
+      socialLinks: mp.social_links || {},
+      settings:    mp.settings     || {},
     },
     prefs: {
       // Onboarding stores text slot strings ('Tue-morning') and place slugs.
