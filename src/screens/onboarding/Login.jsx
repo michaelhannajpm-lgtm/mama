@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Heart, ArrowRight, ArrowLeft, Mail, Phone, Eye, EyeOff, Lock, AlertCircle } from 'lucide-react';
+import { Heart, ArrowRight, ArrowLeft, Mail, Phone, AlertCircle } from 'lucide-react';
 import { C } from '../../theme';
 import { PrimaryBtn } from '../../components/PrimaryBtn';
-import { signInWithPassword, signInWithProvider } from '../../lib/onboarding';
+import { CodeVerify } from '../../components/CodeVerify';
+import { sendOtp, verifyOtp, signInWithProvider } from '../../lib/onboarding';
 import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
 
 // ==========================================================================
-// Login — sized to fit iPhone SE (375x667) without scroll. Matches the
-// compressed Account layout: OAuth providers as icon-only buttons in one
-// row, 40px inputs, compact spacing, safe-area-aware CTA.
+// Login — passwordless. Returning moms enter phone/email, receive a 6-digit
+// code (email also gets a magic link), and verify inline. Sized to fit
+// iPhone SE (375x667) without scroll. OAuth providers as icon-only buttons.
 // ==========================================================================
 
 const ProviderGlyph = ({ id, size = 16 }) => {
@@ -34,14 +35,14 @@ const ProviderGlyph = ({ id, size = 16 }) => {
 };
 
 export const Login = ({ onBack, onSuccess, flash }) => {
+  const [phase, setPhase] = useState('collect'); // 'collect' | 'code'
   const [method, setMethod] = useState('email');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
   const [error, setError] = useState(null);
+  const [demo, setDemo] = useState(false);
 
   const formatPhone = (v) => {
     const d = v.replace(/\D/g, '').slice(0, 10);
@@ -53,19 +54,38 @@ export const Login = ({ onBack, onSuccess, flash }) => {
   const phoneOk = phone.replace(/\D/g, '').length === 10;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contactOk = method === 'phone' ? phoneOk : emailOk;
-  const passwordOk = password.length >= 1;
-  const canSubmit = !submitting && contactOk && passwordOk;
+  const canSend = !submitting && contactOk;
+  const target = method === 'phone' ? phone : email;
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
+  const handleSend = async () => {
+    if (!canSend) return;
     setError(null);
     setSubmitting(true);
     try {
-      const data = await signInWithPassword({
+      const r = await sendOtp({
         method,
         phone: method === 'phone' ? phone : undefined,
         email: method === 'email' ? email : undefined,
-        password,
+      });
+      setDemo(!!r.local);
+      setPhase('code');
+    } catch (e) {
+      setError(e.message || 'Could not send your code');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerify = async (token) => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const data = await verifyOtp({
+        method,
+        phone: method === 'phone' ? phone : undefined,
+        email: method === 'email' ? email : undefined,
+        token,
+        local: demo,
       });
       const user = data?.user;
       const md = user?.user_metadata || {};
@@ -78,7 +98,7 @@ export const Login = ({ onBack, onSuccess, flash }) => {
         email: method === 'email' ? email : (user?.email || undefined),
       });
     } catch (e) {
-      setError(e.message || 'Could not sign in');
+      setError(e.message || 'Could not verify your code');
       setSubmitting(false);
     }
   };
@@ -98,139 +118,143 @@ export const Login = ({ onBack, onSuccess, flash }) => {
   return (
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <div className="px-6 flex items-center" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <button onClick={onBack} aria-label="Back" className="rounded-full p-2 -ml-2" style={{ color: C.inkSoft }}>
+        <button
+          onClick={phase === 'code' ? () => { setPhase('collect'); setError(null); } : onBack}
+          aria-label="Back" className="rounded-full p-2 -ml-2" style={{ color: C.inkSoft }}>
           <ArrowLeft size={18}/>
         </button>
       </div>
 
       <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-        <div style={{ marginTop: 2 }}>
-          <div className="text-[10px] tracking-[.2em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Welcome back
+        {phase === 'code' ? (
+          <div style={{ marginTop: 2 }}>
+            <CodeVerify
+              target={target}
+              method={method}
+              demo={demo}
+              submitting={submitting}
+              error={error}
+              onVerify={handleVerify}
+              onResend={handleSend}
+              onChangeContact={() => { setPhase('collect'); setError(null); }}
+              cta="Sign in"
+            />
           </div>
-          <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 24, lineHeight:1.1, color: C.ink, letterSpacing:'-.02em' }}>
-            Hello again, <span style={{ fontStyle:'italic', color: C.terracotta }}>mama</span>.
-          </h2>
-          <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
-            Sign in to pick up where you left off.
-          </p>
-        </div>
-
-        {PROVIDERS.length > 0 && (
+        ) : (
           <>
-            <div className="grid gap-2" style={{ marginTop: 12, gridTemplateColumns: `repeat(${PROVIDERS.length}, minmax(0, 1fr))` }}>
-              {PROVIDERS.map(p => (
-                <button key={p.id} onClick={()=>handleOAuth(p.id)}
-                  disabled={!!oauthLoading || submitting}
-                  className="rounded-xl flex items-center justify-center transition-all active:scale-[.99]"
-                  style={{
-                    height: 40, background: p.bg, color: p.fg,
-                    border: `1px solid ${p.border}`,
-                    opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
-                  }}
-                  aria-label={p.label}>
-                  <ProviderGlyph id={p.id} size={18}/>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-3" style={{ marginTop: 10, marginBottom: 6 }}>
-              <div className="flex-1 h-px" style={{ background: C.divider }}/>
-              <div className="text-[9.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
-                or sign in with
+            <div style={{ marginTop: 2 }}>
+              <div className="text-[10px] tracking-[.2em] uppercase mb-1.5" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
+                Welcome back
               </div>
-              <div className="flex-1 h-px" style={{ background: C.divider }}/>
+              <h2 style={{ fontFamily:'Fraunces', fontWeight:400, fontSize: 24, lineHeight:1.1, color: C.ink, letterSpacing:'-.02em' }}>
+                Hello again, <span style={{ fontStyle:'italic', color: C.terracotta }}>mama</span>.
+              </h2>
+              <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.4 }}>
+                Enter your phone or email — we'll send a quick code, no password needed.
+              </p>
             </div>
+
+            {PROVIDERS.length > 0 && (
+              <>
+                <div className="grid gap-2" style={{ marginTop: 12, gridTemplateColumns: `repeat(${PROVIDERS.length}, minmax(0, 1fr))` }}>
+                  {PROVIDERS.map(p => (
+                    <button key={p.id} onClick={()=>handleOAuth(p.id)}
+                      disabled={!!oauthLoading || submitting}
+                      className="rounded-xl flex items-center justify-center transition-all active:scale-[.99]"
+                      style={{
+                        height: 40, background: p.bg, color: p.fg,
+                        border: `1px solid ${p.border}`,
+                        opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
+                      }}
+                      aria-label={p.label}>
+                      <ProviderGlyph id={p.id} size={18}/>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3" style={{ marginTop: 10, marginBottom: 6 }}>
+                  <div className="flex-1 h-px" style={{ background: C.divider }}/>
+                  <div className="text-[9.5px] tracking-[.18em] uppercase" style={{ color: C.inkMuted, fontFamily:'Albert Sans', fontWeight:600 }}>
+                    or sign in with
+                  </div>
+                  <div className="flex-1 h-px" style={{ background: C.divider }}/>
+                </div>
+              </>
+            )}
+
+            <div style={{ marginTop: PROVIDERS.length > 0 ? 4 : 12 }}>
+              <label className="text-[10px] tracking-[.14em] uppercase block" style={{ marginBottom: 4, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+                Send my code to
+              </label>
+              <div className="rounded-xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
+                <button onClick={()=>setMethod('email')}
+                  className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
+                  style={{
+                    height: 30,
+                    background: method === 'email' ? C.paper : 'transparent',
+                    color: method === 'email' ? C.ink : C.inkMuted,
+                    fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
+                    boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+                  }}>
+                  <Mail size={12}/> Email
+                </button>
+                <button onClick={()=>setMethod('phone')}
+                  className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
+                  style={{
+                    height: 30,
+                    background: method === 'phone' ? C.paper : 'transparent',
+                    color: method === 'phone' ? C.ink : C.inkMuted,
+                    fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
+                    boxShadow: method === 'phone' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+                  }}>
+                  <Phone size={12}/> Phone
+                </button>
+              </div>
+
+              {method === 'phone' ? (
+                <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+                  <span className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
+                  <input value={phone} onChange={e=>setPhone(formatPhone(e.target.value))}
+                    inputMode="tel" type="tel" placeholder="(555) 123-4567"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && canSend) handleSend(); }}
+                    className="flex-1 bg-transparent outline-none text-[13px]"
+                    style={{ fontFamily:'Albert Sans', color: C.ink, letterSpacing:'.02em' }}/>
+                </div>
+              ) : (
+                <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+                  <Mail size={13} style={{ color: C.inkMuted }}/>
+                  <input value={email} onChange={e=>setEmail(e.target.value)}
+                    inputMode="email" type="email" autoComplete="email" placeholder="you@example.com"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && canSend) handleSend(); }}
+                    className="flex-1 bg-transparent outline-none text-[13px]"
+                    style={{ fontFamily:'Albert Sans', color: C.ink }}/>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="rounded-xl flex items-start gap-2 px-3 py-2" style={{ marginTop: 8, background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
+                <AlertCircle size={13} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
+                <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.4 }}>{error}</div>
+              </div>
+            )}
           </>
-        )}
-
-        <div style={{ marginTop: PROVIDERS.length > 0 ? 4 : 12 }}>
-          <label className="text-[10px] tracking-[.14em] uppercase block" style={{ marginBottom: 4, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Sign in with
-          </label>
-          <div className="rounded-xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
-            <button onClick={()=>setMethod('email')}
-              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
-              style={{
-                height: 30,
-                background: method === 'email' ? C.paper : 'transparent',
-                color: method === 'email' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
-                boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
-              }}>
-              <Mail size={12}/> Email
-            </button>
-            <button onClick={()=>setMethod('phone')}
-              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
-              style={{
-                height: 30,
-                background: method === 'phone' ? C.paper : 'transparent',
-                color: method === 'phone' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
-                boxShadow: method === 'phone' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
-              }}>
-              <Phone size={12}/> Phone
-            </button>
-          </div>
-
-          {method === 'phone' ? (
-            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-              <span className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
-              <input value={phone} onChange={e=>setPhone(formatPhone(e.target.value))}
-                inputMode="tel" type="tel" placeholder="(555) 123-4567"
-                className="flex-1 bg-transparent outline-none text-[13px]"
-                style={{ fontFamily:'Albert Sans', color: C.ink, letterSpacing:'.02em' }}/>
-            </div>
-          ) : (
-            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-              <Mail size={13} style={{ color: C.inkMuted }}/>
-              <input value={email} onChange={e=>setEmail(e.target.value)}
-                inputMode="email" type="email" autoComplete="email" placeholder="you@example.com"
-                className="flex-1 bg-transparent outline-none text-[13px]"
-                style={{ fontFamily:'Albert Sans', color: C.ink }}/>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Password
-          </label>
-          <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-            <Lock size={13} style={{ color: C.inkMuted }}/>
-            <input value={password} onChange={e=>setPassword(e.target.value)}
-              type={showPassword ? 'text' : 'password'} autoComplete="current-password"
-              placeholder="Your password"
-              className="flex-1 bg-transparent outline-none text-[13px]"
-              style={{ fontFamily:'Albert Sans', color: C.ink }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}/>
-            <button onClick={()=>setShowPassword(s=>!s)}
-              className="flex items-center justify-center"
-              style={{ color: C.inkMuted }}>
-              {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="rounded-xl flex items-start gap-2 px-3 py-2" style={{ marginTop: 8, background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
-            <AlertCircle size={13} style={{ color: C.terracotta, flexShrink: 0, marginTop: 1 }}/>
-            <div className="text-[11.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.4 }}>{error}</div>
-          </div>
         )}
 
         <div style={{ height: 4 }}/>
       </div>
 
-      <div style={{
-        padding: '6px 24px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-        background: C.cream,
-      }}>
-        <PrimaryBtn onClick={handleSubmit} disabled={!canSubmit} variant="terracotta">
-          <Heart size={15} fill="currentColor"/> {submitting ? 'Signing in…' : 'Sign in'} <ArrowRight size={17}/>
-        </PrimaryBtn>
-      </div>
+      {phase === 'collect' && (
+        <div style={{
+          padding: '6px 24px',
+          paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+          background: C.cream,
+        }}>
+          <PrimaryBtn onClick={handleSend} disabled={!canSend} variant="terracotta">
+            <Heart size={15} fill="currentColor"/> {submitting ? 'Sending code…' : 'Send my code'} <ArrowRight size={17}/>
+          </PrimaryBtn>
+        </div>
+      )}
     </div>
   );
 };

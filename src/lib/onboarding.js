@@ -52,75 +52,74 @@ export const recordStep = (step, patch = {}) => {
   }
 };
 
-// Local-only fallback used when the API isn't reachable (e.g. `npm run dev`
-// without `vercel dev`). Demo flow continues; real signup happens once the
-// serverless functions are live in production.
-const localSignupFallback = ({ firstName }) => ({
-  ok: true,
-  auth_user_id: `local-${getSessionId()}`,
-  username: firstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'mama',
-  first_name: firstName.trim(),
-  local: true,
-});
+// ── Passwordless OTP auth ───────────────────────────────────────────────
+// We removed passwords entirely. `signInWithOtp` sends a one-time code (and,
+// for email, a magic link) and creates the user if they don't exist — so the
+// SAME pair of calls powers both signup and login. After verifyOtp succeeds,
+// the SIGNED_IN event triggers promoteSession (below), which creates the
+// onboarding_profiles + mom_profiles rows — exactly the OAuth path.
 
-export const completeSignup = async ({
-  firstName, method, phone, email, password, agreedTerms,
-}) => {
-  const session_id = getSessionId();
-  let res;
-  try {
-    res = await fetch('/api/onboarding/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id, firstName, method, phone, email, password, agreedTerms,
-      }),
-    });
-  } catch {
-    // Network-level failure (no backend running) — fall back to local mode.
-    return localSignupFallback({ firstName });
-  }
-  // 404 = serverless function not deployed locally; proceed in local mode.
-  if (res.status === 404) return localSignupFallback({ firstName });
-  let body = {};
-  try { body = await res.json(); } catch { /* ignore */ }
-  // Backend reachable but a feature isn't configured (e.g. Supabase phone
-  // signups disabled, SMS provider missing) — fall back so the demo keeps
-  // moving rather than blocking the user on infra config.
-  const msg = (body && body.error) || '';
-  if (!res.ok && /disabled|not configured|not enabled|not available|provider/i.test(msg)) {
-    return localSignupFallback({ firstName });
-  }
-  if (!res.ok) {
-    const err = new Error(msg || 'Could not create account');
-    err.status = res.status;
-    throw err;
-  }
-  return body; // { ok, auth_user_id, username, first_name }
+const toPhoneE164 = (phone) => `+1${(phone || '').replace(/\D/g, '')}`;
+
+// True when an auth error means the channel just isn't wired up on this env
+// (no SMS provider, phone signups disabled, etc.) — we fall back to demo mode
+// so the prototype keeps moving rather than blocking on infra config.
+const isUnconfiguredChannel = (msg = '') =>
+  /disabled|not configured|not enabled|not available|provider|unsupported phone|sms/i.test(msg);
+
+const friendlyAuthError = (error) => {
+  const msg = error?.message || 'Something went wrong';
+  const friendly =
+    /expired/i.test(msg) ? 'That code expired — tap “Resend code” for a new one.' :
+    /invalid|incorrect|token/i.test(msg) ? "That code doesn't match. Double-check and try again." :
+    /rate limit|too many|security purposes/i.test(msg) ? 'Too many attempts — wait a moment, then try again.' :
+    msg;
+  const err = new Error(friendly);
+  err.status = error?.status;
+  return err;
 };
 
-// Sign in an existing user with phone or email + password.
-// Returns the supabase session on success; throws with a friendly message on failure.
-export const signInWithPassword = async ({ method, phone, email, password }) => {
-  if (!isSupabaseReady()) {
-    throw new Error('Sign-in is not configured yet');
-  }
-  const credentials = method === 'phone'
-    ? { phone: `+1${phone.replace(/\D/g, '')}`, password }
-    : { email: (email || '').trim().toLowerCase(), password };
-  const { data, error } = await supabase.auth.signInWithPassword(credentials);
+// Send a 6-digit code (email also gets a magic link) to phone or email.
+// Creates the account on first use. Returns { local: true } when Supabase or
+// the channel isn't configured, so the caller drops into demo mode.
+export const sendOtp = async ({ method, phone, email, firstName, agreedTerms }) => {
+  if (!isSupabaseReady()) return { local: true };
+
+  // Stored in user_metadata on account creation. promote.js reads first_name
+  // back so the typed name survives into the mom directory.
+  const data = {};
+  if (firstName) { data.first_name = firstName; data.full_name = firstName; }
+  if (agreedTerms != null) data.agreed_terms = !!agreedTerms;
+
+  const target = method === 'phone'
+    ? { phone: toPhoneE164(phone), options: { shouldCreateUser: true, data } }
+    : {
+        email: (email || '').trim().toLowerCase(),
+        options: { shouldCreateUser: true, data, emailRedirectTo: `${window.location.origin}/` },
+      };
+
+  const { error } = await supabase.auth.signInWithOtp(target);
   if (error) {
-    // Friendly message — Supabase returns "Invalid login credentials" by default
-    const msg = error.message || 'Could not sign in';
-    const friendly =
-      /invalid login credentials/i.test(msg) ? 'Wrong email/phone or password.' :
-      /email not confirmed/i.test(msg) ? 'Please confirm your email before signing in.' :
-      msg;
-    const err = new Error(friendly);
-    err.status = error.status;
-    throw err;
+    if (isUnconfiguredChannel(error.message)) return { local: true };
+    throw friendlyAuthError(error);
   }
-  return data;
+  return { ok: true };
+};
+
+// Verify the 6-digit code → returns { session, user } on success. In demo/local
+// mode (no Supabase, or a fallback send) any 6-digit code is accepted so the
+// prototype flow completes.
+export const verifyOtp = async ({ method, phone, email, token, local }) => {
+  if (local || !isSupabaseReady()) {
+    return { local: true, user: { id: `local-${getSessionId()}` } };
+  }
+  const params = method === 'phone'
+    ? { phone: toPhoneE164(phone), token, type: 'sms' }
+    : { email: (email || '').trim().toLowerCase(), token, type: 'email' };
+
+  const { data, error } = await supabase.auth.verifyOtp(params);
+  if (error) throw friendlyAuthError(error);
+  return data; // { session, user }
 };
 
 export const signInWithProvider = async (provider) => {

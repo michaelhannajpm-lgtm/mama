@@ -195,7 +195,8 @@ export default async function handler(req, res) {
 
   // 3. Decide first_name and username.
   const oauthName = cleanText(
-    user.user_metadata?.full_name
+    user.user_metadata?.first_name
+      || user.user_metadata?.full_name
       || user.user_metadata?.name
       || (user.email ? user.email.split('@')[0] : null),
     80,

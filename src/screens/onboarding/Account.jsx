@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { Heart, ArrowRight, Mail, Phone, Eye, EyeOff, Lock, Check, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Heart, ArrowRight, Mail, Phone, Check, AlertCircle, ChevronLeft } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { PrimaryBtn } from '../../components/PrimaryBtn';
-import { completeSignup, signInWithProvider } from '../../lib/onboarding';
+import { CodeVerify } from '../../components/CodeVerify';
+import { sendOtp, verifyOtp, signInWithProvider } from '../../lib/onboarding';
 import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
 
 // ==========================================================================
 // Account — ported from docs/HTML/GoMama-Prototype-html.html (Screen 4).
-// OAuth providers render as full-width labeled buttons (Apple dark C.ink,
-// Google white + border). Body still has firstName + phone/email toggle +
-// password + terms because the underlying Supabase flow is password-based
-// (no magic-link wiring). Adds the blush verification note from the HTML.
-// CTA honours safe-area-inset-bottom.
+// Social-first, passwordless. Three phases:
+//   'choose'  — OAuth buttons up front (most moms tap these); phone/email is
+//               tucked behind a quiet "Continue with phone or email" link.
+//   'collect' — revealed on tap: firstName + phone/email + terms → send code.
+//   'code'    — verify the 6-digit code inline (email also gets a magic link).
+// No password anywhere. Pattern mirrors Bumble/Airbnb/Substack signup.
 // ==========================================================================
 
 // Per-provider visual treatment matching the HTML spec — Apple dark, Google
@@ -49,16 +51,16 @@ const ProviderGlyph = ({ id, size = 16 }) => {
 export const Account = ({ onBack, account, onComplete, flash }) => {
   void account;
 
+  const [phase, setPhase] = useState('choose'); // 'choose' | 'collect' | 'code'
   const [firstName, setFirstName] = useState('Sana');
   const [method, setMethod] = useState('phone');
   const [phone, setPhone] = useState('(813) 956-2058');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('12345678');
-  const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
   const [error, setError] = useState(null);
+  const [demo, setDemo] = useState(false);
 
   const formatPhone = (v) => {
     const d = v.replace(/\D/g, '').slice(0, 10);
@@ -70,32 +72,50 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
   const phoneOk = phone.replace(/\D/g, '').length === 10;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const contactOk = method === 'phone' ? phoneOk : emailOk;
-  const passwordOk = password.length >= 8;
-  const canSubmit = !submitting;
+  const canSend = !submitting && contactOk && agreed;
+  const target = method === 'phone' ? phone : email;
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
+  const handleSend = async () => {
+    if (!canSend) return;
     setError(null);
     setSubmitting(true);
     try {
-      const result = await completeSignup({
-        firstName: firstName.trim(),
+      const r = await sendOtp({
         method,
         phone: method === 'phone' ? phone : undefined,
         email: method === 'email' ? email : undefined,
-        password,
+        firstName: firstName.trim(),
         agreedTerms: agreed,
       });
+      setDemo(!!r.local);
+      setPhase('code');
+    } catch (e) {
+      setError(e.message || 'Could not send your code');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerify = async (token) => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const data = await verifyOtp({
+        method,
+        phone: method === 'phone' ? phone : undefined,
+        email: method === 'email' ? email : undefined,
+        token,
+        local: demo,
+      });
       onComplete({
-        firstName: result.first_name,
-        username: result.username,
-        auth_user_id: result.auth_user_id,
+        firstName: firstName.trim(),
+        auth_user_id: data?.user?.id,
         method,
         phone: method === 'phone' ? phone : undefined,
         email: method === 'email' ? email : undefined,
       });
     } catch (e) {
-      setError(e.message || 'Could not create account');
+      setError(e.message || 'Could not verify your code');
       setSubmitting(false);
     }
   };
@@ -119,7 +139,11 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
       {/* Top bar — back button (matches AboutYou + VillagePreview pattern) */}
       <div className="flex items-center" style={{ padding: '6px 14px 4px' }}>
         <button
-          onClick={onBack}
+          onClick={
+            phase === 'code' ? () => { setPhase('collect'); setError(null); } :
+            phase === 'collect' ? () => { setPhase('choose'); setError(null); } :
+            onBack
+          }
           className="rounded-full flex items-center justify-center"
           style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
           aria-label="Back"
@@ -129,179 +153,228 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
       </div>
 
       <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
-        <div style={{ marginTop: 2 }}>
-          <h2 style={{ fontFamily:'Fraunces', fontWeight:700, fontSize: 24, lineHeight:1.15, color: C.navy, letterSpacing:'-.01em' }}>
-            Save your <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>spot</span>
-          </h2>
-          <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.muted, lineHeight:1.4 }}>
-            One tap unlocks your village.
-          </p>
-        </div>
+        {/* ── Phase: code ─────────────────────────────────────────────── */}
+        {phase === 'code' && (
+          <div style={{ marginTop: 6 }}>
+            <CodeVerify
+              target={target}
+              method={method}
+              demo={demo}
+              submitting={submitting}
+              error={error}
+              onVerify={handleVerify}
+              onResend={handleSend}
+              onChangeContact={() => { setPhase('collect'); setError(null); }}
+              cta="Match me"
+            />
+          </div>
+        )}
 
-        {PROVIDERS.length > 0 && (
+        {/* ── Phase: choose (social-first) ────────────────────────────── */}
+        {phase === 'choose' && (
           <>
-            <div style={{ marginTop: 14 }}>
-              {PROVIDERS.map(p => {
-                const s = PROVIDER_STYLE[p.id] || { bg: p.bg, fg: p.fg, border: p.border };
-                return (
-                  <button key={p.id} onClick={()=>handleOAuth(p.id)}
-                    disabled={!!oauthLoading || submitting}
-                    className="w-full flex items-center justify-center gap-2 transition-all active:scale-[.99]"
-                    style={{
-                      height: 44, marginBottom: 8,
-                      borderRadius: 13,
-                      background: s.bg, color: s.fg,
-                      border: `1.3px solid ${s.border}`,
-                      fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
-                      opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
-                    }}
-                    aria-label={p.label}>
-                    <ProviderGlyph id={p.id} size={16}/>
-                    <span>{p.label}</span>
-                  </button>
-                );
-              })}
+            <div style={{ marginTop: 6 }}>
+              <h2 style={{ fontFamily:'Fraunces', fontWeight:700, fontSize: 25, lineHeight:1.15, color: C.navy, letterSpacing:'-.01em' }}>
+                Save your <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>spot</span>
+              </h2>
+              <p className="mt-1.5 text-[12.5px]" style={{ fontFamily:'Albert Sans', color: C.muted, lineHeight:1.45 }}>
+                Join your village in one tap — no password to remember.
+              </p>
             </div>
 
-            <div className="flex items-center gap-3" style={{ marginTop: 6, marginBottom: 6 }}>
+            {PROVIDERS.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                {PROVIDERS.map(p => {
+                  const s = PROVIDER_STYLE[p.id] || { bg: p.bg, fg: p.fg, border: p.border };
+                  return (
+                    <button key={p.id} onClick={()=>handleOAuth(p.id)}
+                      disabled={!!oauthLoading || submitting}
+                      className="w-full flex items-center justify-center gap-2.5 transition-all active:scale-[.99]"
+                      style={{
+                        height: 50, marginBottom: 10,
+                        borderRadius: 14,
+                        background: s.bg, color: s.fg,
+                        border: `1.3px solid ${s.border}`,
+                        fontFamily: 'Albert Sans', fontSize: 14.5, fontWeight: 700,
+                        opacity: oauthLoading && oauthLoading !== p.id ? 0.5 : 1,
+                      }}
+                      aria-label={p.label}>
+                      <ProviderGlyph id={p.id} size={18}/>
+                      <span>{oauthLoading === p.id ? 'Connecting…' : p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3" style={{ marginTop: 12, marginBottom: 12 }}>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
               <div className="text-[10px] tracking-[.18em] uppercase" style={{ color: C.muted, fontFamily:'Albert Sans', fontWeight:600 }}>
                 or
               </div>
               <div className="flex-1 h-px" style={{ background: C.divider }}/>
             </div>
+
+            {/* Quiet disclosure — reveals the phone/email form on tap */}
+            <button
+              onClick={() => { setPhase('collect'); setError(null); }}
+              disabled={!!oauthLoading || submitting}
+              className="w-full flex items-center justify-center gap-2 transition-all active:scale-[.99]"
+              style={{
+                height: 50, borderRadius: 14,
+                background: 'transparent', color: C.navy,
+                border: `1.3px solid ${C.line}`,
+                fontFamily: 'Albert Sans', fontSize: 14.5, fontWeight: 600,
+              }}
+              aria-label="Continue with phone or email">
+              <Mail size={17} style={{ color: C.inkSoft }}/>
+              <span>Continue with phone or email</span>
+            </button>
+
+            {/* Passive consent — covers the one-tap social path */}
+            <p className="text-center text-[10.5px]" style={{ marginTop: 16, fontFamily:'Albert Sans', color: C.inkMuted, lineHeight:1.45 }}>
+              By continuing, you agree to Go Mama's{' '}
+              <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and{' '}
+              <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
+            </p>
+
+            {error && (
+              <div className="rounded-xl p-2 flex items-start gap-2" style={{ marginTop: 10, background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
+                <AlertCircle size={13} style={{ color: C.terracotta, marginTop: 1 }}/>
+                <div className="text-[11px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.35 }}>
+                  {error}
+                </div>
+              </div>
+            )}
           </>
         )}
 
-        <div style={{ marginTop: 8 }}>
-          <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            First name
-          </label>
-          <div className="rounded-xl px-3 flex items-center" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-            <input value={firstName} onChange={e=>setFirstName(e.target.value)}
-              placeholder="What should other moms call you?"
-              className="flex-1 bg-transparent outline-none text-[13px]"
-              style={{ fontFamily:'Albert Sans', color: C.ink }}/>
-          </div>
-        </div>
+        {/* ── Phase: collect (phone/email form) ───────────────────────── */}
+        {phase === 'collect' && (
+          <>
+            <div style={{ marginTop: 2 }}>
+              <h2 style={{ fontFamily:'Fraunces', fontWeight:700, fontSize: 24, lineHeight:1.15, color: C.navy, letterSpacing:'-.01em' }}>
+                A few <span style={{ fontStyle:'italic', color: C.coral, fontWeight: 500 }}>details</span>
+              </h2>
+              <p className="mt-1 text-[12px]" style={{ fontFamily:'Albert Sans', color: C.muted, lineHeight:1.4 }}>
+                We'll send a 6-digit code to confirm it's you.
+              </p>
+            </div>
 
-        <div style={{ marginTop: 10 }}>
-          <label className="text-[10px] tracking-[.14em] uppercase block" style={{ marginBottom: 4, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Sign up with
-          </label>
-          <div className="rounded-xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
-            <button onClick={()=>setMethod('phone')}
-              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
-              style={{
-                height: 30,
-                background: method === 'phone' ? C.paper : 'transparent',
-                color: method === 'phone' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
-                boxShadow: method === 'phone' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+            <div style={{ marginTop: 14 }}>
+              <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+                First name
+              </label>
+              <div className="rounded-xl px-3 flex items-center" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+                <input value={firstName} onChange={e=>setFirstName(e.target.value)}
+                  placeholder="What should other moms call you?"
+                  className="flex-1 bg-transparent outline-none text-[13px]"
+                  style={{ fontFamily:'Albert Sans', color: C.ink }}/>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <label className="text-[10px] tracking-[.14em] uppercase block" style={{ marginBottom: 4, color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
+                Send my code to
+              </label>
+              <div className="rounded-xl p-1 flex" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
+                <button onClick={()=>setMethod('phone')}
+                  className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
+                  style={{
+                    height: 30,
+                    background: method === 'phone' ? C.paper : 'transparent',
+                    color: method === 'phone' ? C.ink : C.inkMuted,
+                    fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
+                    boxShadow: method === 'phone' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+                  }}>
+                  <Phone size={12}/> Phone
+                </button>
+                <button onClick={()=>setMethod('email')}
+                  className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
+                  style={{
+                    height: 30,
+                    background: method === 'email' ? C.paper : 'transparent',
+                    color: method === 'email' ? C.ink : C.inkMuted,
+                    fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
+                    boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+                  }}>
+                  <Mail size={12}/> Email
+                </button>
+              </div>
+
+              {method === 'phone' ? (
+                <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+                  <span className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
+                  <input value={phone} onChange={e=>setPhone(formatPhone(e.target.value))}
+                    inputMode="tel" type="tel" placeholder="(555) 123-4567"
+                    className="flex-1 bg-transparent outline-none text-[13px]"
+                    style={{ fontFamily:'Albert Sans', color: C.ink, letterSpacing:'.02em' }}/>
+                </div>
+              ) : (
+                <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
+                  <Mail size={13} style={{ color: C.inkMuted }}/>
+                  <input value={email} onChange={e=>setEmail(e.target.value)}
+                    inputMode="email" type="email" autoComplete="email" placeholder="you@example.com"
+                    className="flex-1 bg-transparent outline-none text-[13px]"
+                    style={{ fontFamily:'Albert Sans', color: C.ink }}/>
+                </div>
+              )}
+            </div>
+
+            {/* Verification note — blush bg + dashed coral border (HTML S4) */}
+            <div className="flex items-start gap-2.5 rounded-xl" style={{
+              marginTop: 12, padding: 10,
+              background: C.blush, border: `1px dashed ${C.coralSoft}`,
+            }}>
+              <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>🛡️</span>
+              <p style={{
+                fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600,
+                color: C.navy, lineHeight: 1.45, margin: 0,
               }}>
-              <Phone size={12}/> Phone
-            </button>
-            <button onClick={()=>setMethod('email')}
-              className="flex-1 rounded-lg flex items-center justify-center gap-1.5 transition-all"
-              style={{
-                height: 30,
-                background: method === 'email' ? C.paper : 'transparent',
-                color: method === 'email' ? C.ink : C.inkMuted,
-                fontFamily:'Albert Sans', fontSize: 12, fontWeight: 600,
-                boxShadow: method === 'email' ? '0 1px 3px rgba(0,0,0,.06)' : 'none',
+                We'll ask you to verify your profile later — it's how we keep this safe for moms.
+              </p>
+            </div>
+
+            <button onClick={()=>setAgreed(a=>!a)}
+              className="w-full text-left flex items-start gap-2"
+              style={{ marginTop: 10 }}>
+              <div className="rounded-md flex items-center justify-center flex-shrink-0" style={{
+                width: 16, height: 16, marginTop: 1,
+                background: agreed ? C.terracotta : 'transparent',
+                border: `1.5px solid ${agreed ? C.terracotta : C.inkMuted}`,
               }}>
-              <Mail size={12}/> Email
+                {agreed && <Check size={11} color="#fff" strokeWidth={3}/>}
+              </div>
+              <div className="text-[10.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.35 }}>
+                I agree to Go Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
+              </div>
             </button>
-          </div>
 
-          {method === 'phone' ? (
-            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-              <span className="text-[13px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>+1</span>
-              <input value={phone} onChange={e=>setPhone(formatPhone(e.target.value))}
-                inputMode="tel" type="tel" placeholder="(555) 123-4567"
-                className="flex-1 bg-transparent outline-none text-[13px]"
-                style={{ fontFamily:'Albert Sans', color: C.ink, letterSpacing:'.02em' }}/>
-            </div>
-          ) : (
-            <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 6, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-              <Mail size={13} style={{ color: C.inkMuted }}/>
-              <input value={email} onChange={e=>setEmail(e.target.value)}
-                inputMode="email" type="email" autoComplete="email" placeholder="you@example.com"
-                className="flex-1 bg-transparent outline-none text-[13px]"
-                style={{ fontFamily:'Albert Sans', color: C.ink }}/>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <label className="text-[10px] tracking-[.14em] uppercase" style={{ color: C.inkSoft, fontFamily:'Albert Sans', fontWeight:600 }}>
-            Password
-          </label>
-          <div className="rounded-xl px-3 flex items-center gap-2" style={{ marginTop: 4, background: C.paper, border:`1px solid ${C.divider}`, height: 40 }}>
-            <Lock size={13} style={{ color: C.inkMuted }}/>
-            <input value={password} onChange={e=>setPassword(e.target.value)}
-              type={showPassword ? 'text' : 'password'} autoComplete="new-password"
-              placeholder="At least 8 characters"
-              className="flex-1 bg-transparent outline-none text-[13px]"
-              style={{ fontFamily:'Albert Sans', color: C.ink }}/>
-            <button onClick={()=>setShowPassword(s=>!s)}
-              className="flex items-center justify-center"
-              style={{ color: C.inkMuted }}>
-              {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
-            </button>
-          </div>
-        </div>
-
-        {/* Verification note — blush bg + dashed coral border (HTML S4) */}
-        <div className="flex items-start gap-2.5 rounded-xl" style={{
-          marginTop: 12, padding: 10,
-          background: C.blush, border: `1px dashed ${C.coralSoft}`,
-        }}>
-          <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>🛡️</span>
-          <p style={{
-            fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600,
-            color: C.navy, lineHeight: 1.45, margin: 0,
-          }}>
-            We'll ask you to verify your profile later — it's how we keep this safe for moms.
-          </p>
-        </div>
-
-        <button onClick={()=>setAgreed(a=>!a)}
-          className="w-full text-left flex items-start gap-2"
-          style={{ marginTop: 10 }}>
-          <div className="rounded-md flex items-center justify-center flex-shrink-0" style={{
-            width: 16, height: 16, marginTop: 1,
-            background: agreed ? C.terracotta : 'transparent',
-            border: `1.5px solid ${agreed ? C.terracotta : C.inkMuted}`,
-          }}>
-            {agreed && <Check size={11} color="#fff" strokeWidth={3}/>}
-          </div>
-          <div className="text-[10.5px]" style={{ fontFamily:'Albert Sans', color: C.inkSoft, lineHeight:1.35 }}>
-            I agree to Go Mama's <span style={{ color: C.terracotta, textDecoration:'underline' }}>Terms</span> and <span style={{ color: C.terracotta, textDecoration:'underline' }}>Community Pact</span>.
-          </div>
-        </button>
-
-        {error && (
-          <div className="rounded-xl p-2 flex items-start gap-2" style={{ marginTop: 8, background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
-            <AlertCircle size={13} style={{ color: C.terracotta, marginTop: 1 }}/>
-            <div className="text-[11px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.35 }}>
-              {error}
-            </div>
-          </div>
+            {error && (
+              <div className="rounded-xl p-2 flex items-start gap-2" style={{ marginTop: 8, background: `${C.terracotta}14`, border: `1px solid ${C.terracotta}40` }}>
+                <AlertCircle size={13} style={{ color: C.terracotta, marginTop: 1 }}/>
+                <div className="text-[11px]" style={{ fontFamily:'Albert Sans', color: C.terracotta, lineHeight: 1.35 }}>
+                  {error}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ height: 4 }}/>
       </div>
 
-      <div style={{
-        padding: '6px 24px',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-        background: C.cream,
-      }}>
-        <PrimaryBtn onClick={handleSubmit} disabled={!canSubmit} variant="terracotta">
-          <Heart size={15} fill="currentColor"/> {submitting ? 'Creating account…' : 'Match me'} <ArrowRight size={17}/>
-        </PrimaryBtn>
-      </div>
+      {phase === 'collect' && (
+        <div style={{
+          padding: '6px 24px',
+          paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+          background: C.cream,
+        }}>
+          <PrimaryBtn onClick={handleSend} disabled={!canSend} variant="terracotta">
+            <Heart size={15} fill="currentColor"/> {submitting ? 'Sending code…' : 'Send my code'} <ArrowRight size={17}/>
+          </PrimaryBtn>
+        </div>
+      )}
     </div>
   );
 };
