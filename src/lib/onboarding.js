@@ -155,18 +155,31 @@ export const promoteSession = async () => {
 // Returns the updated profile on success; throws with a friendly message on
 // failure. Silently no-ops (returns null) if the user isn't signed in — the
 // caller should fall back to local-only state in that case.
-export const updateMomProfile = async (patch) => {
-  if (!isSupabaseReady()) return null;
-  const { data } = await supabase.auth.getSession();
-  const access_token = data?.session?.access_token;
-  if (!access_token) return null;
+// `opts.seedMomId` routes the write through the DEV-only seeded-mom endpoint
+// when there's no real session (the dev "pick a seeded mom" login) — so seeded
+// profiles are editable locally too.
+export const updateMomProfile = async (patch, { seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+
+  let url, payload;
+  if (access_token) {
+    url = '/api/mom-profiles/update';
+    payload = { access_token, patch };
+  } else if (seedMomId) {
+    url = '/api/dev/mom-profiles/update';
+    payload = { seed_mom_id: seedMomId, patch };
+  } else {
+    return null; // not signed in and not a seeded user → caller keeps local state
+  }
 
   let res;
   try {
-    res = await fetch('/api/mom-profiles/update', {
+    res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token, patch }),
+      body: JSON.stringify(payload),
     });
   } catch {
     return null; // backend not reachable (e.g. `npm run dev` without `vercel dev`)

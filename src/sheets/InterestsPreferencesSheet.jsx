@@ -4,9 +4,9 @@ import { Sheet } from '../components/Sheet';
 import { MOM_TYPES, VALUES, INTERESTS } from '../data/taxonomy';
 
 // ==========================================================================
-// InterestsPreferencesSheet — edit mom-types / values / interests. On Save it
-// calls onSave({ momTypes, values, interests }) which persists via the API and
-// updates local profile state.
+// InterestsPreferencesSheet — edit mom-types / values / interests. Auto-saves:
+// every chip tap calls onSave({ <field>: next }) which persists via the API and
+// updates local profile state. No Save button — close when done.
 // ==========================================================================
 
 const Chip = ({ active, onClick, children }) => (
@@ -38,16 +38,22 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
   const [momTypes, setMomTypes] = useState(profile?.momTypes || []);
   const [values, setValues]     = useState(profile?.values || []);
   const [interests, setInterests] = useState(profile?.interests || []);
-  const [saving, setSaving] = useState(false);
 
-  const toggle = (list, set, val) =>
-    set(list.includes(val) ? list.filter(x => x !== val) : [...list, val]);
-
-  const save = async () => {
-    setSaving(true);
-    await onSave?.({ momTypes, values, interests });
-    setSaving(false);
-    onClose();
+  // Auto-save: each toggle updates local state and persists just that field.
+  const toggleMom = (val) => {
+    const next = momTypes.includes(val) ? momTypes.filter(x => x !== val) : [...momTypes, val];
+    setMomTypes(next);
+    onSave?.({ momTypes: next });
+  };
+  const toggleValue = (val) => {
+    const next = values.includes(val) ? values.filter(x => x !== val) : [...values, val];
+    setValues(next);
+    onSave?.({ values: next });
+  };
+  const toggleInterest = (val) => {
+    const next = interests.includes(val) ? interests.filter(x => x !== val) : [...interests, val];
+    setInterests(next);
+    onSave?.({ interests: next });
   };
 
   return (
@@ -64,7 +70,7 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
           <Label>Mom type</Label>
           <div className="flex flex-wrap gap-1.5">
             {MOM_TYPES.map(m => (
-              <Chip key={m.id} active={momTypes.includes(m.id)} onClick={() => toggle(momTypes, setMomTypes, m.id)}>
+              <Chip key={m.id} active={momTypes.includes(m.id)} onClick={() => toggleMom(m.id)}>
                 {m.label}
               </Chip>
             ))}
@@ -75,7 +81,7 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
           <Label>Values</Label>
           <div className="flex flex-wrap gap-1.5">
             {VALUES.map(v => (
-              <Chip key={v} active={values.includes(v)} onClick={() => toggle(values, setValues, v)}>{v}</Chip>
+              <Chip key={v} active={values.includes(v)} onClick={() => toggleValue(v)}>{v}</Chip>
             ))}
           </div>
         </div>
@@ -84,26 +90,16 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
           <Label>Interests</Label>
           <div className="flex flex-wrap gap-1.5">
             {INTERESTS.map(i => (
-              <Chip key={i.label} active={interests.includes(i.label)} onClick={() => toggle(interests, setInterests, i.label)}>
+              <Chip key={i.label} active={interests.includes(i.label)} onClick={() => toggleInterest(i.label)}>
                 {i.label}
               </Chip>
             ))}
           </div>
         </div>
 
-        <button
-          onClick={save}
-          disabled={saving}
-          className="mt-7 w-full rounded-2xl flex items-center justify-center"
-          style={{
-            height: 50,
-            background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-            color: '#fff', fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 14,
-            boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)', cursor: saving ? 'default' : 'pointer',
-          }}
-        >
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
+        <div className="mt-7 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted }}>
+          Changes save automatically.
+        </div>
       </div>
     </Sheet>
   );

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Plus, Star, X as XIcon } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
-import { uploadProfilePhoto } from '../lib/profile-photo';
+import { uploadProfilePhoto, deleteProfilePhoto } from '../lib/profile-photo';
 
 // ==========================================================================
 // ProfilePhotosSheet — manage up to 5 profile photos. The first photo is the
@@ -13,7 +13,7 @@ import { uploadProfilePhoto } from '../lib/profile-photo';
 
 const MAX = 5;
 
-export const ProfilePhotosSheet = ({ photos = [], onSave, flash, onClose }) => {
+export const ProfilePhotosSheet = ({ photos = [], seedMomId, onSave, flash, onClose }) => {
   const list = Array.isArray(photos) ? photos : [];
   const [busy, setBusy] = useState(false);
   const inputRef = useRef(null);
@@ -30,7 +30,7 @@ export const ProfilePhotosSheet = ({ photos = [], onSave, flash, onClose }) => {
     try {
       for (const f of files) {
         try {
-          added.push(await uploadProfilePhoto(f));
+          added.push(await uploadProfilePhoto(f, { seedMomId }));
         } catch (err) {
           flash?.(err?.message || 'Upload failed');
           break;
@@ -45,7 +45,20 @@ export const ProfilePhotosSheet = ({ photos = [], onSave, flash, onClose }) => {
     }
   };
 
-  const removeAt = (i) => { commit(list.filter((_, idx) => idx !== i)); flash?.('Photo removed'); };
+  const removeAt = async (i) => {
+    const url = list[i];
+    setBusy(true);
+    try {
+      // Server-authoritative: removes the URL from photos AND deletes the blob.
+      const next = await deleteProfilePhoto(url, { seedMomId });
+      commit(next || list.filter((_, idx) => idx !== i));
+      flash?.('Photo removed');
+    } catch (e) {
+      flash?.(e?.message || 'Could not remove photo');
+    } finally {
+      setBusy(false);
+    }
+  };
   const makePrimary = (i) => {
     if (i === 0) return;
     commit([list[i], ...list.filter((_, idx) => idx !== i)]);

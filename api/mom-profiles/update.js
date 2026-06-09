@@ -3,30 +3,7 @@
 // matches the access token's subject. Only allowlisted fields land in
 // the database.
 import { json, readJsonBody, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
-
-const ALLOWED_FIELDS = new Set([
-  'bio', 'photos',
-  'kids_ages', 'mom_types', 'values', 'interests',
-  'free_slots', 'places', 'preferred_event_ids',
-  'social_links', 'display_name', 'age',
-  'neighborhood', 'home_lat', 'home_lng', 'distance_miles', 'city',
-  'verified', 'settings',
-]);
-
-const sanitizePatch = (patch) => {
-  if (!patch || typeof patch !== 'object') return null;
-  const out = {};
-  for (const [k, v] of Object.entries(patch)) {
-    if (!ALLOWED_FIELDS.has(k)) continue;
-    if (k === 'verified') { out[k] = !!v; continue; }
-    if (k === 'settings' || k === 'social_links') {
-      if (v && typeof v === 'object' && !Array.isArray(v)) out[k] = v;
-      continue;
-    }
-    out[k] = v;
-  }
-  return out;
-};
+import { sanitizeMomPatch } from '../_lib/mom-profile-helpers.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -45,7 +22,7 @@ export default async function handler(req, res) {
   const access_token = typeof body.access_token === 'string' ? body.access_token : '';
   if (!access_token) return json(res, 400, { error: 'access_token required' });
 
-  const patch = sanitizePatch(body.patch);
+  const patch = sanitizeMomPatch(body.patch);
   if (!patch || Object.keys(patch).length === 0) {
     return json(res, 400, { error: 'patch with at least one allowed field required' });
   }
@@ -82,6 +59,9 @@ export default async function handler(req, res) {
     );
     if (!r.ok) {
       const text = await r.text().catch(() => '');
+      if (r.status === 409 || text.includes('23505') || text.includes('mom_profiles_username_key')) {
+        return json(res, 409, { error: 'That handle is already taken' });
+      }
       console.error('mom-profiles/update patch failed', r.status, text);
       return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 200)}` });
     }

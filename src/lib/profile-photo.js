@@ -26,21 +26,24 @@ export const compressImageToDataUrl = (file, { maxDim = 1024, quality = 0.82 } =
   });
 
 // Upload one profile photo; resolves to its public blob URL. Throws a friendly
-// error if the user isn't signed in or the upload fails.
-export const uploadProfilePhoto = async (file) => {
-  if (!isSupabaseReady()) throw new Error('Sign in to add photos');
-  const { data } = await supabase.auth.getSession();
-  const access_token = data?.session?.access_token;
-  if (!access_token) throw new Error('Sign in to add photos');
+// error if the upload fails. `opts.seedMomId` routes through the DEV-only path
+// when there's no real session (dev seeded-mom login), so seeded profiles can
+// add photos locally too.
+export const uploadProfilePhoto = async (file, { seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  if (!access_token && !seedMomId) throw new Error('Sign in to add photos');
 
   const dataUrl = await compressImageToDataUrl(file);
+  const payload = access_token ? { access_token, dataUrl } : { seed_mom_id: seedMomId, dataUrl };
 
   let res;
   try {
     res = await fetch('/api/profile-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token, dataUrl }),
+      body: JSON.stringify(payload),
     });
   } catch {
     throw new Error('Could not reach the server');
@@ -49,4 +52,31 @@ export const uploadProfilePhoto = async (file) => {
   try { body = await res.json(); } catch { /* ignore */ }
   if (!res.ok || !body.url) throw new Error(body?.error || `Upload failed (${res.status})`);
   return body.url;
+};
+
+// Delete one profile photo: removes it from the profile AND deletes the blob.
+// Resolves to the updated photos array (server-authoritative), or null for a
+// local-only user (no session/seed) so the caller can fall back to a local
+// filter. Throws on a real server error.
+export const deleteProfilePhoto = async (url, { seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  if (!access_token && !seedMomId) return null;
+
+  const payload = access_token ? { access_token, url } : { seed_mom_id: seedMomId, url };
+  let res;
+  try {
+    res = await fetch('/api/profile-photo/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error('Could not reach the server');
+  }
+  let body = {};
+  try { body = await res.json(); } catch { /* ignore */ }
+  if (!res.ok) throw new Error(body?.error || `Could not remove photo (${res.status})`);
+  return Array.isArray(body.photos) ? body.photos : [];
 };

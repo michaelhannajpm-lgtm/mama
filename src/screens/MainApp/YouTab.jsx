@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { C } from '../../theme';
 import { ProfilePhotosSheet } from '../../sheets/ProfilePhotosSheet';
+import { EditIdentitySheet } from '../../sheets/EditIdentitySheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
 import { ToggleSettingsSheet } from '../../sheets/ToggleSettingsSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
@@ -116,6 +117,7 @@ export const YouTab = ({
   openPlans, restart, flash,
 }) => {
   const [photosOpen, setPhotosOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
   const [sheet, setSheet] = useState(null); // 'prefs'|'notif'|'priv'|'location'|'kids'|null
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
@@ -126,6 +128,8 @@ export const YouTab = ({
   const kidsCount = Object.values(profile?.kidsAges || {}).reduce((s, n) => s + n, 0);
   const cityLabel = location ? location.split(',')[0] + ', FL' : 'Tampa, FL';
   const primaryPhoto = profile?.photos?.[0];
+  const displayName = profile?.displayName || fullName;
+  const handle = profile?.username || account?.username || null;
 
   const socialLinks = profile?.socialLinks || {};
   const igLinked = !!socialLinks.instagram;
@@ -145,7 +149,7 @@ export const YouTab = ({
     if ('settings' in localPatch)    api.settings = localPatch.settings;
     if ('socialLinks' in localPatch) api.social_links = localPatch.socialLinks;
     if ('verifiedFlag' in localPatch) api.verified = localPatch.verifiedFlag;
-    if (Object.keys(api).length) { try { await updateMomProfile(api); } catch { /* best-effort */ } }
+    if (Object.keys(api).length) { try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ } }
   };
 
   // Location lives in app-level state (not the profile object); persist the
@@ -161,7 +165,7 @@ export const YouTab = ({
       if (geo.lat != null) api.home_lat = geo.lat;
       if (geo.lng != null) api.home_lng = geo.lng;
     }
-    try { await updateMomProfile(api); } catch { /* best-effort */ }
+    try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ }
   };
 
   const saveBio = () => { saveProfile({ bio: bioDraft.trim() }); setBioEditing(false); };
@@ -171,7 +175,7 @@ export const YouTab = ({
   const savePhotos = (next) => {
     setProfile(prev => ({ ...prev, photos: next }));
     const isVerified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: next.length > 0 });
-    updateMomProfile({ photos: next, verified: isVerified }).catch(() => { /* best-effort */ });
+    updateMomProfile({ photos: next, verified: isVerified }, { seedMomId: account?.seedMomId }).catch(() => { /* best-effort */ });
   };
 
   const linkSocial = (network, handle) => {
@@ -250,9 +254,13 @@ export const YouTab = ({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center gap-1.5" style={{ flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'Fraunces', fontSize: 17, fontWeight: 700, color: C.navy, letterSpacing: '-.01em' }}>
-              {fullName}
-            </span>
+            <button onClick={() => setIdentityOpen(true)} className="active:scale-[.98] transition-transform"
+              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontFamily: 'Fraunces', fontSize: 17, fontWeight: 700, color: C.navy, letterSpacing: '-.01em' }}>
+                {displayName}
+              </span>
+              <Pencil size={12} color={C.muted}/>
+            </button>
             {verified && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -263,6 +271,11 @@ export const YouTab = ({
               </span>
             )}
           </div>
+          {handle && (
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.coralDeep, fontWeight: 700, marginTop: 2 }}>
+              @{handle}
+            </div>
+          )}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
             fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 4,
@@ -431,9 +444,18 @@ export const YouTab = ({
       {/* Drawers */}
       {photosOpen && <ProfilePhotosSheet
         photos={profile?.photos || []}
+        seedMomId={account?.seedMomId}
         onSave={savePhotos}
         flash={flash}
         onClose={() => setPhotosOpen(false)}/>}
+
+      {identityOpen && <EditIdentitySheet
+        displayName={displayName}
+        username={handle || ''}
+        seedMomId={account?.seedMomId}
+        onSaved={({ displayName: dn, username: un }) => setProfile(p => ({ ...p, displayName: dn, username: un }))}
+        flash={flash}
+        onClose={() => setIdentityOpen(false)}/>}
 
       {sheet === 'prefs' && <InterestsPreferencesSheet
         profile={profile}

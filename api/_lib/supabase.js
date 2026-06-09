@@ -37,6 +37,16 @@ export const supabaseCreds = () => {
   return { supabaseUrl, serviceRoleKey };
 };
 
+// True when service-role writes against seeded (source='seed') rows are allowed
+// WITHOUT a real Supabase session — i.e. local dev / preview, or when explicitly
+// opted in. Mirrors the gate on /api/dev/mom-profiles so the dev seeded-mom
+// login can also edit those profiles. NEVER true in production.
+export const devWritesAllowed = () =>
+  process.env.ALLOW_SEEDED_MOM_LOGIN === 'true' ||
+  process.env.NODE_ENV !== 'production' ||
+  process.env.VERCEL_ENV === 'development' ||
+  process.env.VERCEL_ENV === 'preview';
+
 export const sbHeaders = (serviceRoleKey, extra = {}) => ({
   apikey: serviceRoleKey,
   Authorization: `Bearer ${serviceRoleKey}`,
