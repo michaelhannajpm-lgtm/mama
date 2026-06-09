@@ -28,7 +28,7 @@ export const searchAreas = (query, limit = 8) => {
     const matchLen = normLabel.startsWith(q) ? normLabel.length : 0;
     scored.push({ a, rank, matchLen });
   }
-  // rank asc, then matchLen desc (longer prefix = more specific match wins), then alpha
+  // rank asc; among rank-0 (label-prefix) hits, longer label wins (more specific); other tiers fall back to alpha
   scored.sort((x, y) => x.rank - y.rank || y.matchLen - x.matchLen || x.a.label.localeCompare(y.a.label));
   return scored.slice(0, limit).map((s) => s.a);
 };
@@ -40,6 +40,7 @@ export const resolveArea = (id) =>
 // Nearest dataset entry to a GPS fix (squared-degree distance is fine at this
 // scale). Always returns an entry (dataset is non-empty).
 export const nearestArea = (lat, lng) => {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return TAMPA_BAY_AREAS[0];
   let best = TAMPA_BAY_AREAS[0];
   let bestD = Infinity;
   for (const a of TAMPA_BAY_AREAS) {
