@@ -121,6 +121,15 @@ const hydratedShape = (row, momProfile) => {
     phone: row.phone,
     email: row.email,
     location: row.location,
+    locationGeo: row.location_place_id ? {
+      id:           row.location_place_id,
+      label:        row.location || null,
+      city:         row.location_city || null,
+      neighborhood: row.location_neighborhood || null,
+      county:       row.location_county || null,
+      lat:          row.location_lat ?? null,
+      lng:          row.location_lng ?? null,
+    } : null,
     distance: mp.distance_miles ?? row.distance_miles ?? null,
     profile: {
       kidsAges:  mp.kids_ages || row.kids_ages || {},
