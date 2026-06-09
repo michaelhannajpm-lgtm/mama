@@ -33,13 +33,15 @@ const HEADER_SUBTITLES = {
   thisweek:   '38 ideas picked for your family',
   connect:    'Meet moms who get it',
   localpicks: 'The best places, programs, schools, and resources near you.',
+  hub:        'Your village, all in one place',
   profile:    'Everything for you and your family',
 };
 
 // Header title for the active content view (profile is reached via the
 // top-right button, so it isn't in the bottom TABS list).
 const HEADER_LABELS = {
-  thisweek: 'This Week', connect: 'Connect', localpicks: 'Local Picks', profile: 'My Profile',
+  thisweek: 'This Week', connect: 'Connect', localpicks: 'Local Picks',
+  hub: 'My Hub', profile: 'My Profile',
 };
 
 export const MainApp = ({
@@ -61,8 +63,6 @@ export const MainApp = ({
   void setPrefs;
   const [tab, setTab] = useState('thisweek');
   const [villageOpen, setVillageOpen] = useState(false);
-  // Mama Hub launcher state (opened from the bottom "My Hub" tab).
-  const [hubOpen, setHubOpen] = useState(false);
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
   const [hubDiscussion, setHubDiscussion] = useState(null);
@@ -160,17 +160,23 @@ export const MainApp = ({
         openPremium={openPremium}
         savedCount={savedCount}
         restart={restart} flash={flash}/>}
+      {tab === 'hub' && <MamaHubSheet
+        asScreen
+        groupDiscussions={GROUP_DISCUSSIONS}
+        joinedDiscussionIds={joinedDiscussions}
+        onOpenMessage={openMessage}
+        onOpenDiscussion={(d) => setHubDiscussion(d)}
+        flash={flash}/>}
 
       {/* Tab Bar — 4 buttons, coral underline indicates active */}
       <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.line, background: '#fff' }}>
         <div className="flex justify-between items-center">
           {TABS.map(t => {
-            // 'hub' is a launcher (opens the sheet); it's never the active tab.
             const active = tab === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => (t.id === 'hub' ? setHubOpen(true) : setTab(t.id))}
+                onClick={() => setTab(t.id)}
                 className="flex flex-col items-center gap-0.5 py-1.5 flex-1 relative"
               >
                 {active && (
@@ -210,17 +216,6 @@ export const MainApp = ({
           flash={flash}
           moms={nearbyMoms}
           onClose={() => setVillageOpen(false)}
-        />
-      )}
-
-      {hubOpen && (
-        <MamaHubSheet
-          groupDiscussions={GROUP_DISCUSSIONS}
-          joinedDiscussionIds={joinedDiscussions}
-          onOpenMessage={openMessage}
-          onOpenDiscussion={(d) => setHubDiscussion(d)}
-          flash={flash}
-          onClose={() => setHubOpen(false)}
         />
       )}
 

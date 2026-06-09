@@ -59,6 +59,7 @@ export const MamaHubSheet = ({
   onOpenDiscussion,
   flash,
   onClose,
+  asScreen = false, // render as a full tab screen instead of a bottom drawer
 }) => {
   const [tab, setTab] = useState('chats');
 
@@ -68,10 +69,10 @@ export const MamaHubSheet = ({
     joined: joinedDiscussionIds.has(d.id),
   }));
 
-  return (
-    <Sheet onClose={onClose} tall>
+  const inner = (
       <div className="pb-6">
-        {/* Header */}
+        {/* Header — drawer only; as a screen the MainApp header shows the title */}
+        {!asScreen && (
         <div style={{
           padding: '12px 20px 4px',
           background: `linear-gradient(180deg, ${C.coralSoft} 0%, ${C.cream} 100%)`,
@@ -90,6 +91,7 @@ export const MamaHubSheet = ({
             Mama Hub
           </div>
         </div>
+        )}
 
         {/* Tab segmented control */}
         <div className="px-5 pt-3">
@@ -176,8 +178,11 @@ export const MamaHubSheet = ({
           )}
         </div>
       </div>
-    </Sheet>
   );
+
+  return asScreen
+    ? <div className="flex-1 flex flex-col overflow-y-auto" style={{ scrollbarWidth: 'none' }}>{inner}</div>
+    : <Sheet onClose={onClose} tall>{inner}</Sheet>;
 };
 
 // ===== Rows =====
