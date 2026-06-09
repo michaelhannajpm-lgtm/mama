@@ -68,9 +68,10 @@ Home · Local Picks · Connect · My Hub
    profile.verified.facebook))`. Coral/peach gradient card, shield icon,
    "Get your verified badge" + "Verify →". Tap → switch to the Profile tab
    (`setTab('profile')`). Disappears once verified.
-3. **Time filter + Activities row.** Four chips: `Today`, `This Week`,
-   `This Month`, `Others`. The active chip determines which activities render in
-   the row directly below. This is the ONLY section the filter affects.
+3. **Time filter + Activities row.** Four **count pills**: `Today`, `This Week`,
+   `This Month`, `Others`, each carrying a count badge (see *Filter look & feel*).
+   The active pill determines which activities render in the row directly below.
+   This is the ONLY section the filter affects.
 4. **Trending places near you** — horizontal row of top-rated places. "See all"
    → Local Picks tab.
 5. **Moms near you** — horizontal row of suggested moms (avatars + shared-ground
@@ -95,6 +96,26 @@ Computed client-side from each event's `startsAt` (ISO) and `kind`:
 
 Section header text swaps with the filter: **Happening today / This week /
 Later this month / Ongoing & weekly**.
+
+### Filter look & feel (count pills)
+
+The filter renders as a row of rounded **count pills** — each pill shows its
+label plus a small count badge of how many activities fall in that bucket
+(`Today: dated-today`, `This Week: next-7-days`, `This Month: through-month-end`,
+`Others: recurring-count`). The count is information scent — it pulls the user
+toward where the activity is.
+
+- **Active pill:** coral gradient fill (`linear-gradient(135deg, C.coral,
+  C.coralDeep)`), white label, count badge on a translucent-white inset
+  (`rgba(255,255,255,.25)`).
+- **Inactive pill:** `C.paper` background, `C.divider` border, `C.navySoft`
+  label, count badge on a warm muted inset (e.g. a faint cream chip) with
+  `C.muted` text.
+- Counts are derived from the same `bucketActivities` split used to render the
+  row, so the badge and the row never disagree. A bucket with zero items still
+  shows its pill (count `0`); tapping it surfaces the empty-state nudge below.
+- `Albert Sans`, ~10.5px label / ~8px badge; pills sit in a single
+  non-wrapping row, horizontally scrollable if cramped at 375px.
 
 ### Data window
 
