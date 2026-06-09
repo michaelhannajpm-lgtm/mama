@@ -401,25 +401,25 @@ const PhotoCard = ({ item, onClick }) => (
     padding: 0, cursor: 'pointer',
   }}>
     <img src={item.photo} alt="" style={{
-      width: '100%', height: 62, objectFit: 'cover', display: 'block',
+      width: '100%', height: 96, objectFit: 'cover', display: 'block',
     }}/>
-    <div style={{ padding: '6px 7px 8px' }}>
+    <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
-        color: C.navy, lineHeight: 1.2,
+        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.25,
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
-        minHeight: 24,
+        minHeight: 31,
       }}>
         {item.title}
       </div>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 3, marginTop: 4,
-        fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700, color: C.navy,
+        display: 'flex', alignItems: 'center', gap: 4, marginTop: 5,
+        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, color: C.navy,
       }}>
         {item.rating != null && (
           <>
-            <Star size={9} fill={C.saffron} color={C.saffron}/>
+            <Star size={11} fill={C.saffron} color={C.saffron}/>
             {item.rating}
           </>
         )}
@@ -427,7 +427,7 @@ const PhotoCard = ({ item, onClick }) => (
           fontWeight: 500, color: C.muted, marginLeft: item.rating != null ? 4 : 0,
           display: 'flex', alignItems: 'center', gap: 2,
         }}>
-          <MapPin size={8}/> {item.distance}
+          <MapPin size={10}/> {item.distance}
         </span>
       </div>
     </div>
@@ -446,33 +446,33 @@ const ProgramCard = ({ item, onClick }) => {
     }}>
       {item.photo ? (
         <img src={item.photo} alt="" style={{
-          width: '100%', height: 62, objectFit: 'cover', display: 'block',
+          width: '100%', height: 96, objectFit: 'cover', display: 'block',
         }}/>
       ) : (
         <div style={{
-          height: 62, background: item.bg, color: item.fg,
+          height: 96, background: item.bg, color: item.fg,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Icon size={26}/>
+          <Icon size={36}/>
         </div>
       )}
-      <div style={{ padding: '6px 7px 8px' }}>
+      <div style={{ padding: '8px 10px 10px' }}>
         <div style={{
-          fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
-          color: C.navy, lineHeight: 1.2,
+          fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+          color: C.navy, lineHeight: 1.25,
         }}>
           {item.title}
         </div>
         <div style={{
-          fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3,
+          fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 4,
         }}>
           {item.ages}
         </div>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 2, marginTop: 3,
-          fontFamily: 'Albert Sans', fontSize: 9, color: C.muted,
+          display: 'flex', alignItems: 'center', gap: 3, marginTop: 4,
+          fontFamily: 'Albert Sans', fontSize: 11, color: C.muted,
         }}>
-          <MapPin size={8}/> {item.distance}
+          <MapPin size={10}/> {item.distance}
         </div>
       </div>
     </button>
@@ -488,40 +488,40 @@ const SchoolCard = ({ item, onClick }) => (
     padding: 0, cursor: 'pointer',
   }}>
     <img src={item.photo} alt="" style={{
-      width: '100%', height: 60, objectFit: 'cover', display: 'block',
+      width: '100%', height: 96, objectFit: 'cover', display: 'block',
     }}/>
-    <div style={{ padding: '6px 7px 8px' }}>
+    <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
-        color: C.navy, lineHeight: 1.2,
+        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.25,
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
-        minHeight: 24,
+        minHeight: 31,
       }}>
         {item.title}
       </div>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 3, marginTop: 3,
-        fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700, color: C.navy,
+        display: 'flex', alignItems: 'center', gap: 4, marginTop: 5,
+        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, color: C.navy,
       }}>
         {item.rating != null && (
           <>
-            <Star size={9} fill={C.saffron} color={C.saffron}/>
+            <Star size={11} fill={C.saffron} color={C.saffron}/>
             {item.rating}
           </>
         )}
         <span style={{
-          fontWeight: 500, color: C.muted, marginLeft: item.rating != null ? 3 : 0,
+          fontWeight: 500, color: C.muted, marginLeft: item.rating != null ? 4 : 0,
           display: 'flex', alignItems: 'center', gap: 2,
         }}>
-          <MapPin size={8}/> {item.distance}
+          <MapPin size={10}/> {item.distance}
         </span>
       </div>
       <div style={{
-        marginTop: 4, display: 'inline-block',
+        marginTop: 6, display: 'inline-block',
         background: item.tagBg, color: item.tagFg,
-        fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 700,
-        padding: '1.5px 5px', borderRadius: 4,
+        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+        padding: '2px 7px', borderRadius: 5,
       }}>
         {item.tag}
       </div>
@@ -813,7 +813,7 @@ export const LocalPicksTab = ({
         ? `Top rated within ${placesRadius} mi`
         : (liveSubtitle(s.key, items.length) || s.seeAllSubtitle);
       if (items.length) {
-        return { ...s, items: items.slice(0, 3), allItems: items, seeAllSubtitle: subtitle };
+        return { ...s, items: items.slice(0, 4), allItems: items, seeAllSubtitle: subtitle };
       }
       return filtersOn ? { ...s, items: [], allItems: [], seeAllSubtitle: subtitle } : s;
     });
@@ -853,9 +853,11 @@ export const LocalPicksTab = ({
 
   // When category chips are picked, hide non-matching sections. Empty = show all.
   const activeCats = filters.categories || [];
-  const visibleSections = activeCats.length
+  const visibleSections = (activeCats.length
     ? effectiveSections.filter(s => activeCats.includes(SECTION_CATEGORY[s.key]))
-    : effectiveSections;
+    : effectiveSections)
+    // Hide any category that has no places to show (e.g. emptied by a filter).
+    .filter(s => s.items.length > 0);
 
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
@@ -877,7 +879,7 @@ export const LocalPicksTab = ({
         {visibleSections.map(section => (
           <div key={section.key} id={`localpicks-section-${section.key}`}>
             <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
-            <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            <div className="grid grid-cols-2" style={{ gap: 10 }}>
               {section.items.map(item => {
                 if (section.kind === 'program') {
                   return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
@@ -893,10 +895,13 @@ export const LocalPicksTab = ({
 
         {visibleSections.length === 0 && (
           <div style={{
-            marginTop: 28, textAlign: 'center',
-            fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
+            marginTop: 40, textAlign: 'center',
+            fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
+            lineHeight: 1.5,
           }}>
-            No categories selected · clear filters to see everything
+            {activeCats.length
+              ? 'No places match your filters right now · try clearing them'
+              : 'No local picks to show here yet · check back soon'}
           </div>
         )}
       </div>

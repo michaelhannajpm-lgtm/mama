@@ -43,9 +43,3 @@ export const SUGGESTED_EVENTS = [
     hue:'linear-gradient(135deg, #7E9678 0%, #D9A441 100%)',
     photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=600&auto=format&fit=crop' },
 ];
-
-export const EVENTS = [
-  { title: 'Toddler music circle', when: 'Thu · 10 AM', where: 'Bernal Heights Library', going: 12, hue: 'linear-gradient(135deg,#D9A441,#E8B4A0)' },
-  { title: 'Stroller walk + matcha', when: 'Sat · 9 AM',  where: 'Crissy Field',           going: 24, hue: 'linear-gradient(135deg,#7E9678,#9CB397)' },
-  { title: 'New-mom slow morning',   when: 'Wed · 11 AM', where: 'The Mill',                going: 8,  hue: 'linear-gradient(135deg,#C8553D,#E8B4A0)' },
-];

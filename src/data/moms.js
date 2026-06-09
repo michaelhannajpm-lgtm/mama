@@ -98,34 +98,3 @@ export const SAMPLE_MOMS = [
     verified: true,
   },
 ];
-
-// Larger pool of moms for "how many available" count + face stack — initials only,
-// no full profile (those live in SAMPLE_MOMS). Realistic varied schedules so the
-// count feels honest as the user toggles their calendar.
-export const MOM_POOL = [
-  { id:'p1',  init:'EM', hue:'linear-gradient(135deg,#E8B4A0,#C8553D)', freeSlots:['Mon-morning','Tue-morning','Wed-morning'] },
-  { id:'p2',  init:'JL', hue:'linear-gradient(135deg,#D9A441,#C8553D)', freeSlots:['Tue-morning','Thu-morning','Sat-morning'] },
-  { id:'p3',  init:'NK', hue:'linear-gradient(135deg,#7E9678,#5E7A5A)', freeSlots:['Mon-afternoon','Wed-afternoon','Fri-afternoon'] },
-  { id:'p4',  init:'AM', hue:'linear-gradient(135deg,#B98EB6,#C8553D)', freeSlots:['Sat-morning','Sat-afternoon','Sun-morning'] },
-  { id:'p5',  init:'TR', hue:'linear-gradient(135deg,#E8B4A0,#D9A441)', freeSlots:['Tue-night-owl','Wed-night-owl','Thu-night-owl'] },
-  { id:'p6',  init:'CH', hue:'linear-gradient(135deg,#D7997D,#D9A441)', freeSlots:['Mon-morning','Wed-morning','Fri-morning','Sat-morning'] },
-  { id:'p7',  init:'JR', hue:'linear-gradient(135deg,#5A7E55,#7E9678)', freeSlots:['Wed-afternoon','Fri-afternoon','Sat-noon'] },
-  { id:'p8',  init:'MK', hue:'linear-gradient(135deg,#C8553D,#B98EB6)', freeSlots:['Tue-morning','Thu-morning','Sat-morning','Sun-morning'] },
-  { id:'p9',  init:'SR', hue:'linear-gradient(135deg,#7E9678,#D9A441)', freeSlots:['Mon-night-owl','Wed-night-owl','Sun-afternoon'] },
-  { id:'p10', init:'BL', hue:'linear-gradient(135deg,#E8B4A0,#D9A441)', freeSlots:['Tue-afternoon','Thu-afternoon','Sat-afternoon'] },
-  { id:'p11', init:'KP', hue:'linear-gradient(135deg,#9CB397,#7E9678)', freeSlots:['Mon-morning','Tue-morning','Wed-morning','Thu-morning','Fri-morning'] },
-  { id:'p12', init:'OW', hue:'linear-gradient(135deg,#D9A441,#7E9678)', freeSlots:['Sat-morning','Sun-morning'] },
-  { id:'p13', init:'AC', hue:'linear-gradient(135deg,#E8B4A0,#B98EB6)', freeSlots:['Mon-noon','Wed-noon','Fri-noon'] },
-  { id:'p14', init:'IK', hue:'linear-gradient(135deg,#C8553D,#7E9678)', freeSlots:['Tue-morning','Tue-afternoon','Thu-morning'] },
-];
-
-// Combine all moms (with full profile + pool) for matching count
-export const ALL_AVAILABLE_MOMS = [
-  ...SAMPLE_MOMS.map(m => ({ id:`s${m.id}`, init: m.name.split(' ').map(s=>s[0]).join(''), hue: m.hue, freeSlots: m.freeSlots })),
-  ...MOM_POOL,
-];
-
-export const matchingMoms = (userSlots) => {
-  if (!userSlots || !userSlots.length) return [];
-  return ALL_AVAILABLE_MOMS.filter(m => m.freeSlots.some(s => userSlots.includes(s)));
-};
