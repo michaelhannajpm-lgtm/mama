@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   try {
     const url = `${creds.supabaseUrl}/rest/v1/events` +
-      `?select=*,places(id,name,area,visible),event_categories(category_id)&order=created_at.desc&limit=5000`;
+      `?select=*,places:places!events_place_id_fkey(id,name,area,visible,lat,lng,hero_photo),event_categories(category_id)&order=created_at.desc&limit=5000`;
     const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
     if (!r.ok) {
       const text = await r.text().catch(() => '');

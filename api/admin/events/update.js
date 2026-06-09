@@ -62,6 +62,17 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, deleted: body.delete });
     }
 
+    // Bulk delete
+    if (Array.isArray(body.deleteIds)) {
+      if (!body.deleteIds.length || !body.deleteIds.every(isUuid)) {
+        return json(res, 400, { error: 'deleteIds must be a non-empty array of uuids' });
+      }
+      const inList = body.deleteIds.map(id => `"${id}"`).join(',');
+      const r = await fetch(`${creds.supabaseUrl}/rest/v1/events?id=in.(${inList})`, { method: 'DELETE', headers: sbHeaders(creds.serviceRoleKey) });
+      if (!r.ok) { const t = await r.text().catch(() => ''); return json(res, 502, { error: `bulk delete failed ${r.status}: ${t.slice(0, 200)}` }); }
+      return json(res, 200, { ok: true, deleted: body.deleteIds.length });
+    }
+
     // Cascade to all of a place's events (publish/hide).
     if (body.placeId) {
       if (!isUuid(body.placeId)) return json(res, 400, { error: 'placeId must be a uuid' });
