@@ -336,6 +336,11 @@ test('defaults to other (never null)', () => {
 // value (defaults to 'other') so event_type is never null.
 const RULES = [
   ['storytime',        ['storytime', 'story time', 'story hour']],
+  // Camp is a program FORMAT — a "STEM camp"/"soccer camp" is primarily a camp,
+  // with the subject captured as a secondary category. Keep these above the
+  // subject rules (stem/art/music/...) so format wins as the primary type.
+  ['break-camp',       ['spring break camp', 'winter break camp', 'holiday camp', 'break camp']],
+  ['camp',             ['camp']],
   ['stem',             ['stem', 'coding', 'robotics', 'science lab', 'engineering']],
   ['art-class',        ['art class', 'painting', 'pottery', 'ceramics', 'drawing', 'craft']],
   ['music-class',      ['music class', 'music together', 'sing', 'instrument', 'piano', 'violin']],
@@ -348,8 +353,6 @@ const RULES = [
   ['martial-arts',     ['karate', 'taekwondo', 'jiu jitsu', 'martial arts', 'judo']],
   ['family-yoga',      ['yoga']],
   ['kids-fitness',     ['fitness', 'ninja', 'obstacle', 'workout']],
-  ['break-camp',       ['spring break camp', 'winter break camp', 'holiday camp', 'break camp']],
-  ['camp',             ['camp']],
   ['playgroup',        ['playgroup', 'play group', 'mommy and me', 'baby group']],
   ['open-play',        ['open play', 'open gym', 'free play', 'drop-in play']],
   ['parent-meetup',    ['meetup', 'mom meet', 'parent social', 'coffee with', 'moms group']],
