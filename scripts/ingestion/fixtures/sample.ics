@@ -1,0 +1,13 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//EN
+BEGIN:VEVENT
+UID:evt-001@library.org
+SUMMARY:Baby Storytime
+DESCRIPTION:Rhymes and books for ages 0-2
+DTSTART:20260610T143000Z
+DTEND:20260610T151500Z
+LOCATION:John F. Germany Library, Tampa, FL
+URL:https://hcplc.org/events/evt-001
+END:VEVENT
+END:VCALENDAR
