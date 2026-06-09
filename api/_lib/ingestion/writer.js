@@ -38,6 +38,14 @@ export const refreshPlace = async (sb, placeId, candidate) => {
   if (error) throw new Error(`refresh place failed: ${error.message}`);
 };
 
+// Default the hero picture to a chosen photo URL (e.g. the first photo) on a
+// freshly-created place. Only called at create time, so it never clobbers a
+// curator-set hero_photo.
+export const setHeroPhoto = async (sb, placeId, heroPhoto) => {
+  const { error } = await sb.from('places').update({ hero_photo: heroPhoto }).eq('id', placeId);
+  if (error) throw new Error(`set hero photo failed: ${error.message}`);
+};
+
 export const linkCategory = async (sb, placeId, categoryId) => {
   await sb.from('place_categories').upsert({ place_id: placeId, category_id: categoryId }, { onConflict: 'place_id,category_id' });
 };
