@@ -5,7 +5,7 @@ import {
   Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
-import { EditProfileSheet } from '../../sheets/EditProfileSheet';
+import { ProfilePhotosSheet } from '../../sheets/ProfilePhotosSheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
 import { ToggleSettingsSheet } from '../../sheets/ToggleSettingsSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
@@ -115,7 +115,7 @@ export const YouTab = ({
   location, setLocation, locationGeo, setLocationGeo, distance, setDistance,
   openPlans, restart, flash,
 }) => {
-  const [editOpen, setEditOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
   const [sheet, setSheet] = useState(null); // 'prefs'|'notif'|'priv'|'location'|'kids'|null
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
@@ -165,6 +165,14 @@ export const YouTab = ({
   };
 
   const saveBio = () => { saveProfile({ bio: bioDraft.trim() }); setBioEditing(false); };
+
+  // Persist the photos array (primary = photos[0]) and recompute the verified
+  // flag — having a photo is one of the two verification signals.
+  const savePhotos = (next) => {
+    setProfile(prev => ({ ...prev, photos: next }));
+    const isVerified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: next.length > 0 });
+    updateMomProfile({ photos: next, verified: isVerified }).catch(() => { /* best-effort */ });
+  };
 
   const linkSocial = (network, handle) => {
     const nextSocial = { ...socialLinks, [network]: handle };
@@ -223,14 +231,15 @@ export const YouTab = ({
       }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           {primaryPhoto ? (
-            <img src={primaryPhoto} alt="" style={{ width: 64, height: 64, borderRadius: 32, objectFit: 'cover' }}/>
+            <img src={primaryPhoto} alt="" onClick={() => setPhotosOpen(true)}
+              style={{ width: 64, height: 64, borderRadius: 32, objectFit: 'cover', cursor: 'pointer' }}/>
           ) : (
-            <div style={{
+            <div onClick={() => setPhotosOpen(true)} style={{
               width: 64, height: 64, borderRadius: 32, background: C.coralSoft, color: C.coralDeep,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             }}><UserIcon size={28}/></div>
           )}
-          <button onClick={() => setEditOpen(true)} aria-label="Change photo" style={{
+          <button onClick={() => setPhotosOpen(true)} aria-label="Edit photos" style={{
             position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12,
             background: C.coral, color: '#fff', border: '2px solid #fff', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -420,11 +429,11 @@ export const YouTab = ({
       </button>
 
       {/* Drawers */}
-      {editOpen && <EditProfileSheet
-        profile={profile} setProfile={setProfile}
-        location={location} setLocation={setLocation}
-        distance={distance} setDistance={setDistance}
-        onClose={() => setEditOpen(false)}/>}
+      {photosOpen && <ProfilePhotosSheet
+        photos={profile?.photos || []}
+        onSave={savePhotos}
+        flash={flash}
+        onClose={() => setPhotosOpen(false)}/>}
 
       {sheet === 'prefs' && <InterestsPreferencesSheet
         profile={profile}
