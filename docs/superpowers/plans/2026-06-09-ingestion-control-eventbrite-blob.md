@@ -171,7 +171,9 @@ create index if not exists ingestion_jobs_status_idx on public.ingestion_jobs (s
 ```
 Apply via MCP, verify, commit.
 
-### Task 9.2: Orchestrators accept a work-slice (offset/limit) + report continuation
+> **EXECUTION NOTE (2026-06-09):** Task 9.2 (orchestrator slicing/continuation) is **deferred** as too invasive/risky for the value. Instead the processor (9.4) runs a whole **bounded** job in one background invocation via `waitUntil`. A single job is bounded by the function timeout (~300s) — fine for place-websites and Eventbrite and bounded Google runs; the full multi-hundred-query Google sweep should be split into limited jobs or run via the CLI. Chunked continuation is a future enhancement. The `ingestion_jobs.cursor`/`total` columns remain for that future use.
+
+### Task 9.2 (DEFERRED): Orchestrators accept a work-slice (offset/limit) + report continuation
 
 **Files:** Modify `runIngestion.js` (places) and `runEventIngestion.js` (events).
 
