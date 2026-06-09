@@ -97,3 +97,66 @@ export const loadExistingPlaces = async (sb) => {
   if (error) throw new Error(`load places failed: ${error.message}`);
   return data || [];
 };
+
+// ------------------------------------------------------------------- events
+
+const eventCandidateToRow = (c, placeId) => ({
+  slug: c.slug, name: c.name, kind: c.kind || 'dated', event_type: c.eventType || 'other',
+  city: c.city, place_id: placeId || null, place_name: c.placeName || null, area: c.area || null,
+  day_of_week: c.dayOfWeek, bucket: c.bucket, time_label: c.timeLabel,
+  starts_at: c.startsAt || null, ends_at: c.endsAt || null, timezone: c.timezone || 'America/New_York',
+  recurring: c.recurring || 'One-time', description: c.description || null,
+  website: c.website || null, source_url: c.sourceUrl || null, external_id: c.externalId || null,
+  tags: c.tags || [], kid_ages: c.kidAges || [], indoor: c.indoor ?? null, hue: c.hue || null,
+  age_min: c.ageMin ?? null, age_max: c.ageMax ?? null, price_summary: c.priceSummary || null,
+  going_count: 0, hero_photo: c.heroPhoto || null,
+  visible: false, review_status: 'needs_review',
+  last_seen_at: new Date().toISOString(), source_confidence: c.confidence ?? null,
+});
+
+export const createEvent = async (sb, candidate, placeId) => {
+  const { data, error } = await sb.from('events').insert(eventCandidateToRow(candidate, placeId)).select('id').single();
+  if (error) throw new Error(`create event failed: ${error.message}`);
+  return data.id;
+};
+
+// Refresh source-of-truth facts only; never flip visible/review_status.
+export const refreshEvent = async (sb, eventId, candidate, placeId) => {
+  const patch = {
+    description: candidate.description ?? null, website: candidate.website ?? null,
+    source_url: candidate.sourceUrl ?? null, starts_at: candidate.startsAt ?? null,
+    ends_at: candidate.endsAt ?? null, price_summary: candidate.priceSummary ?? null,
+    place_id: placeId ?? null, place_name: candidate.placeName ?? null,
+    last_seen_at: new Date().toISOString(), source_confidence: candidate.confidence ?? null,
+  };
+  const { error } = await sb.from('events').update(patch).eq('id', eventId);
+  if (error) throw new Error(`refresh event failed: ${error.message}`);
+};
+
+export const linkEventCategory = async (sb, eventId, categoryId) => {
+  await sb.from('event_categories').upsert({ event_id: eventId, category_id: categoryId }, { onConflict: 'event_id,category_id' });
+};
+
+export const recordEventSource = async (sb, { sourceId, externalId, eventId, sourceUrl, raw, contentHash }) => {
+  await sb.from('source_records').upsert({
+    source_id: sourceId, external_id: externalId, record_type: 'event',
+    event_id: eventId, source_url: sourceUrl || null, raw: raw || null, content_hash: contentHash || null,
+    last_seen_at: new Date().toISOString(),
+  }, { onConflict: 'source_id,external_id,record_type' });
+};
+
+export const loadExistingEvents = async (sb) => {
+  const { data, error } = await sb.from('events').select('id,external_id,name,starts_at,place_id,source_url');
+  if (error) throw new Error(`load events failed: ${error.message}`);
+  return data || [];
+};
+
+// Places eligible for website crawling. onlyApproved=true => approved-only.
+export const loadIngestablePlaces = async (sb, { onlyApproved = true, placeId = null } = {}) => {
+  let q = sb.from('places').select('id,name,city,area,website,review_status').not('website', 'is', null);
+  if (placeId) q = q.eq('id', placeId);
+  else if (onlyApproved) q = q.eq('review_status', 'approved');
+  const { data, error } = await q;
+  if (error) throw new Error(`load ingestable places failed: ${error.message}`);
+  return (data || []).filter(p => p.website);
+};
