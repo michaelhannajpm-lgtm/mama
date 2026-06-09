@@ -58,7 +58,7 @@ export const TAMPA_BAY_AREAS = [
   { id: 'hudson',           label: 'Hudson',            city: 'Hudson',       neighborhood: null,               county: 'Pasco', lat: 28.36, lng: -82.69 },
   { id: 'holiday',          label: 'Holiday',           city: 'Holiday',      neighborhood: null,               county: 'Pasco', lat: 28.19, lng: -82.74 },
   { id: 'trinity',          label: 'Trinity',           city: 'Trinity',      neighborhood: null,               county: 'Pasco', lat: 28.18, lng: -82.66 },
-  { id: 'odessa',           label: 'Odessa',            city: 'Odessa',       neighborhood: null,               county: 'Pasco', lat: 28.19, lng: -82.59 },
+  { id: 'odessa',           label: 'Odessa',            city: 'Odessa',       neighborhood: null,               county: 'Hillsborough', lat: 28.19, lng: -82.59 },
 
   // --- Hernando ---
   { id: 'brooksville',      label: 'Brooksville',       city: 'Brooksville',  neighborhood: null,               county: 'Hernando', lat: 28.56, lng: -82.39 },
