@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, Bell, SlidersHorizontal, Settings } from 'lucide-react';
+import { CalendarDays, Users, MapPin, User, Settings } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { ThisWeekTab } from './ThisWeekTab';
 import { ConnectTab } from './ConnectTab';
 import { LocalPicksTab } from './LocalPicksTab';
 import { YouTab } from './YouTab';
-import { MyPlansSheet } from '../../sheets/MyPlansSheet';
+import { MyVillageSheet } from '../../sheets/MyVillageSheet';
 
 // ====================================================================
 // MAIN APP — 4 tabs (V5 layout):
@@ -38,25 +38,20 @@ export const MainApp = ({
   savedItems, setSavedItems,
   goingItems, setGoingItems,
   ratings, setRatings,
+  messageHistory = {},
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
 }) => {
   void setPrefs;
   const [tab, setTab] = useState('thisweek');
-  const [plansOpen, setPlansOpen] = useState(false);
+  const [villageOpen, setVillageOpen] = useState(false);
 
-  // Filter-sheet open state per tab. Lifted here so the header sliders
-  // button can open the active tab's sheet (each tab also exposes an
-  // inline filter button next to its category row).
+  // Filter-sheet open state per tab. Each tab still exposes an inline
+  // filter button next to its category row — the header filter icon was
+  // removed in favor of My Village, so this is the only entry point.
   const [thisWeekFilterOpen,   setThisWeekFilterOpen]   = useState(false);
   const [connectFilterOpen,    setConnectFilterOpen]    = useState(false);
   const [localPicksFilterOpen, setLocalPicksFilterOpen] = useState(false);
-
-  const openFilterForActiveTab = () => {
-    if (tab === 'thisweek')   setThisWeekFilterOpen(true);
-    if (tab === 'connect')    setConnectFilterOpen(true);
-    if (tab === 'localpicks') setLocalPicksFilterOpen(true);
-  };
 
   const activeTab = TABS.find(t => t.id === tab);
   const activeLabel = activeTab?.headerLabel || activeTab?.label || '';
@@ -72,15 +67,10 @@ export const MainApp = ({
         <div className="flex items-start justify-between">
           <div style={{ minWidth: 0, flex: 1, paddingRight: 10 }}>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
               fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
               color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
             }}>
               {activeLabel}
-              <svg width="16" height="14" viewBox="0 0 20 18" fill="none" style={{ flexShrink: 0 }}>
-                <path d="M10 17 L2 9.2 C0 7.3 0 4.2 2 2.3 C4 0.4 7 0.4 9 2.3 L10 3.2 L11 2.3 C13 0.4 16 0.4 18 2.3 C20 4.2 20 7.3 18 9.2 L10 17 Z"
-                  fill={C.coral} stroke={C.coral} strokeWidth="0.5"/>
-              </svg>
             </div>
             <div style={{
               fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
@@ -90,39 +80,16 @@ export const MainApp = ({
             </div>
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-            <button
-              onClick={() => setPlansOpen(true)}
-              aria-label="Notifications"
-              className="rounded-full flex items-center justify-center relative"
-              style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}` }}
-            >
-              <Bell size={15} color={C.coralDeep}/>
-              {savedCount > 0 && (
-                <span
-                  style={{
-                    position: 'absolute', top: -3, right: -3,
-                    minWidth: 16, height: 16, padding: '0 4px',
-                    borderRadius: 8,
-                    background: C.coralDeep, color: '#fff',
-                    fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1.5px solid ${C.cream}`,
-                  }}
-                >
-                  {savedCount > 9 ? '9+' : savedCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={isProfile ? undefined : openFilterForActiveTab}
-              aria-label={isProfile ? 'Settings' : 'Filters'}
-              className="rounded-full flex items-center justify-center"
-              style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}` }}
-            >
-              {isProfile
-                ? <Settings size={15} color={C.navy}/>
-                : <SlidersHorizontal size={15} color={C.navy}/>}
-            </button>
+            {isProfile && (
+              <button
+                aria-label="Settings"
+                onClick={() => flash?.('Settings coming soon')}
+                className="rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
+                style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}`, cursor: 'pointer' }}
+              >
+                <Settings size={15} color={C.navy}/>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -152,10 +119,10 @@ export const MainApp = ({
         distance={distance} setDistance={setDistance}
         scheduled1to1={scheduled1to1} joinedEvents={joinedEvents}
         goToMeetups={() => setTab('connect')}
-        openPlans={() => setPlansOpen(true)}
+        openPlans={() => setVillageOpen(true)}
         openPremium={openPremium}
         savedCount={savedCount}
-        restart={restart}/>}
+        restart={restart} flash={flash}/>}
 
       {/* Tab Bar — 4 buttons, coral underline indicates active */}
       <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.line, background: '#fff' }}>
@@ -195,11 +162,15 @@ export const MainApp = ({
         </div>
       </div>
 
-      {plansOpen && (
-        <MyPlansSheet
-          savedItems={savedItems}
-          setSavedItems={setSavedItems}
-          onClose={() => setPlansOpen(false)}
+      {villageOpen && (
+        <MyVillageSheet
+          savedItems={savedItems} setSavedItems={setSavedItems}
+          goingItems={goingItems} setGoingItems={setGoingItems}
+          joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
+          messageHistory={messageHistory}
+          openMessage={openMessage}
+          flash={flash}
+          onClose={() => setVillageOpen(false)}
         />
       )}
     </div>

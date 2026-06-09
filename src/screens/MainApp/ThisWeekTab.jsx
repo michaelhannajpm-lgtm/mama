@@ -87,7 +87,7 @@ const AGE_CATEGORIES = [
 
 // -------------------------- shared bits --------------------------
 
-const SectionHead = ({ title, link = 'See all' }) => (
+const SectionHead = ({ title, link = 'See all', onLink }) => (
   <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
     <div style={{
       fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
@@ -96,6 +96,8 @@ const SectionHead = ({ title, link = 'See all' }) => (
       {title}
     </div>
     <button
+      onClick={onLink}
+      className="active:scale-[.98] transition-transform"
       style={{
         background: 'transparent', border: 'none', padding: 0,
         display: 'flex', alignItems: 'center', gap: 1,
@@ -109,7 +111,7 @@ const SectionHead = ({ title, link = 'See all' }) => (
   </div>
 );
 
-const TodayLine = () => (
+const TodayLine = ({ onSeeAll }) => (
   <div className="flex items-baseline justify-between" style={{ marginTop: 14, marginBottom: 8 }}>
     <div style={{
       fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
@@ -124,6 +126,8 @@ const TodayLine = () => (
       </span>
     </div>
     <button
+      onClick={onSeeAll}
+      className="active:scale-[.98] transition-transform"
       style={{
         background: 'transparent', border: 'none', padding: 0,
         display: 'flex', alignItems: 'center', gap: 1,
@@ -399,20 +403,12 @@ export const ThisWeekTab = ({
     filters.times.length + filters.ages.length + filters.types.length +
     filters.amenities.length + (filters.distance != null ? 1 : 0);
 
-  const locationLabel = location ? location.split(',')[0] + ', FL' : 'Tampa, FL';
+  void location;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Location chip + filter pills */}
+      {/* Filter pills */}
       <div className="px-5" style={{ paddingBottom: 4 }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          color: C.muted,
-          fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 500,
-          marginBottom: 8,
-        }}>
-          <MapPin size={11}/> {locationLabel}
-        </div>
         <div className="flex items-center gap-2" style={{ paddingBottom: 2 }}>
           <div className="flex-1 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {PILL_FILTERS.map(f => {
@@ -448,7 +444,7 @@ export const ThisWeekTab = ({
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
         {/* Today */}
-        <TodayLine/>
+        <TodayLine onSeeAll={() => flash?.("All of today's picks coming soon")}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {TODAY_ITEMS.map(item => (
             <TodayCard key={item.id} item={item} onClick={() => openTodayEvent(item)}/>
@@ -456,7 +452,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* This Weekend */}
-        <SectionHead title="This Weekend"/>
+        <SectionHead title="This Weekend" onLink={() => flash?.('Weekend picks coming soon')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {WEEKEND_ITEMS.map(item => (
             <WeekendCard key={item.id} item={item} onClick={() => openWeekendEvent(item)}/>
@@ -464,7 +460,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* Popular with moms near you */}
-        <SectionHead title="Popular with moms near you"/>
+        <SectionHead title="Popular with moms near you" onLink={() => flash?.('Popular picks coming soon')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {POPULAR_PLACES.map(item => (
             <PopularCard key={item.id} item={item} onClick={() => openPopularPlace(item)}/>
@@ -472,7 +468,7 @@ export const ThisWeekTab = ({
         </div>
 
         {/* Because your child is 0–3 years old */}
-        <SectionHead title="Because your child is 0–3 years old"/>
+        <SectionHead title="Because your child is 0–3 years old" onLink={() => flash?.('Age-tailored picks coming soon')}/>
         <div className="grid grid-cols-4" style={{ gap: 6 }}>
           {AGE_CATEGORIES.map(item => (
             <AgeTile

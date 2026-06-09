@@ -238,6 +238,7 @@ function PrototypeApp({ bare = false }) {
             savedItems={savedItems} setSavedItems={setSavedItems}
             goingItems={goingItems} setGoingItems={setGoingItems}
             ratings={ratings} setRatings={setRatings}
+            messageHistory={messageHistory}
             account={account} requestAccount={requestAccount}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}

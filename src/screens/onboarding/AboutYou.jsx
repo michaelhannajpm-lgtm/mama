@@ -91,47 +91,32 @@ const nearestBucket = (lat, lng) => {
   return best.label;
 };
 
-const STEP_LABELS = ['Your Stage', 'Your Focus', 'Your Area'];
-
-// Carousel progress banner — step count + label + full-width 3-segment bar.
+// Carousel progress banner — back button + full-width 3-segment bar.
 const ProgressBanner = ({ step, total, onBack }) => (
   <div style={{ padding: '8px 14px 8px' }}>
-    <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+    <div className="flex items-center" style={{ marginBottom: 8, gap: 10 }}>
       <button
         onClick={onBack}
-        className="rounded-full flex items-center justify-center"
-        style={{ width: 30, height: 30, background: '#fff', border: `1px solid ${C.line}` }}
+        className="rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
         aria-label="Back"
       >
-        <ChevronLeft size={17} color={C.navy}/>
+        <ChevronLeft size={18} color={C.navy}/>
       </button>
-      <div
-        className="flex items-center"
-        style={{
-          gap: 7,
-          fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700,
-          letterSpacing: '.04em',
-        }}
-      >
-        <span style={{ color: C.coralDeep }}>{step} of {total}</span>
-        <span aria-hidden style={{ color: C.line }}>·</span>
-        <span style={{ color: C.navy }}>{STEP_LABELS[step - 1]}</span>
+      <div className="flex items-center flex-1" style={{ gap: 5 }}>
+        {Array.from({ length: total }, (_, i) => {
+          const done = i + 1 < step;
+          const active = i + 1 === step;
+          return (
+            <div key={i} style={{
+              flex: 1, height: 4, borderRadius: 999,
+              background: done || active ? C.coral : C.line,
+              opacity: done ? 0.55 : 1,
+              transition: 'background .25s ease, opacity .25s ease',
+            }}/>
+          );
+        })}
       </div>
-      <div style={{ width: 30 }}/>
-    </div>
-    <div className="flex items-center" style={{ gap: 5 }}>
-      {Array.from({ length: total }, (_, i) => {
-        const done = i + 1 < step;
-        const active = i + 1 === step;
-        return (
-          <div key={i} style={{
-            flex: 1, height: 4, borderRadius: 999,
-            background: done || active ? C.coral : C.line,
-            opacity: done ? 0.55 : 1,
-            transition: 'background .25s ease, opacity .25s ease',
-          }}/>
-        );
-      })}
     </div>
   </div>
 );
@@ -296,26 +281,8 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     );
   };
 
-  // Bottom CTA on the location screen: detect location and advance once we
-  // have a value. If a value was already detected on mount, just advance.
-  const handleUseLocation = () => {
-    if (location && location.trim()) { onNext(); return; }
-    if (!navigator.geolocation) { setGeoStatus('unsupported'); onNext(); return; }
-    setGeoStatus('detecting');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation(nearestBucket(pos.coords.latitude, pos.coords.longitude));
-        setGeoStatus('ok');
-        setTimeout(() => onNext(), 500);
-      },
-      () => { setGeoStatus('denied'); onNext(); },
-      { timeout: 6000, maximumAge: 5 * 60 * 1000 },
-    );
-  };
-
   useEffect(() => {
     if (distance == null) setDistance(DEFAULT_DISTANCE);
-    if (!location) detectLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -414,27 +381,16 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
       {step === 3 ? (
         <div className="flex flex-col flex-1" style={{ minHeight: 0, overflow: 'hidden' }}>
-          {/* Top bar — small back + "go mama" logo · Skip */}
-          <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '10px 14px 0' }}>
-            <div className="flex items-center" style={{ gap: 4 }}>
-              <button
-                onClick={handleBack}
-                aria-label="Back"
-                style={{
-                  background: 'transparent', border: 'none', padding: 4, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <ChevronLeft size={20} color={C.navy}/>
-              </button>
-              <span style={{
-                fontFamily: 'Fraunces', fontStyle: 'italic', fontSize: 18, fontWeight: 600,
-                color: C.navy, letterSpacing: '-.01em',
-              }}>
-                go mama
-              </span>
-              <span style={{ color: C.coral, fontSize: 11 }}>♥</span>
-            </div>
+          {/* Top bar — back · Skip */}
+          <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '6px 14px 4px' }}>
+            <button
+              onClick={handleBack}
+              className="rounded-full flex items-center justify-center"
+              style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
+              aria-label="Back"
+            >
+              <ChevronLeft size={18} color={C.navy}/>
+            </button>
             <button
               onClick={onNext}
               style={{
@@ -467,7 +423,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
             {/* Dark sage CTA */}
             <button
-              onClick={handleUseLocation}
+              onClick={detectLocation}
               disabled={geoStatus === 'detecting'}
               className="w-full flex items-center justify-center gap-3 active:scale-[.98] transition-transform"
               style={{
@@ -528,10 +484,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                 return (
                   <button
                     key={area.label}
-                    onClick={() => {
-                      setLocation(area.label);
-                      setTimeout(() => onNext(), 220);
-                    }}
+                    onClick={() => setLocation(area.label)}
                     className="rounded-2xl flex items-center justify-center active:scale-[.98] transition-transform"
                     style={{
                       padding: '14px 10px',
@@ -556,19 +509,36 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
             </div>
           </div>
 
-          {/* Bottom info — anchored */}
-          <div className="flex-shrink-0 flex items-start justify-center" style={{
-            padding: '12px 24px',
+          {/* Bottom — Next + privacy note */}
+          <div className="flex-shrink-0" style={{
+            padding: '8px 16px 0',
             paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-            gap: 6,
           }}>
-            <Lock size={11} color={C.muted} style={{ marginTop: 2, flexShrink: 0 }}/>
-            <p style={{
-              fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
-              color: C.muted, lineHeight: 1.4, textAlign: 'center',
-            }}>
-              Your location helps us show you only relevant local content. You can change this anytime in settings.
-            </p>
+            <button
+              onClick={handleNext}
+              disabled={!canContinue}
+              className="w-full rounded-full flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+              style={{
+                background: !canContinue
+                  ? '#D8CCB6'
+                  : `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`,
+                color: '#fff', padding: '11px 24px',
+                fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700,
+                border: 'none', cursor: !canContinue ? 'not-allowed' : 'pointer',
+                boxShadow: '0 8px 18px -8px rgba(214,68,106,.55)',
+              }}
+            >
+              Next
+            </button>
+            <div className="flex items-start justify-center" style={{ marginTop: 8, gap: 6 }}>
+              <Lock size={11} color={C.muted} style={{ marginTop: 2, flexShrink: 0 }}/>
+              <p style={{
+                fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
+                color: C.muted, lineHeight: 1.4, textAlign: 'center',
+              }}>
+                Your location helps us show you only relevant local content. You can change this anytime in settings.
+              </p>
+            </div>
           </div>
         </div>
       ) : (<>

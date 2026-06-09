@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Heart, ArrowRight, Mail, Phone, Eye, EyeOff, Lock, Check, AlertCircle } from 'lucide-react';
+import { Heart, ArrowRight, Mail, Phone, Eye, EyeOff, Lock, Check, AlertCircle, ChevronLeft } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
-import { StepHeader } from '../../components/StepHeader';
 import { PrimaryBtn } from '../../components/PrimaryBtn';
 import { completeSignup, signInWithProvider } from '../../lib/onboarding';
 import { ENABLED_PROVIDERS as PROVIDERS } from '../../data/oauth-providers';
@@ -116,7 +115,18 @@ export const Account = ({ onBack, account, onComplete, flash }) => {
   return (
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
-      <StepHeader step={6} total={7} onBack={onBack}/>
+
+      {/* Top bar — back button (matches AboutYou + VillagePreview pattern) */}
+      <div className="flex items-center" style={{ padding: '6px 14px 4px' }}>
+        <button
+          onClick={onBack}
+          className="rounded-full flex items-center justify-center"
+          style={{ width: 32, height: 32, background: '#fff', border: `1px solid ${C.line}` }}
+          aria-label="Back"
+        >
+          <ChevronLeft size={18} color={C.navy}/>
+        </button>
+      </div>
 
       <div className="flex-1 px-6" style={{ minHeight: 0, overflowY: 'auto', scrollbarWidth: 'none' }}>
         <div style={{ marginTop: 2 }}>

@@ -110,8 +110,10 @@ const KidCard = ({ kid }) => (
   </div>
 );
 
-const SettingsRow = ({ Icon, iconBg, iconFg, label, sub }) => (
+const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick }) => (
   <button
+    onClick={onClick}
+    className="active:scale-[.99] transition-transform"
     style={{
       width: '100%',
       background: '#fff', border: 'none',
@@ -149,12 +151,20 @@ const SettingsRow = ({ Icon, iconBg, iconFg, label, sub }) => (
 
 // -------------------------- screen --------------------------
 
+const SETTINGS_FLASH = {
+  prefs: 'Preferences editor coming soon',
+  notif: 'Notification settings coming soon',
+  priv:  'Privacy controls coming soon',
+  help:  'Help center coming soon',
+  about: 'Go Mama · v0.1 prototype',
+};
+
 export const YouTab = ({
   profile, setProfile, account, prefs,
   location, setLocation, distance, setDistance,
   scheduled1to1 = {}, joinedEvents = [], goToMeetups,
   openPlans, openPremium, savedCount = 0,
-  restart,
+  restart, flash,
 }) => {
   void prefs; void goToMeetups; void openPremium;
 
@@ -257,6 +267,7 @@ export const YouTab = ({
             My Family
           </div>
           <button
+            onClick={() => setEditOpen(true)}
             style={{
               background: 'transparent', border: 'none', padding: 0,
               color: C.coralDeep,
@@ -286,6 +297,7 @@ export const YouTab = ({
               iconFg={row.iconFg}
               label={row.label}
               sub={row.sub}
+              onClick={() => flash?.(SETTINGS_FLASH[row.id])}
             />
           </div>
         ))}

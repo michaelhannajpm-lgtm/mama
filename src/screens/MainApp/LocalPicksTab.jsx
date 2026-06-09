@@ -95,7 +95,7 @@ const SUPPORT = [
 
 // -------------------------- shared --------------------------
 
-const SectionHead = ({ title, link = 'See all' }) => (
+const SectionHead = ({ title, link = 'See all', onLink }) => (
   <div className="flex items-center justify-between" style={{ marginTop: 14, marginBottom: 10 }}>
     <div style={{
       fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
@@ -104,6 +104,8 @@ const SectionHead = ({ title, link = 'See all' }) => (
       {title}
     </div>
     <button
+      onClick={onLink}
+      className="active:scale-[.98] transition-transform"
       style={{
         background: 'transparent', border: 'none', padding: 0,
         display: 'flex', alignItems: 'center', gap: 1,
@@ -365,7 +367,10 @@ export const LocalPicksTab = ({
               <QuickTile
                 key={item.id}
                 item={item}
-                onClick={() => flash?.(`Jumping to ${item.label}`)}
+                onClick={() => {
+                  const el = document.getElementById(`localpicks-section-${item.id}`);
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
               />
             ))}
           </div>
@@ -378,39 +383,47 @@ export const LocalPicksTab = ({
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
         {/* Top Places */}
-        <SectionHead title="Top Places"/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {TOP_PLACES.map(item => (
-            <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>
-          ))}
+        <div id="localpicks-section-places">
+          <SectionHead title="Top Places" onLink={() => flash?.('Top Places — full list coming soon')}/>
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {TOP_PLACES.map(item => (
+              <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>
+            ))}
+          </div>
         </div>
 
         {/* Programs For Your Child */}
-        <SectionHead title="Programs For Your Child"/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {PROGRAMS.map(item => (
-            <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>
-          ))}
+        <div id="localpicks-section-programs">
+          <SectionHead title="Programs For Your Child" onLink={() => flash?.('Programs — full list coming soon')}/>
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {PROGRAMS.map(item => (
+              <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>
+            ))}
+          </div>
         </div>
 
         {/* Schools Near You */}
-        <SectionHead title="Schools Near You"/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {SCHOOLS.map(item => (
-            <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>
-          ))}
+        <div id="localpicks-section-schools">
+          <SectionHead title="Schools Near You" onLink={() => flash?.('Schools — full list coming soon')}/>
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {SCHOOLS.map(item => (
+              <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>
+            ))}
+          </div>
         </div>
 
         {/* Support You Can Count On */}
-        <SectionHead title="Support You Can Count On"/>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {SUPPORT.map(item => (
-            <SupportChip
-              key={item.id}
-              item={item}
-              onClick={() => flash?.(`${item.label} · resources coming soon`)}
-            />
-          ))}
+        <div id="localpicks-section-support">
+          <SectionHead title="Support You Can Count On" onLink={() => flash?.('Support resources coming soon')}/>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {SUPPORT.map(item => (
+              <SupportChip
+                key={item.id}
+                item={item}
+                onClick={() => flash?.(`${item.label} · resources coming soon`)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

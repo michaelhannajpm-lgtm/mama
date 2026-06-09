@@ -83,7 +83,7 @@ const TOPICS = [
 
 // -------------------------- shared --------------------------
 
-const SectionHead = ({ title, link = 'See all' }) => (
+const SectionHead = ({ title, link = 'See all', onLink }) => (
   <div className="flex items-center justify-between" style={{ marginTop: 16, marginBottom: 10 }}>
     <div style={{
       fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
@@ -92,6 +92,8 @@ const SectionHead = ({ title, link = 'See all' }) => (
       {title}
     </div>
     <button
+      onClick={onLink}
+      className="active:scale-[.98] transition-transform"
       style={{
         background: 'transparent', border: 'none', padding: 0,
         display: 'flex', alignItems: 'center', gap: 1,
@@ -318,10 +320,12 @@ export const ConnectTab = ({
           />
           <button
             aria-label="Invite a friend"
-            className="rounded-full flex items-center justify-center"
+            onClick={() => flash?.('Invite link copied — share with a mom friend!')}
+            className="rounded-full flex items-center justify-center active:scale-[.95] transition-transform"
             style={{
               width: 28, height: 28,
               background: 'transparent', border: 'none', color: C.navy,
+              cursor: 'pointer',
             }}
           >
             <UserPlus size={14}/>
@@ -366,14 +370,15 @@ export const ConnectTab = ({
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
         {/* Moms nearby */}
-        <SectionHead title="Moms nearby"/>
+        <SectionHead title="Moms nearby" onLink={() => flash?.('Full moms list coming soon')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {MOMS.map(item => (
             <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
           ))}
         </div>
         <button
-          className="w-full"
+          onClick={() => flash?.('Loading more moms nearby…')}
+          className="w-full active:scale-[.99] transition-transform"
           style={{
             background: 'transparent', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -388,7 +393,7 @@ export const ConnectTab = ({
         </button>
 
         {/* Upcoming meetups */}
-        <SectionHead title="Upcoming meetups"/>
+        <SectionHead title="Upcoming meetups" onLink={() => flash?.('All meetups coming soon')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {MEETUPS.map(item => (
             <MeetupCard key={item.id} item={item} onClick={() => openMeetupDetail(item)}/>
@@ -396,7 +401,7 @@ export const ConnectTab = ({
         </div>
 
         {/* Popular topics */}
-        <SectionHead title="Popular topics"/>
+        <SectionHead title="Popular topics" onLink={() => flash?.('All topics coming soon')}/>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {TOPICS.map(item => (
             <TopicChip
