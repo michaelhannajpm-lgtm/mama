@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Bell, MessageCircle, Users, CalendarDays, LayoutGrid,
-  Sparkles, MapPin, Clock, ChevronRight, Heart,
+  MessageCircle, Users, CalendarDays, LayoutGrid,
+  MapPin, Clock, ChevronRight, Heart,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
@@ -20,29 +20,12 @@ import { Sheet } from '../components/Sheet';
 // ==========================================================================
 
 const TABS = [
-  { id: 'notifs',  label: 'Notifs',   Icon: Bell          },
   { id: 'chats',   label: 'Chats',    Icon: MessageCircle },
   { id: 'groups',  label: 'Groups',   Icon: Users         },
   { id: 'plans',   label: 'Plans',    Icon: CalendarDays  },
 ];
 
 // Seed data — feels populated on first open.
-const SEED_NOTIFS = [
-  { id: 'n1', kind: 'connection', title: 'Sarah accepted your connection',
-    when: '2m', accent: C.coralDeep,
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop' },
-  { id: 'n2', kind: 'post', title: 'Amanda commented on your post in Daycare picks',
-    when: '24m', accent: C.sageDark,
-    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop' },
-  { id: 'n3', kind: 'meetup', title: '✦ Reminder · Stroller Walk + Coffee tomorrow 9:00 AM',
-    when: '1h', accent: C.coralDeep },
-  { id: 'n4', kind: 'group', title: 'New post in Sleep training in South Tampa',
-    when: '3h', accent: '#5E4A8A' },
-  { id: 'n5', kind: 'connection', title: 'Mia liked your reply in Postpartum support',
-    when: '5h', accent: C.coralDeep,
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop' },
-];
-
 const SEED_CHATS = [
   { id: 'c1', name: 'Sarah K.', kids: '2 kids', preview: "Yes! Park tomorrow at 10 works",
     when: '8m', unread: 2,
@@ -77,7 +60,7 @@ export const MamaHubSheet = ({
   flash,
   onClose,
 }) => {
-  const [tab, setTab] = useState('notifs');
+  const [tab, setTab] = useState('chats');
 
   // Surface joined groups + a few popular ones as a single feed.
   const groupItems = groupDiscussions.slice(0, 6).map(d => ({
@@ -141,14 +124,6 @@ export const MamaHubSheet = ({
 
         {/* Tab body */}
         <div className="px-5 pt-4">
-          {tab === 'notifs' && (
-            <div className="space-y-2">
-              {SEED_NOTIFS.map(n => (
-                <NotifRow key={n.id} notif={n}/>
-              ))}
-            </div>
-          )}
-
           {tab === 'chats' && (
             <div className="space-y-2">
               {SEED_CHATS.map(c => (
@@ -207,40 +182,6 @@ export const MamaHubSheet = ({
 
 // ===== Rows =====
 
-const NotifRow = ({ notif }) => (
-  <div className="flex items-start gap-3 rounded-2xl p-3" style={{
-    background: '#fff', border: `1px solid ${C.divider}`,
-  }}>
-    {notif.photo ? (
-      <img src={notif.photo} alt="" style={{
-        width: 34, height: 34, borderRadius: 17, objectFit: 'cover', flexShrink: 0,
-      }}/>
-    ) : (
-      <div style={{
-        width: 34, height: 34, borderRadius: 17,
-        background: `${notif.accent}1A`, color: notif.accent,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        <Sparkles size={14}/>
-      </div>
-    )}
-    <div className="flex-1 min-w-0">
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600,
-        color: C.navy, lineHeight: 1.35,
-      }}>
-        {notif.title}
-      </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 2,
-        display: 'flex', alignItems: 'center', gap: 4,
-      }}>
-        <Clock size={9}/> {notif.when}
-      </div>
-    </div>
-  </div>
-);
 
 const ChatRow = ({ chat, onClick }) => (
   <button

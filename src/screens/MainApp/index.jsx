@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, Settings, Bell, LayoutGrid } from 'lucide-react';
+import { CalendarDays, Users, MapPin, User, Settings, LayoutGrid } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { ThisWeekTab } from './ThisWeekTab';
@@ -20,11 +20,13 @@ import { GROUP_DISCUSSIONS } from '../../data/discussions';
 // Profile swaps the filter icon for settings.
 // ====================================================================
 
+// Bottom tab bar. 'hub' is a launcher (opens MamaHubSheet) rather than a
+// content tab. Profile lives in the top-right header button instead.
 const TABS = [
   { id: 'thisweek',   icon: CalendarDays, label: 'This Week',   headerLabel: 'This Week'   },
   { id: 'connect',    icon: Users,        label: 'Connect',     headerLabel: 'Connect'     },
   { id: 'localpicks', icon: MapPin,       label: 'Local Picks', headerLabel: 'Local Picks' },
-  { id: 'profile',    icon: User,         label: 'Profile',     headerLabel: 'My Profile'  },
+  { id: 'hub',        icon: LayoutGrid,   label: 'My Hub',      headerLabel: 'My Hub'      },
 ];
 
 const HEADER_SUBTITLES = {
@@ -32,6 +34,12 @@ const HEADER_SUBTITLES = {
   connect:    'Meet moms who get it',
   localpicks: 'The best places, programs, schools, and resources near you.',
   profile:    'Everything for you and your family',
+};
+
+// Header title for the active content view (profile is reached via the
+// top-right button, so it isn't in the bottom TABS list).
+const HEADER_LABELS = {
+  thisweek: 'This Week', connect: 'Connect', localpicks: 'Local Picks', profile: 'My Profile',
 };
 
 export const MainApp = ({
@@ -53,11 +61,8 @@ export const MainApp = ({
   void setPrefs;
   const [tab, setTab] = useState('thisweek');
   const [villageOpen, setVillageOpen] = useState(false);
-  // Mama Hub (launcher) + notifications popover state. Notifications uses
-  // a coral dot when there's anything unread; the dot is the only signal
-  // we surface in-app (no badge count to keep the header quiet).
+  // Mama Hub launcher state (opened from the bottom "My Hub" tab).
   const [hubOpen, setHubOpen] = useState(false);
-  const [notifsUnread, setNotifsUnread] = useState(true);
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
   const [hubDiscussion, setHubDiscussion] = useState(null);
@@ -70,8 +75,7 @@ export const MainApp = ({
   const [connectFilterOpen,    setConnectFilterOpen]    = useState(false);
   const [localPicksFilterOpen, setLocalPicksFilterOpen] = useState(false);
 
-  const activeTab = TABS.find(t => t.id === tab);
-  const activeLabel = activeTab?.headerLabel || activeTab?.label || '';
+  const activeLabel = HEADER_LABELS[tab] || '';
   const savedCount = savedItems?.length || 0;
   const isProfile = tab === 'profile';
 
@@ -97,43 +101,21 @@ export const MainApp = ({
             </div>
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-            {/* Notifications bell — coral dot when unread, dot clears on tap */}
+            {/* Profile — top-right avatar button (opens the Profile view) */}
             <button
-              aria-label="Notifications"
-              onClick={() => {
-                setNotifsUnread(false);
-                setHubOpen(true);
-              }}
-              className="relative rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
-              style={{
-                width: 36, height: 36, background: C.paper,
-                border: `1px solid ${C.divider}`, cursor: 'pointer',
-              }}
-            >
-              <Bell size={15} color={C.navy}/>
-              {notifsUnread && (
-                <span
-                  className="absolute"
-                  style={{
-                    top: 7, right: 8, width: 8, height: 8, borderRadius: 4,
-                    background: C.coralDeep, border: `1.5px solid ${C.cream}`,
-                  }}
-                />
-              )}
-            </button>
-            {/* Mama Hub launcher — LayoutGrid icon, opens MamaHubSheet */}
-            <button
-              aria-label="Open Mama Hub"
-              onClick={() => setHubOpen(true)}
-              className="rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
+              aria-label="Profile"
+              onClick={() => setTab('profile')}
+              className="rounded-full flex items-center justify-center active:scale-[.97] transition-transform overflow-hidden"
               style={{
                 width: 36, height: 36,
-                background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-                color: '#fff', border: 'none', cursor: 'pointer',
-                boxShadow: '0 4px 12px -6px rgba(214,68,106,.55)',
+                background: profile?.photos?.[0]
+                  ? `center/cover no-repeat url('${profile.photos[0]}')`
+                  : C.paper,
+                border: `${isProfile ? 2 : 1}px solid ${isProfile ? C.coralDeep : C.divider}`,
+                cursor: 'pointer',
               }}
             >
-              <LayoutGrid size={15}/>
+              {!profile?.photos?.[0] && <User size={16} color={isProfile ? C.coralDeep : C.navy}/>}
             </button>
             {isProfile && (
               <button
@@ -193,11 +175,12 @@ export const MainApp = ({
       <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.line, background: '#fff' }}>
         <div className="flex justify-between items-center">
           {TABS.map(t => {
+            // 'hub' is a launcher (opens the sheet); it's never the active tab.
             const active = tab === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => (t.id === 'hub' ? setHubOpen(true) : setTab(t.id))}
                 className="flex flex-col items-center gap-0.5 py-1.5 flex-1 relative"
               >
                 {active && (
