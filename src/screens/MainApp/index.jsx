@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Users, MapPin, User, Settings, LayoutGrid } from 'lucide-react';
+import { CalendarDays, Users, MapPin, User, LayoutGrid } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { ThisWeekTab } from './ThisWeekTab';
@@ -117,16 +117,6 @@ export const MainApp = ({
             >
               {!profile?.photos?.[0] && <User size={16} color={isProfile ? C.coralDeep : C.navy}/>}
             </button>
-            {isProfile && (
-              <button
-                aria-label="Settings"
-                onClick={() => flash?.('Settings coming soon')}
-                className="rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
-                style={{ width: 36, height: 36, background: C.paper, border: `1px solid ${C.divider}`, cursor: 'pointer' }}
-              >
-                <Settings size={15} color={C.navy}/>
-              </button>
-            )}
           </div>
         </div>
       </div>
