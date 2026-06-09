@@ -1,0 +1,9 @@
+{ "places": [
+  { "id": "ChIJfixture1", "displayName": { "text": "Glazer Children's Museum" },
+    "formattedAddress": "110 W Gasparilla Plaza, Tampa, FL 33602",
+    "location": { "latitude": 27.9487, "longitude": -82.4606 },
+    "rating": 4.6, "userRatingCount": 1200, "businessStatus": "OPERATIONAL",
+    "websiteUri": "https://glazermuseum.org",
+    "googleMapsUri": "https://maps.google.com/?cid=2",
+    "photos": [{ "name": "places/ChIJfixture1/photos/AF1", "authorAttributions": [{ "displayName": "Visitor" }] }] }
+] }
