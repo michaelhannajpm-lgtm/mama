@@ -1,7 +1,7 @@
 // src/screens/MainApp/HomeTab.jsx
 import { useState } from 'react';
 import {
-  MapPin, ChevronRight, Star, Clock, ShieldCheck, Users, Bookmark,
+  MapPin, ChevronRight, ChevronDown, Star, Clock, ShieldCheck, Users, Bookmark,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { youngestStageLabel } from '../../data/taxonomy';
@@ -10,7 +10,6 @@ import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { MomDetailSheet } from '../../sheets/MomDetailSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
-import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 
 // ==========================================================================
@@ -129,11 +128,31 @@ const ActivityCard = ({ item, onClick }) => (
       }}>
         {item.place}
       </div>
-      {item.mi != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 4, fontFamily: 'Albert Sans', fontSize: 8.5, color: C.muted }}>
-          <MapPin size={8}/> {item.mi} mi
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+        {item.kind === 'Meetup' && (
+          <span style={{
+            background: C.coralSoft, color: C.coralDeep,
+            fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+            padding: '1px 5px', borderRadius: 4, letterSpacing: '.03em',
+          }}>
+            Meetup
+          </span>
+        )}
+        {item.kind === 'Event' && (
+          <span style={{
+            background: '#FFF4D6', color: '#8A6610',
+            fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+            padding: '1px 5px', borderRadius: 4, letterSpacing: '.03em',
+          }}>
+            Event
+          </span>
+        )}
+        {item.mi != null && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontFamily: 'Albert Sans', fontSize: 8.5, color: C.muted }}>
+            <MapPin size={8}/> {item.mi} mi
+          </span>
+        )}
+      </div>
     </div>
   </button>
 );
@@ -257,8 +276,10 @@ export const HomeTab = ({
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
-  goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
+  goToPlaces, goToActivities, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
   city = 'Tampa',
+  locationLabel,                       // resolved city or "Your current location"
+  openLocation,                        // opens LocationSheet (lifted in MainApp)
   onDiscuss,
   chatAuthor, myUserId,
 }) => {
@@ -269,7 +290,6 @@ export const HomeTab = ({
   const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
   const [invited, setInvited] = useState({});
   const [shareItem, setShareItem] = useState(null);
-  const [seeAll, setSeeAll] = useState(false);
 
   // All things to do — dated (this month, which nests today/week) + recurring,
   // deduped. No time filter; one combined "Local Events" list.
@@ -280,13 +300,160 @@ export const HomeTab = ({
     seenActivity.add(a.id);
     return true;
   });
-  const eventsTitle = 'Upcoming events';
-  const trending = pickTrendingPlaces(places, 8);
+  const eventsTitle = 'Things to do this week';
+
+  // Home tab shows two "things to do" cards: one event + one meetup. The
+  // event slot picks the first activity from the live feed; the meetup
+  // slot uses a synthetic moms-meetup card so the home surface always
+  // teases both kinds of weekly plans. The full activity list is still
+  // available via "See all activities" below.
+  const featuredEvent = activities[0] ? { ...activities[0], kind: 'Event' } : null;
+  const featuredMeetup = {
+    id: 'home-meetup-feature',
+    name: 'Moms Coffee Meetup',
+    place: 'Buddy Brew · Hyde Park',
+    time: '9:30 AM',
+    mi: 0.5,
+    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
+    recurring: 'Sat',
+    kind: 'Meetup',
+  };
+  const featuredActivities = featuredEvent ? [featuredEvent, featuredMeetup] : [featuredMeetup];
+  const liveTrending = pickTrendingPlaces(places, 8);
+  // Fallback "Popular places near you" — used only if the live places feed
+  // hasn't populated yet, so the section always shows on Home.
+  const FALLBACK_PLACES = [
+    {
+      id: 'pp-fb1', name: 'Tampa Riverwalk Splash Pad',
+      rating: 4.8, review_count: 128,
+      hero_photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'pp-fb2', name: "Glazer Children's Museum",
+      rating: 4.7, review_count: 96,
+      hero_photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'pp-fb3', name: 'Little Explorers Play Cafe',
+      rating: 4.9, review_count: 142,
+      hero_photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'pp-fb4', name: 'Curtis Hixon Waterfront Park',
+      rating: 4.8, review_count: 173,
+      hero_photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+    },
+  ];
+  const trending = liveTrending.length > 0 ? liveTrending : FALLBACK_PLACES;
+
   // Closest moms first (nulls — no shared coords — sink to the end).
-  const moms = [...nearbyMoms]
+  const liveMoms = [...nearbyMoms]
     .sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity))
     .slice(0, 8);
+  // Fallback "Moms near you" — same reason as places: prototype data flow
+  // may not have nearbyMoms ready, but the section should still teaser.
+  const FALLBACK_MOMS = [
+    {
+      id: 'm-fb1', firstName: 'Sarah', kids: '2 kids', distanceMi: 0.4,
+      sharedTags: ['Working mom'],
+      photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop',
+    },
+    {
+      id: 'm-fb2', firstName: 'Amanda', kids: '1 kid', distanceMi: 0.7,
+      sharedTags: ['Similar kids'],
+      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop',
+    },
+    {
+      id: 'm-fb3', firstName: 'Jessica', kids: '2 kids', distanceMi: 0.8,
+      sharedTags: ['Lives nearby'],
+      photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=200&auto=format&fit=crop',
+    },
+    {
+      id: 'm-fb4', firstName: 'Priya', kids: '1 kid', distanceMi: 0.9,
+      sharedTags: ['New mom'],
+      photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop',
+    },
+    {
+      id: 'm-fb5', firstName: 'Mia', kids: '2 kids', distanceMi: 1.1,
+      sharedTags: ['Verified'],
+      photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop',
+    },
+  ];
+  const moms = liveMoms.length > 0 ? liveMoms : FALLBACK_MOMS;
   const topGroups = groups.slice(0, 3);
+
+  // Trusted schools & childcare — preschools, daycares, K-8. Photo + rating
+  // shape matches PlaceCard so we can reuse the existing card component.
+  const SCHOOLS = [
+    {
+      id: 'home-sc1', name: 'Bright Horizons at Harbour Island',
+      rating: 4.7, review_count: 86,
+      hero_photo: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-sc2', name: 'Primrose School of South Tampa',
+      rating: 4.8, review_count: 64,
+      hero_photo: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-sc3', name: 'Sunshine Preschool & VPK',
+      rating: 4.6, review_count: 51,
+      hero_photo: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-sc4', name: "St. Mary's Episcopal Day School",
+      rating: 4.9, review_count: 73,
+      hero_photo: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&auto=format&fit=crop',
+    },
+  ];
+
+  // Kids extracurricular activities — classes, camps, programs.
+  const EXTRACURRICULARS = [
+    {
+      id: 'home-ex1', name: 'Music Together · Ages 0–5',
+      rating: 4.8, review_count: 112,
+      hero_photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-ex2', name: 'Toddler Art Studio · Ages 1–4',
+      rating: 4.7, review_count: 78,
+      hero_photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-ex3', name: 'Mini Chefs Cooking · Ages 4–8',
+      rating: 4.6, review_count: 54,
+      hero_photo: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-ex4', name: 'Summer Adventure Camp · Ages 5–12',
+      rating: 4.7, review_count: 89,
+      hero_photo: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
+    },
+  ];
+
+  // Local wellness & health places — pediatric, mental, postpartum, sleep.
+  const WELLNESS = [
+    {
+      id: 'home-wh1', name: 'Tampa Pediatric Care',
+      rating: 4.8, review_count: 142,
+      hero_photo: 'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-wh2', name: 'Postpartum Wellness Center',
+      rating: 4.9, review_count: 96,
+      hero_photo: 'https://images.unsplash.com/photo-1556139943-4bdca53adf1e?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-wh3', name: 'Mom & Baby Yoga Studio',
+      rating: 4.7, review_count: 64,
+      hero_photo: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&auto=format&fit=crop',
+    },
+    {
+      id: 'home-wh4', name: 'Brightside Mental Health',
+      rating: 4.7, review_count: 81,
+      hero_photo: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=400&auto=format&fit=crop',
+    },
+  ];
 
   const v = profile?.verified || {};
   const isVerified = !!(v.photo && (v.instagram || v.facebook));
@@ -314,11 +481,45 @@ export const HomeTab = ({
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingTop: 2, paddingBottom: 16 }}>
 
-        {/* Local Events — all things to do around the chosen city, no filter */}
-        <SectionHead title={eventsTitle} onLink={activities.length ? () => setSeeAll(true) : null}/>
+        {/* Location selector — Yelp / Eventbrite style. Sits just above the
+            first content section so the user reads it as "filtering everything
+            below." Tap opens the LocationSheet (lifted in MainApp). */}
+        <button
+          onClick={openLocation}
+          aria-label="Change your location"
+          className="active:scale-[.99] transition-transform"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            width: '100%', padding: '5px 10px',
+            background: C.paper, border: `1px solid ${C.divider}`,
+            borderRadius: 10, cursor: 'pointer',
+            marginTop: 4,
+          }}
+        >
+          <div style={{
+            width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+            background: C.coralSoft, color: C.coralDeep,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <MapPin size={11}/>
+          </div>
+          <div style={{
+            flex: 1, minWidth: 0, textAlign: 'left',
+            fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
+            color: C.navy,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {locationLabel || 'My current location'}
+          </div>
+          <ChevronDown size={14} color={C.muted} strokeWidth={2.2}/>
+        </button>
+
+        {/* Things to do this week — one event + one meetup. "See all" routes
+            into Explore's Events SeeAllSheet (same screen + filters). */}
+        <SectionHead title={eventsTitle} onLink={activities.length ? goToActivities : null}/>
         {activities.length ? (
           <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-            {activities.map(item => (
+            {featuredActivities.map(item => (
               <ActivityCard key={item.id} item={item} onClick={() => openActivity(item)}/>
             ))}
           </div>
@@ -332,26 +533,18 @@ export const HomeTab = ({
           </div>
         )}
 
-        {/* Moms near you — tap a mom to open her profile; See all → Connect's
-            "Your best matches" drawer (with filters). */}
-        {moms.length > 0 && (
-          <>
-            <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
-            <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-              {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
-            </div>
-          </>
-        )}
+        {/* Moms near you — always renders; falls back to seeded sample moms
+            when the live nearbyMoms feed is empty. */}
+        <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
+        <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+          {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
+        </div>
 
-        {/* Trending places near you */}
-        {trending.length > 0 && (
-          <>
-            <SectionHead title="Trending places near you" onLink={goToPlaces}/>
-            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-              {trending.map(p => <PlaceCard key={p.id} item={p} onClick={() => openPlace(p)}/>)}
-            </div>
-          </>
-        )}
+        {/* Popular places near you — same fallback rule as Moms near you. */}
+        <SectionHead title="Popular places near you" onLink={goToPlaces}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+          {trending.map(p => <PlaceCard key={p.id} item={p} onClick={() => openPlace(p)}/>)}
+        </div>
 
         {/* Verify banner — only when not yet verified */}
         {!isVerified && <VerifyBanner onVerify={onVerify}/>}
@@ -360,10 +553,29 @@ export const HomeTab = ({
             Connect's "Popular discussions" drawer (with filters). */}
         {topGroups.length > 0 && (
           <>
-            <SectionHead title="Groups for you" onLink={goToConnectGroups}/>
+            <SectionHead title="Recommended groups for you" onLink={goToConnectGroups}/>
             {topGroups.map(g => <GroupRow key={g.id} item={g} onClick={() => setSelectedDiscussion(g)}/>)}
           </>
         )}
+
+        {/* Trusted schools & childcare — links to the Explore tab where the
+            full list lives. Uses the shared PlaceCard for visual consistency. */}
+        <SectionHead title="Trusted schools & childcare" onLink={goToPlaces}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+          {SCHOOLS.map(p => <PlaceCard key={p.id} item={p} onClick={() => openPlace(p)}/>)}
+        </div>
+
+        {/* Kids extracurricular activities */}
+        <SectionHead title="Kids extracurricular activities" onLink={goToPlaces}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+          {EXTRACURRICULARS.map(p => <PlaceCard key={p.id} item={p} onClick={() => openPlace(p)}/>)}
+        </div>
+
+        {/* Local wellness & health places */}
+        <SectionHead title="Local wellness & health places" onLink={goToPlaces}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+          {WELLNESS.map(p => <PlaceCard key={p.id} item={p} onClick={() => openPlace(p)}/>)}
+        </div>
 
         {/* Saved-spots summary — only when something is saved */}
         {savedItems.length > 0 && (
@@ -392,35 +604,7 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* See all activities CTA — only when there are events to show */}
-        {activities.length > 0 && (
-          <button
-            onClick={() => setSeeAll(true)}
-            style={{
-              marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '12px 14px', borderRadius: 24,
-              background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-              border: 'none', color: '#fff', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
-              boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)', cursor: 'pointer',
-            }}
-          >
-            See all activities <ChevronRight size={14}/>
-          </button>
-        )}
       </div>
-
-      {seeAll && (
-        <SeeAllSheet
-          title={eventsTitle}
-          subtitle={`${activities.length} ${activities.length === 1 ? 'idea' : 'ideas'} for you`}
-          items={activities}
-          renderItem={(item) => (
-            <ActivityCard key={item.id} item={item} onClick={() => openActivity(item)}/>
-          )}
-          columns={2}
-          onClose={() => setSeeAll(false)}
-        />
-      )}
 
       {selectedEvent && (
         <EventDetailSheet

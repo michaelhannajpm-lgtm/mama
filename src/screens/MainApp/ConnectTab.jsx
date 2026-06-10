@@ -12,6 +12,7 @@ import { MomDetailSheet } from '../../sheets/MomDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
+import { InviteFriendButton } from '../../components/InviteFriendButton';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
 
@@ -42,46 +43,6 @@ const MEETUPS = [
     place: 'Al Lopez Park', meta: 'Sun, May 18 · 11:00 AM',
     going: 6,
     photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
-  },
-];
-
-const MEETUPS_ALL = [
-  ...MEETUPS,
-  {
-    id: 'um4', dow: 'MON', day: 19, title: 'Mom Coffee Chat',
-    place: 'Buddy Brew Coffee · Hyde Park', meta: 'Mon, May 19 · 8:30 AM',
-    going: 9,
-    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um5', dow: 'TUE', day: 20, title: 'Baby Sign Language Circle',
-    place: 'Little Explorers Play Cafe', meta: 'Tue, May 20 · 10:00 AM',
-    going: 5,
-    photo: 'https://images.unsplash.com/photo-1517842645767-c639042777db?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um6', dow: 'WED', day: 21, title: 'Music Together Jam',
-    place: 'Sunshine Studio', meta: 'Wed, May 21 · 9:30 AM',
-    going: 11,
-    photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um7', dow: 'THU', day: 22, title: 'Splash Pad Squad',
-    place: 'Julian B. Lane Park', meta: 'Thu, May 22 · 10:30 AM',
-    going: 14,
-    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um8', dow: 'FRI', day: 23, title: 'Mom Night Out',
-    place: 'Armature Works', meta: 'Fri, May 23 · 7:00 PM',
-    going: 16,
-    photo: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um9', dow: 'SAT', day: 24, title: 'Library Storytime Crew',
-    place: 'John F. Germany Library', meta: 'Sat, May 24 · 10:00 AM',
-    going: 7,
-    photo: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&auto=format&fit=crop',
   },
 ];
 
@@ -140,76 +101,108 @@ const kidAgesLabel = (item) => {
   return youngestStageLabel(buckets);
 };
 
+// Bump the Unsplash w= param so the rendered circle (~88px @ 2× = 176px)
+// has enough pixels to look sharp instead of soft. Non-Unsplash URLs pass
+// through unchanged.
+const sharpenPhoto = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (!url.includes('images.unsplash.com')) return url;
+  return url.replace(/([?&])w=\d+/, '$1w=320').replace(/([?&])q=\d+/, '$1q=85');
+};
+
 const MomCard = ({ item, onClick }) => {
-  const Icon = item.Icon;
   const ages = kidAgesLabel(item);
+  // "Shared ground" pills — surface 1-2 commonalities so the card explains
+  // *why* she's recommended at a glance. Falls back to kid-stage when the
+  // server didn't shape sharedTags.
+  const shared = (item.sharedTags && item.sharedTags.length)
+    ? item.sharedTags.slice(0, 2)
+    : (ages ? [`Same stage: ${ages}`] : []);
+
   return (
-    <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
-      background: '#fff', borderRadius: 14,
-      border: `1px solid ${C.line}`,
-      boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)',
-      padding: '12px 6px 10px',
-      textAlign: 'center',
-      cursor: 'pointer',
-    }}>
+    <button
+      onClick={onClick}
+      className="active:scale-[.97] transition-transform"
+      style={{
+        // No surrounding card — clean transparent surface so the avatar is
+        // the hero.
+        background: 'transparent', border: 'none', padding: '4px 2px',
+        textAlign: 'center', cursor: 'pointer',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}
+    >
       <div style={{ position: 'relative', display: 'inline-block' }}>
         {item.photo ? (
-          <img src={item.photo} alt="" style={{
-            width: 62, height: 62, borderRadius: 31, objectFit: 'cover',
-            display: 'block',
-          }}/>
+          <img
+            src={sharpenPhoto(item.photo)}
+            alt=""
+            style={{
+              width: 88, height: 88, borderRadius: 44, objectFit: 'cover',
+              display: 'block',
+              boxShadow: '0 8px 18px -10px rgba(27,42,78,.35)',
+            }}
+          />
         ) : (
           <div style={{
-            width: 62, height: 62, borderRadius: 31,
-            background: item.hue,
+            width: 88, height: 88, borderRadius: 44,
+            background: item.hue || C.coralSoft,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 22,
+            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 32,
+            boxShadow: '0 8px 18px -10px rgba(27,42,78,.35)',
           }}>
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
-        {/* Distance marker — sits on the avatar like a map pin, so it never
-            wraps onto its own awkward line. Hidden when distance is unknown. */}
+        {/* Distance pin sits on the bottom of the avatar */}
         {item.distanceMi != null && (
           <div style={{
-            position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)',
+            position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
             background: '#fff', border: `1px solid ${C.line}`, borderRadius: 999,
-            padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 2,
+            padding: '2px 7px', display: 'flex', alignItems: 'center', gap: 2,
             boxShadow: '0 2px 6px -3px rgba(27,42,78,.3)', whiteSpace: 'nowrap',
           }}>
-            <MapPin size={8} color={C.coralDeep} strokeWidth={2.4}/>
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.navy }}>
+            <MapPin size={9} color={C.coralDeep} strokeWidth={2.4}/>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800, color: C.navy }}>
               {item.distanceMi.toFixed(1)} mi
             </span>
           </div>
         )}
       </div>
+
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-        color: C.navy, marginTop: 11, lineHeight: 1.1,
+        fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
+        color: C.navy, marginTop: 12, lineHeight: 1.1, letterSpacing: '-.01em',
       }}>
         {item.name}
       </div>
-      {ages && (
-        <div className="flex items-center justify-center" style={{
-          gap: 3, marginTop: 3, fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600, color: C.muted,
-          whiteSpace: 'nowrap',
+
+      {/* Shared ground with me — 1-2 small coral chips. Card has no chrome
+          so these read as the dominant social signal. */}
+      {shared.length > 0 && (
+        <div style={{
+          marginTop: 6,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
         }}>
-          <Baby size={9}/> {ages}
+          {shared.map((tag, i) => (
+            <span
+              key={tag + i}
+              style={{
+                background: i === 0 ? C.coralSoft : '#fff',
+                color: C.coralDeep,
+                border: i === 0 ? 'none' : `1px solid ${C.coral}33`,
+                fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
+                padding: '2px 7px', borderRadius: 8,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                whiteSpace: 'nowrap', maxWidth: '100%',
+                overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >
+              {i === 0 && <Heart size={8} fill={C.coralDeep} color={C.coralDeep}/>}
+              {tag}
+            </span>
+          ))}
         </div>
       )}
-      <div style={{ marginTop: 6, display: 'inline-flex' }}>
-        <span style={{
-          background: item.tagBg, color: item.tagFg,
-          fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
-          padding: '2px 6px 2px 5px', borderRadius: 8,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          whiteSpace: 'nowrap',
-        }}>
-          <Icon size={9}/>
-          {item.tag}
-        </span>
-      </div>
     </button>
   );
 };
@@ -632,11 +625,15 @@ export const ConnectTab = ({
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
   initialSeeAll = null, onConsumeSeeAll,
+  goToExploreSeeAll,                   // (key) => switch to Explore tab and
+                                       // open that section's SeeAllSheet.
   chatAuthor,
   myUserId,
   onDiscuss,
+  requireVerify,                       // (action, name?) => boolean. False means
+                                       // the verify-prompt sheet just opened.
 }) => {
-  void profile; void prefs;
+  void prefs;
   void openProfile;
   void requestAccount;
 
@@ -674,6 +671,8 @@ export const ConnectTab = ({
   const openDiscussion = (d) => setSelectedDiscussion(d);
   const toggleJoinDiscussion = () => {
     if (!selectedDiscussion) return;
+    const alreadyJoined = joinedDiscussions.has(selectedDiscussion.id);
+    if (!alreadyJoined && requireVerify && !requireVerify('group', selectedDiscussion.title)) return;
     setJoinedDiscussions(prev => {
       const next = new Set(prev);
       if (next.has(selectedDiscussion.id)) {
@@ -725,6 +724,16 @@ export const ConnectTab = ({
     }
   }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Advanced filters are Plus-only. If a non-premium user lands with the
+  // sheet flagged open (from any future entry point), bounce them to the
+  // PremiumSheet instead.
+  useEffect(() => {
+    if (filterOpen && !account?.isPremium) {
+      setFilterOpen?.(false);
+      openPremium?.();
+    }
+  }, [filterOpen, account?.isPremium]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Local "Auto-scheduled" pool for prototype: tapping Auto-schedule on a
   // mom card flashes a confirmation and stamps a slot here so the button
   // flips to "Booked · Tue 9:30 AM" sage state without round-tripping
@@ -769,6 +778,7 @@ export const ConnectTab = ({
   const handleConnect = (mom) => {
     const current = connections[mom.id];
     if (current && current !== 'none') return;
+    if (requireVerify && !requireVerify('connect', mom.name)) return;
     setConnections(prev => ({ ...prev, [mom.id]: 'pending' }));
     flash?.(`✦ Connection request sent to ${mom.name}`);
     setTimeout(() => {
@@ -781,20 +791,10 @@ export const ConnectTab = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Lone filter button — search row was removed; quick chips were removed earlier */}
-      <div className="px-5" style={{ paddingTop: 4, paddingBottom: 4 }}>
-        <div className="flex items-center justify-end">
-          <ConnectFilterIconBtn
-            count={advCount}
-            onClick={() => setFilterOpen?.(true)}
-          />
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
-        {/* Your best matches — ranked by shared ground (kids, interests,
+        {/* Recommended Moms for you — ranked by shared ground (kids, interests,
             values, free slots) minus a distance penalty. */}
-        <SectionHead title="Your best matches" onLink={() => setSeeAll('moms')}/>
+        <SectionHead title="Recommended Moms for you" onLink={() => setSeeAll('moms')}/>
         {gridMoms.length === 0 ? (
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
@@ -810,15 +810,15 @@ export const ConnectTab = ({
           </div>
         )}
         {/* Upcoming meetups */}
-        <SectionHead title="Upcoming meetups" onLink={() => setSeeAll('meetups')}/>
+        <SectionHead title="Upcoming meetups" onLink={() => goToExploreSeeAll?.('meetups')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {MEETUPS.map(item => (
             <MeetupCard key={item.id} item={item} onClick={() => openMeetupDetail(item)}/>
           ))}
         </div>
 
-        {/* Popular discussions nearby */}
-        <SectionHead title="Popular discussions nearby" onLink={() => setSeeAll('topics')}/>
+        {/* Popular Mom Groups */}
+        <SectionHead title="Popular Mom Groups" onLink={() => setSeeAll('topics')}/>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {TOP_DISCUSSIONS.map(d => (
             <DiscussionCard
@@ -828,11 +828,13 @@ export const ConnectTab = ({
             />
           ))}
         </div>
+
+        <InviteFriendButton flash={flash}/>
       </div>
 
       {seeAll === 'moms' && (
         <SeeAllSheet
-          title="Your best matches"
+          title="Recommended Moms for you"
           subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
           items={seeAllMoms}
           renderItem={(item) => {
@@ -873,38 +875,16 @@ export const ConnectTab = ({
             }
             setMomQuickFilter(prev => (prev === id ? null : id));
           }}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
           onClose={() => { setSeeAll(null); setMomQuickFilter(null); }}
         />
       )}
 
-      {seeAll === 'meetups' && (
-        <SeeAllSheet
-          title="Upcoming meetups"
-          subtitle="Next 7 days"
-          items={MEETUPS_ALL}
-          renderItem={(item) => (
-            <MeetupCard key={item.id} item={item} onClick={() => openMeetupDetail(item)}/>
-          )}
-          columns={2}
-          quickFilters={[
-            { id: 'thisweek',label: 'This week',  icon: Calendar },
-            { id: 'weekend', label: 'Weekend',    icon: Calendar },
-            { id: 'morning', label: 'Mornings',   icon: Coffee   },
-            { id: 'kids',    label: 'Kid-friendly',icon: Baby    },
-            { id: 'verified',label: 'Verified',   icon: ShieldCheck },
-            { id: 'near',    label: 'Near me',    icon: MapPin   },
-          ]}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
-          onClose={() => setSeeAll(null)}
-        />
-      )}
+      {/* The 'meetups' See-all is owned by the Explore tab now — taps on
+          "Upcoming meetups" route there via goToExploreSeeAll. */}
 
       {seeAll === 'topics' && (
         <SeeAllSheet
-          title="Popular discussions nearby"
+          title="Popular Mom Groups"
           subtitle={`${GROUP_DISCUSSIONS.length} active threads · Tampa moms`}
           items={GROUP_DISCUSSIONS}
           renderItem={(d) => (
@@ -924,13 +904,13 @@ export const ConnectTab = ({
             { id: 'feeding',   label: 'Feeding',   icon: Coffee     },
             { id: 'working',   label: 'Working',   icon: Briefcase  },
           ]}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
           onClose={() => setSeeAll(null)}
         />
       )}
 
-      {filterOpen && (
+      {/* Advanced filters are Plus-only — non-premium taps redirect to the
+          PremiumSheet via the effect below, so we never render the drawer. */}
+      {filterOpen && !!account?.isPremium && (
         <MeetupsFilterSheet
           filters={filters}
           setFilters={setFilters}
@@ -976,8 +956,10 @@ export const ConnectTab = ({
           joined={isJoined(selectedEvent.id)}
           interested={isSaved(`int-${selectedEvent.id}`)}
           onJoin={() => {
+            const alreadyJoined = isJoined(selectedEvent.id);
+            if (!alreadyJoined && requireVerify && !requireVerify('meetup', selectedEvent.title)) return;
             toggleJoined(selectedEvent.id);
-            flash?.(isJoined(selectedEvent.id)
+            flash?.(alreadyJoined
               ? `Removed RSVP · ${selectedEvent.title}`
               : `✦ You're going · ${selectedEvent.title}`);
           }}
@@ -1026,35 +1008,3 @@ export const ConnectTab = ({
   );
 };
 
-// Round filter icon button. Coral accent when any filter is active.
-const ConnectFilterIconBtn = ({ count = 0, onClick }) => (
-  <button
-    onClick={onClick}
-    aria-label="Open advanced filters"
-    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
-    style={{
-      width: 34, height: 34,
-      background: count > 0 ? C.coral : C.paper,
-      color: count > 0 ? '#fff' : C.navy,
-      border: `1px solid ${count > 0 ? C.coral : C.divider}`,
-    }}
-  >
-    <SlidersHorizontal size={14}/>
-    {count > 0 && (
-      <span
-        className="absolute"
-        style={{
-          top: -3, right: -3,
-          minWidth: 16, height: 16, padding: '0 4px',
-          borderRadius: 8,
-          background: C.coralDeep, color: '#fff',
-          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `1.5px solid ${C.cream}`,
-        }}
-      >
-        {count > 9 ? '9+' : count}
-      </span>
-    )}
-  </button>
-);

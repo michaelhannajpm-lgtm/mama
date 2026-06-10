@@ -19,6 +19,7 @@ export const PremiumSheet = ({ onClose, onActivate }) => (
 
       <div className="mt-5 space-y-2.5">
         {[
+          ['Advanced filters', 'Tune Explore + Connect by stage, distance, amenities, and more'],
           ['Unlimited messages', 'Beyond the first 3 — ongoing chat with every match'],
           ['Full profiles', 'Bio, all values & interests, every free time slot'],
           ['Full group attendees', "See exactly who's going · DM them ahead"],

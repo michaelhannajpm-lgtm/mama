@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, MapPin, User, LayoutGrid, Home } from 'lucide-react';
+import { Users, User, LayoutGrid, Home, Compass, Bell } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { HomeTab } from './HomeTab';
@@ -11,42 +11,39 @@ import { MamaHubSheet } from '../../sheets/MamaHubSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
 import { SubjectThreadSheet } from '../../sheets/SubjectThreadSheet';
+import { NotificationsSheet } from '../../sheets/NotificationsSheet';
+import { VerifyPromptSheet } from '../../sheets/VerifyPromptSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { updateMomProfile } from '../../lib/onboarding';
-import { ChevronDown } from 'lucide-react';
 
 // ====================================================================
-// MAIN APP — 4 tabs (V5 layout):
-//   Home · Local Picks · Connect · My Hub
+// MAIN APP — 5-tab shell:
+//   Home · Connect · Explore · My Hub · Profile
 //
-// Shared header surfaces the tab title (Fraunces, large) and two round
-// icon buttons on the right: notifications (bell) + filters (sliders).
-// Profile swaps the filter icon for settings.
+// Shared top header is now just a notification bell on the right.
+// Tab titles were removed (2026-06-10) so each screen reads cleaner;
+// each tab's content owns its own context.
 // ====================================================================
 
-// Bottom tab bar. 'hub' is a launcher (opens MamaHubSheet) rather than a
-// content tab. Profile sits at the bottom-right with a user icon.
+// Bottom tab bar. 'hub' opens MamaHubSheet (as a screen). Profile lives
+// at the right edge with a user icon. "Explore" used to be "Local Picks";
+// the underlying tab id stays `localpicks` to keep cross-tab nav working
+// (HomeTab's "See all places" still routes here).
 const TABS = [
-  { id: 'home',       icon: Home,    label: 'Home',        headerLabel: 'Home'        },
-  { id: 'localpicks', icon: MapPin,  label: 'Local Picks', headerLabel: 'Local Picks' },
-  { id: 'connect',    icon: Users,   label: 'Connect',     headerLabel: 'Connect'     },
-  { id: 'hub',        icon: LayoutGrid, label: 'My Hub',   headerLabel: 'My Hub'      },
-  { id: 'profile',    icon: User,    label: 'Profile',     headerLabel: 'My Profile'  },
+  { id: 'home',       icon: Home,       label: 'Home'    },
+  { id: 'connect',    icon: Users,      label: 'Connect' },
+  { id: 'localpicks', icon: Compass,    label: 'Explore' },
+  { id: 'hub',        icon: LayoutGrid, label: 'My Hub'  },
+  { id: 'profile',    icon: User,       label: 'Profile' },
 ];
 
-const HEADER_SUBTITLES = {
-  home:       'Your village this week',
-  connect:    'Meet moms who get it',
-  localpicks: 'The best local picks near you',
-  hub:        'Your village, all in one place',
-  profile:    'Everything for you and your family',
-};
-
-// Header title for the active content view (profile is reached via the
-// top-right button, so it isn't in the bottom TABS list).
+// Header titles. Home stays bare (its location pill lives inside HomeTab);
+// every other tab shows its name in Fraunces in the shared top header.
 const HEADER_LABELS = {
-  home: 'Home', connect: 'Connect', localpicks: 'Local Picks',
-  hub: 'My Hub', profile: 'My Profile',
+  connect:    'Connect',
+  localpicks: 'Explore',
+  hub:        'My Hub',
+  profile:    'My Profile',
 };
 
 export const MainApp = ({
@@ -70,6 +67,21 @@ export const MainApp = ({
   const [tab, setTab] = useState('home');
   const [villageOpen, setVillageOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
+  const [notifsUnread, setNotifsUnread] = useState(true);
+
+  // Verify-gate: connect / RSVP / join-group are blocked until a mom is
+  // verified. `verifyPrompt` is null when the gate is closed; when open it
+  // carries the triggering action so the sheet copy reads as a direct
+  // response to whatever was tapped.
+  const [verifyPrompt, setVerifyPrompt] = useState(null); // { action, name? } | null
+  const v = profile?.verified || {};
+  const isVerified = !!((v.instagram || v.facebook) && v.photo);
+  const requireVerify = (action, name) => {
+    if (isVerified) return true;
+    setVerifyPrompt({ action, name });
+    return false;
+  };
 
   // Location lives in app-level state (not the profile object). Mirror the
   // YouTab save path so a change from the Home header updates the profile too.
@@ -106,61 +118,64 @@ export const MainApp = ({
   const [connectSeeAll, setConnectSeeAll] = useState(null); // null | 'moms' | 'topics'
   const goToConnectSeeAll = (view) => { setConnectSeeAll(view); setTab('connect'); };
 
-  const activeLabel = HEADER_LABELS[tab] || '';
-  const savedCount = savedItems?.length || 0;
+  // Same pattern for Explore. Used so the "See all" links on Home (Things
+  // to do, Popular places) and Connect (Upcoming meetups) all route into
+  // the SAME SeeAllSheet that lives in LocalPicksTab — with that section's
+  // quick filters and advanced filter sheet. Keys must match SECTIONS in
+  // LocalPicksTab: 'events' | 'meetups' | 'places' | 'kids' | 'schools' | 'health'.
+  const [exploreSeeAll, setExploreSeeAll] = useState(null);
+  const goToExploreSeeAll = (view) => { setExploreSeeAll(view); setTab('localpicks'); };
+
   const isHome = tab === 'home';
-  // Home anchors on place ("Tampa, FL") rather than a greeting. Prefer the
-  // resolved geo city, fall back to the free-text location, then Tampa.
+  // Home anchors on place rather than a greeting. Prefer the resolved geo
+  // city (set via LocationSheet), fall back to the free-text location,
+  // then "Your current location" until the user enters an exact location.
   const locationLabel = locationGeo?.city
     ? `${locationGeo.city}, FL`
-    : (location || 'Tampa, FL');
-  const headerTitle = isHome ? locationLabel : activeLabel;
+    : (location || 'Your current location');
 
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
       <StatusBar/>
 
-      {/* Shared top header — tab title + subtitle (left), bell + filter (right). */}
-      <div className="px-5" style={{ paddingTop: 6, paddingBottom: 8 }}>
-        <div className="flex items-start justify-between">
+      {/* Shared top header — non-Home tabs show their headline in Fraunces
+          on the left; the notification bell sits on the right. Home is
+          intentionally bare so its location pill (inside HomeTab) reads as
+          the first content row. */}
+      <div className="px-5" style={{ paddingTop: 14, paddingBottom: isHome ? 0 : 8 }}>
+        <div className="flex items-center justify-between">
           <div style={{ minWidth: 0, flex: 1, paddingRight: 10 }}>
-            {isHome ? (
-              /* Small text link — opens LocationSheet, updates profile */
-              <button
-                aria-label="Change your location"
-                onClick={() => setLocationOpen(true)}
-                className="inline-flex items-center active:opacity-70 transition-opacity"
-                style={{
-                  gap: 4, padding: 0, background: 'none', border: 'none', cursor: 'pointer',
-                  maxWidth: '100%',
-                }}
-              >
-                <MapPin size={13} color={C.coralDeep} strokeWidth={2.4} style={{ flexShrink: 0 }}/>
-                <span style={{
-                  fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.coralDeep,
-                  textDecoration: 'underline', textUnderlineOffset: 2,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {headerTitle}
-                </span>
-                <ChevronDown size={13} color={C.coralDeep} strokeWidth={2.4} style={{ flexShrink: 0 }}/>
-              </button>
-            ) : (
+            {!isHome && (
               <div style={{
                 fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
                 color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                {headerTitle}
+                {HEADER_LABELS[tab] || ''}
               </div>
             )}
-            <div style={{
-              fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
-              marginTop: 4, lineHeight: 1.35,
-            }}>
-              {HEADER_SUBTITLES[tab]}
-            </div>
           </div>
+          <button
+            aria-label="Notifications"
+            onClick={() => { setNotifsUnread(false); setNotifsOpen(true); }}
+            className="relative rounded-full flex items-center justify-center active:scale-[.97] transition-transform"
+            style={{
+              flexShrink: 0,
+              width: 36, height: 36, background: C.paper,
+              border: `1px solid ${C.divider}`, cursor: 'pointer',
+            }}
+          >
+            <Bell size={15} color={C.navy}/>
+            {notifsUnread && (
+              <span
+                className="absolute"
+                style={{
+                  top: 7, right: 8, width: 8, height: 8, borderRadius: 4,
+                  background: C.coralDeep, border: `1.5px solid ${C.cream}`,
+                }}
+              />
+            )}
+          </button>
         </div>
       </div>
 
@@ -172,11 +187,14 @@ export const MainApp = ({
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         profile={profile} flash={flash}
         openMessage={openMessage} openSchedule={openSchedule}
-        goToPlaces={() => setTab('localpicks')}
+        goToPlaces={() => goToExploreSeeAll('places')}
+        goToActivities={() => goToExploreSeeAll('events')}
         goToConnectMoms={() => goToConnectSeeAll('moms')}
         goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
         city={locationGeo?.city || location || 'Tampa'}
+        locationLabel={locationLabel}
+        openLocation={() => setLocationOpen(true)}
         openVillage={() => setVillageOpen(true)}
         onDiscuss={setSubjectThread}
         chatAuthor={chatAuthor}
@@ -189,12 +207,14 @@ export const MainApp = ({
         scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
         account={account} requestAccount={requestAccount} flash={flash}
+        requireVerify={requireVerify}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
         initialSeeAll={connectSeeAll}
         onConsumeSeeAll={() => setConnectSeeAll(null)}
+        goToExploreSeeAll={goToExploreSeeAll}
         chatAuthor={chatAuthor}
         myUserId={myUserId}
         onDiscuss={setSubjectThread}/>}
@@ -203,8 +223,14 @@ export const MainApp = ({
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}
+        joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
+        ratings={ratings} setRatings={setRatings}
+        requireVerify={requireVerify}
         flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}
+        account={account} openPremium={openPremium}
+        initialSeeAll={exploreSeeAll}
+        onConsumeSeeAll={() => setExploreSeeAll(null)}
         onDiscuss={setSubjectThread}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
@@ -218,6 +244,10 @@ export const MainApp = ({
         asScreen
         groupDiscussions={GROUP_DISCUSSIONS}
         joinedDiscussionIds={joinedDiscussions}
+        joinedEvents={joinedEvents}
+        savedItems={savedItems} setSavedItems={setSavedItems}
+        goingItems={goingItems} setGoingItems={setGoingItems}
+        moms={nearbyMoms}
         onOpenMessage={openMessage}
         onOpenDiscussion={(d) => setHubDiscussion(d)}
         flash={flash}/>}
@@ -259,6 +289,22 @@ export const MainApp = ({
           })}
         </div>
       </div>
+
+      {notifsOpen && (
+        <NotificationsSheet
+          flash={flash}
+          onClose={() => setNotifsOpen(false)}
+        />
+      )}
+
+      {verifyPrompt && (
+        <VerifyPromptSheet
+          action={verifyPrompt.action}
+          contextName={verifyPrompt.name}
+          onVerify={() => setTab('profile')}
+          onClose={() => setVerifyPrompt(null)}
+        />
+      )}
 
       {locationOpen && (
         <LocationSheet

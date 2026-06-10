@@ -9,8 +9,8 @@ import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
 import { nearestArea } from '../../lib/places.js';
 
 // ==========================================================================
-// AboutYou — onboarding screen 2, structured as a 3-step visual carousel:
-//   Q1 Stage  →  Q2 Looking for  →  Q3 Location + radius
+// AboutYou — onboarding screen 2, structured as a 4-step visual carousel:
+//   Q1 Stage  →  Q2 Looking for  →  Q3 Describes  →  Q4 Location + radius
 // Each step has emoji option cards, a "why we're asking" subhead, and a
 // dynamic preview banner that mirrors the Landing promise — events, places,
 // support and moms — recomputed live as the user makes selections.
@@ -34,6 +34,17 @@ const LOOKING_FOR_OPTS = [
   { emoji: '📅', label: 'Things to do', sub: 'Events + meetups'          },
   { emoji: '📍', label: 'Local picks',  sub: 'Trusted places + services' },
   { emoji: '🎈', label: 'Kid programs', sub: 'Classes, camps, sports'    },
+];
+
+const DESCRIBES_PREFER_NOT_TO_SAY = 'Prefer not to say';
+
+const DESCRIBES_OPTS = [
+  { emoji: '🧭', label: 'New to area',                       sub: 'Recently moved here' },
+  { emoji: '💼', label: 'Working Mom',                       sub: 'Balancing career'    },
+  { emoji: '🏠', label: 'Stay at home',                      sub: 'Home with kids'      },
+  { emoji: '💪', label: 'Solo Mom',                          sub: 'Single parent'       },
+  { emoji: '🌎', label: 'Multicultural',                     sub: 'Diverse background'  },
+  { emoji: '🤐', label: DESCRIBES_PREFER_NOT_TO_SAY,         sub: null                  },
 ];
 
 // Stage → kid-age bucket used by events + mom-year matching.
@@ -278,6 +289,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
 
   const stage = profile.stage || [];
   const lookingFor = profile.lookingFor || [];
+  const describes = profile.describes || [];
   const radius = distance ?? DEFAULT_DISTANCE;
   const hasLocation = !!(location && location.trim());
 
@@ -294,6 +306,23 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
       const cur = p.lookingFor || [];
       const has = cur.includes(label);
       return { ...p, lookingFor: has ? cur.filter(x => x !== label) : [...cur, label] };
+    });
+  };
+
+  // "Prefer not to say" is exclusive — toggling it clears the rest, and
+  // toggling another option clears it.
+  const toggleDescribes = (label) => {
+    setProfile(p => {
+      const cur = p.describes || [];
+      const has = cur.includes(label);
+      if (label === DESCRIBES_PREFER_NOT_TO_SAY) {
+        return { ...p, describes: has ? [] : [label] };
+      }
+      const cleared = cur.filter(x => x !== DESCRIBES_PREFER_NOT_TO_SAY);
+      return {
+        ...p,
+        describes: has ? cleared.filter(x => x !== label) : [...cleared, label],
+      };
     });
   };
 
@@ -352,11 +381,12 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
   const canContinue =
     step === 1 ? stage.length > 0 :
     step === 2 ? lookingFor.length > 0 :
-    step === 3 ? hasLocation :
+    step === 3 ? describes.length > 0 :
+    step === 4 ? hasLocation :
     false;
 
   const handleNext = () => {
-    if (step < 3) setStep(step + 1);
+    if (step < 4) setStep(step + 1);
     else onNext();
   };
 
@@ -369,10 +399,10 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     <div className="flex flex-col" style={{ height: '100%', background: C.cream, overflow: 'hidden' }}>
       <StatusBar/>
 
-      {step === 3 ? (
+      {step === 4 ? (
         <div className="flex flex-col flex-1" style={{ minHeight: 0, overflow: 'hidden' }}>
-          {/* Top bar — back · Skip */}
-          <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '6px 14px 4px' }}>
+          {/* Top bar — back (no skip; location is required) */}
+          <div className="flex items-center flex-shrink-0" style={{ padding: '6px 14px 4px' }}>
             <button
               onClick={handleBack}
               className="rounded-full flex items-center justify-center"
@@ -380,16 +410,6 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               aria-label="Back"
             >
               <ChevronLeft size={18} color={C.navy}/>
-            </button>
-            <button
-              onClick={onNext}
-              style={{
-                background: 'transparent', border: 'none', padding: '6px 8px',
-                color: C.navy, fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Skip
             </button>
           </div>
 
@@ -481,7 +501,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           </div>
         </div>
       ) : (<>
-      <ProgressBanner step={step} total={3} onBack={handleBack}/>
+      <ProgressBanner step={step} total={4} onBack={handleBack}/>
 
       <div
         key={step}
@@ -532,6 +552,29 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                   sub={opt.sub}
                   active={lookingFor.includes(opt.label)}
                   onClick={() => toggleLookingFor(opt.label)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* -------- Q3 · Describes -------- */}
+        {step === 3 && (
+          <div className="flex flex-col justify-center" style={{ minHeight: '100%', paddingBottom: 12 }}>
+            <div style={{ textAlign: 'center' }}>
+              <QuestionHeader why="Helps us connect you with moms in similar circumstances.">
+                What <Emph>describes you</Emph> the most?
+              </QuestionHeader>
+            </div>
+            <div className="grid grid-cols-2" style={{ gap: 10, marginTop: 18 }}>
+              {DESCRIBES_OPTS.map(opt => (
+                <OptionCard
+                  key={opt.label}
+                  emoji={opt.emoji}
+                  label={opt.label}
+                  sub={opt.sub}
+                  active={describes.includes(opt.label)}
+                  onClick={() => toggleDescribes(opt.label)}
                 />
               ))}
             </div>

@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   MapPin, School, Brain, Star,
   Music, Activity, Sparkles, ChevronRight,
   HeartHandshake, Stethoscope, Users,
-  SlidersHorizontal, ShieldCheck, Palette, BookOpen,
+  ShieldCheck, Palette, BookOpen,
   Tent, Trees, CalendarDays, Clock,
+  Bookmark, Check,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
+import { RateSheet } from '../../sheets/RateSheet';
 import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
 
 // ==========================================================================
@@ -370,6 +372,33 @@ const HEALTH_WELLNESS_ALL = [
   },
 ];
 
+// Tag events vs. meetups so the combined events SeeAll can split them with
+// the "Meetups" quick-filter chip, and the meetups SeeAll can stay scoped.
+const tagSource = (arr, src) => arr.map(it => ({ ...it, _source: src }));
+const EVENTS_TAGGED        = tagSource(EVENTS_EXPLORE,        'event');
+const EVENTS_ALL_TAGGED    = tagSource(EVENTS_EXPLORE_ALL,    'event');
+const MEETUPS_TAGGED       = tagSource(MEETUPS_EXPLORE,       'meetup');
+const MEETUPS_ALL_TAGGED   = tagSource(MEETUPS_EXPLORE_ALL,   'meetup');
+// Events SeeAll surfaces both; the homepage section keeps showing just events.
+const EVENTS_PLUS_MEETUPS_ALL = [...EVENTS_ALL_TAGGED, ...MEETUPS_ALL_TAGGED];
+
+// Sub-category tag per Health & wellness item — drives the visible chip row
+// (Wellness / Pediatricians / Therapists / Dentists). Each item belongs to one.
+const HEALTH_CAT_BY_ID = {
+  hw_ped: 'pediatricians',
+  hw_men: 'therapists',
+  hw_pp:  'wellness',
+  hw_lac: 'wellness',
+  hw_sle: 'wellness',
+  hw_ot:  'therapists',
+  hw_doc: 'wellness',
+  hw_yog: 'wellness',
+  hw_dent:'dentists',
+};
+const tagHealth = (arr) => arr.map(it => ({ ...it, _health: HEALTH_CAT_BY_ID[it.id] || 'wellness' }));
+const HEALTH_WELLNESS_TAGGED     = tagHealth(HEALTH_WELLNESS);
+const HEALTH_WELLNESS_ALL_TAGGED = tagHealth(HEALTH_WELLNESS_ALL);
+
 // Section metadata — keeps the rendering loop declarative and lets the
 // Category filter map titles to data sources without a giant switch.
 const SECTIONS = [
@@ -377,16 +406,16 @@ const SECTIONS = [
     key: 'events',
     title: 'Events',
     kind: 'event',
-    items: EVENTS_EXPLORE,
-    allItems: EVENTS_EXPLORE_ALL,
-    seeAllSubtitle: 'Fairs, festivals, recurring groups',
+    items: EVENTS_TAGGED,
+    allItems: EVENTS_PLUS_MEETUPS_ALL,
+    seeAllSubtitle: 'Events + meetups · this week',
   },
   {
     key: 'meetups',
     title: 'Meetups',
     kind: 'event',
-    items: MEETUPS_EXPLORE,
-    allItems: MEETUPS_EXPLORE_ALL,
+    items: MEETUPS_TAGGED,
+    allItems: MEETUPS_ALL_TAGGED,
     seeAllSubtitle: 'Small, informal, mom-led',
   },
   {
@@ -417,8 +446,8 @@ const SECTIONS = [
     key: 'health',
     title: 'Health & wellness',
     kind: 'photo',
-    items: HEALTH_WELLNESS,
-    allItems: HEALTH_WELLNESS_ALL,
+    items: HEALTH_WELLNESS_TAGGED,
+    allItems: HEALTH_WELLNESS_ALL_TAGGED,
     seeAllSubtitle: 'Pediatric, mental, postpartum',
   },
 ];
@@ -437,15 +466,16 @@ const SECTION_CATEGORY = {
 // like Rainy day / Live events / Waitlist / Mental / Postpartum were removed.
 const QUICK_FILTERS_BY_SECTION = {
   events: [
-    { id: 'thisweek',  label: 'This week', icon: CalendarDays },
-    { id: 'weekend',   label: 'Weekend'                        },
-    { id: 'morning',   label: 'Morning',   icon: Clock         },
-    { id: 'recurring', label: 'Recurring'                      },
+    { id: 'thisweek',    label: 'This week',    icon: CalendarDays },
+    { id: 'thisweekend', label: 'This weekend'                      },
+    { id: 'free',        label: 'Free'                               },
+    { id: 'meetups',     label: 'Meetups',      icon: Users          },
   ],
   meetups: [
-    { id: 'small',   label: 'Small (≤6)', icon: Users },
-    { id: 'today',   label: 'Today',      icon: Clock },
-    { id: 'weekend', label: 'Weekend'                  },
+    { id: 'small',       label: 'Small (≤6)',   icon: Users   },
+    { id: 'thisweek',    label: 'This week',    icon: Clock   },
+    { id: 'thisweekend', label: 'This weekend'                 },
+    { id: 'near5',       label: '< 5 mi',       icon: MapPin  },
   ],
   places: [
     { id: 'free',     label: 'Free'                                 },
@@ -453,20 +483,22 @@ const QUICK_FILTERS_BY_SECTION = {
     { id: 'outdoor',  label: 'Outdoor'                              },
     { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
   ],
+  // Mirrors the last 3 stages from onboarding's "What stage are you in?".
   kids: [
-    { id: 'baby', label: 'Baby (0–1)',    icon: Sparkles },
-    { id: 'tod',  label: 'Toddler (1–3)', icon: Activity },
-    { id: 'pre',  label: 'Pre-K (3–5)',   icon: BookOpen },
-    { id: 'kid',  label: 'Kid (5+)',      icon: Users    },
-    { id: 'top',  label: 'Top rated',     icon: Star     },
+    { id: 'schoolage', label: 'School-age', icon: BookOpen },
+    { id: 'tween',     label: 'Tween',      icon: Users    },
+    { id: 'teen',      label: 'Teen',       icon: Sparkles },
   ],
   schools: [
     { id: 'top',  label: 'Top rated', icon: Star  },
     { id: 'near', label: 'Near me',   icon: MapPin },
   ],
+  // Each chip maps to a single _health sub-category.
   health: [
-    { id: 'top',  label: 'Top rated', icon: Star  },
-    { id: 'near', label: 'Near me',   icon: MapPin },
+    { id: 'wellness',     label: 'Wellness',      icon: HeartHandshake },
+    { id: 'pediatricians',label: 'Pediatricians', icon: Stethoscope    },
+    { id: 'therapists',   label: 'Therapists',    icon: Brain          },
+    { id: 'dentists',     label: 'Dentists',      icon: Sparkles       },
   ],
 };
 
@@ -497,9 +529,81 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
 );
 
 
+// SaveBadge — bookmark overlay on the photo. Rendered when the parent
+// supplies onSave; outer card stays a <button> for keyboard a11y, so the
+// badge is a <div role="button"> (no nested <button>) with stopPropagation
+// so a tap doesn't also open the detail sheet.
+const SaveBadge = ({ saved, onClick }) => (
+  <div
+    role="button"
+    aria-label={saved ? 'Remove from saved' : 'Save'}
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      position: 'absolute', top: 6, right: 6,
+      width: 28, height: 28, borderRadius: 14,
+      background: 'rgba(255,255,255,.95)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer',
+      boxShadow: '0 2px 6px rgba(27,42,78,.2)',
+    }}
+  >
+    <Bookmark
+      size={14}
+      color={saved ? C.coralDeep : C.navy}
+      fill={saved ? C.coralDeep : 'none'}
+      strokeWidth={2}
+    />
+  </div>
+);
+
+// GoingButton — "I'm going" CTA at the bottom of Event / Meetup cards in
+// SeeAll views. Flips to a sage "Going" state once tapped. Same stop-prop
+// trick as SaveBadge.
+const GoingButton = ({ going, onClick }) => (
+  <div
+    role="button"
+    aria-label={going ? 'Cancel RSVP' : 'I am going'}
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      marginTop: 8, height: 32, borderRadius: 8,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      background: going ? C.sage : `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+      color: going ? C.sageDark : '#fff',
+      border: going ? `1px solid ${C.sageDark}` : 'none',
+      cursor: 'pointer',
+      fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
+    }}
+  >
+    {going ? <><Check size={12}/> Going</> : "I'm going"}
+  </div>
+);
+
+// RateButton — "Rate" CTA at the bottom of Place / Program / School cards
+// in SeeAll views. Shows the user's current rating when they've rated.
+const RateButton = ({ rating, onClick }) => (
+  <div
+    role="button"
+    aria-label="Rate this place"
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      marginTop: 8, height: 32, borderRadius: 8,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      background: rating > 0 ? C.saffron : C.paper,
+      color: rating > 0 ? '#fff' : C.navy,
+      border: rating > 0 ? 'none' : `1px solid ${C.divider}`,
+      cursor: 'pointer',
+      fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
+    }}
+  >
+    {rating > 0
+      ? <><Star size={12} fill="#fff" color="#fff"/> {rating} / 5</>
+      : <><Star size={12} color={C.saffron} fill={C.saffron}/> Rate</>}
+  </div>
+);
+
 // Event card — photo + name + when + going count + distance. Used for
 // both Events and Meetups (same shape, different data sets).
-const EventCard = ({ item, onClick }) => (
+const EventCard = ({ item, onClick, saved, onSave, going, onGoing }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
@@ -508,9 +612,12 @@ const EventCard = ({ item, onClick }) => (
     padding: 0, cursor: 'pointer',
     width: '100%', height: '100%',
   }}>
-    <img src={item.photo} alt="" style={{
-      width: '100%', height: 96, objectFit: 'cover', display: 'block',
-    }}/>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
     <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -537,21 +644,26 @@ const EventCard = ({ item, onClick }) => (
           <MapPin size={10}/> {item.distance}
         </span>
       </div>
+      {onGoing && <GoingButton going={going} onClick={onGoing}/>}
     </div>
   </button>
 );
 
-const PhotoCard = ({ item, onClick }) => (
+const PhotoCard = ({ item, onClick, saved, onSave, myRating, onRate }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
     padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
   }}>
-    <img src={item.photo} alt="" style={{
-      width: '100%', height: 96, objectFit: 'cover', display: 'block',
-    }}/>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
     <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -579,11 +691,12 @@ const PhotoCard = ({ item, onClick }) => (
           <MapPin size={10}/> {item.distance}
         </span>
       </div>
+      {onRate && <RateButton rating={myRating} onClick={onRate}/>}
     </div>
   </button>
 );
 
-const ProgramCard = ({ item, onClick }) => {
+const ProgramCard = ({ item, onClick, saved, onSave, myRating, onRate }) => {
   const Icon = item.Icon;
   return (
     <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
@@ -592,19 +705,23 @@ const ProgramCard = ({ item, onClick }) => {
       boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
       overflow: 'hidden',
       padding: 0, cursor: 'pointer',
+      width: '100%', height: '100%',
     }}>
-      {item.photo ? (
-        <img src={item.photo} alt="" style={{
-          width: '100%', height: 96, objectFit: 'cover', display: 'block',
-        }}/>
-      ) : (
-        <div style={{
-          height: 96, background: item.bg, color: item.fg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={36}/>
-        </div>
-      )}
+      <div style={{ position: 'relative' }}>
+        {item.photo ? (
+          <img src={item.photo} alt="" style={{
+            width: '100%', height: 96, objectFit: 'cover', display: 'block',
+          }}/>
+        ) : (
+          <div style={{
+            height: 96, background: item.bg, color: item.fg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Icon size={36}/>
+          </div>
+        )}
+        {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+      </div>
       <div style={{ padding: '8px 10px 10px' }}>
         <div style={{
           fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -623,22 +740,27 @@ const ProgramCard = ({ item, onClick }) => {
         }}>
           <MapPin size={10}/> {item.distance}
         </div>
+        {onRate && <RateButton rating={myRating} onClick={onRate}/>}
       </div>
     </button>
   );
 };
 
-const SchoolCard = ({ item, onClick }) => (
+const SchoolCard = ({ item, onClick, saved, onSave, myRating, onRate }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
     padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
   }}>
-    <img src={item.photo} alt="" style={{
-      width: '100%', height: 96, objectFit: 'cover', display: 'block',
-    }}/>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
     <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -674,6 +796,7 @@ const SchoolCard = ({ item, onClick }) => (
       }}>
         {item.tag}
       </div>
+      {onRate && <RateButton rating={myRating} onClick={onRate}/>}
     </div>
   </button>
 );
@@ -903,11 +1026,80 @@ const buildLiveSections = (places, filters, userCoords, radiusMiles) => {
 
 // ---- "See all" quick-filter chips (only data-backed ones) ----
 const QUICK_AGE = { baby: [0, 1], tod: [1, 3], pre: [3, 5], kid: [5, 18] };
+
+// Stage chips → age ranges, mirroring AboutYou's STAGE_OPTS last 3 options.
+const STAGE_AGE = {
+  schoolage: [5, 9],
+  tween:     [9, 12],
+  teen:      [13, 18],
+};
+
+// Event/meetup quick-filter helpers — parse the hardcoded `when` and
+// `distance` strings ("Sat · 12:30 PM", "1.6 mi away").
+const startsWithDay = (when, prefixes) =>
+  typeof when === 'string' && prefixes.some(p => when.startsWith(p));
+const parseMiles = (distance) => {
+  const m = typeof distance === 'string' && distance.match(/([\d.]+)\s*mi/i);
+  return m ? Number(m[1]) : null;
+};
+// Parse "Ages 5–12" / "Ages 0–2" / "Ages 5+" → [min, max]. "All ages" → [0,18].
+const parseAgeRange = (ages) => {
+  if (!ages || typeof ages !== 'string') return [0, 18];
+  const range = ages.match(/(\d+)\s*[–-]\s*(\d+)/);
+  if (range) return [Number(range[1]), Number(range[2])];
+  const plus = ages.match(/(\d+)\s*\+/);
+  if (plus) return [Number(plus[1]), 18];
+  return [0, 18];
+};
+const rangesOverlap = (aMin, aMax, bMin, bMax) => aMax >= bMin && aMin <= bMax;
+
 // (item, activeIds[]) => boolean. Age buckets OR together; the rest AND.
-// Hardcoded (non-live) items can't be filtered, so they always pass.
 const quickFilterMatch = (item, ids, userCoords) => {
   const row = item._live;
-  if (!row) return true;
+
+  // Event/meetup items have no `_live` row — match against parsed fields.
+  if (!row) {
+    if (item._source === 'event' || item._source === 'meetup') {
+      return ids.every(id => {
+        switch (id) {
+          case 'thisweek':    return true; // all hardcoded events are within this week
+          case 'thisweekend': return startsWithDay(item.when, ['Sat', 'Sun']);
+          case 'free':        return true; // prototype items have no price
+          case 'meetups':     return item._source === 'meetup';
+          case 'small':       return (item.going ?? 99) <= 6;
+          case 'near5': {
+            const mi = parseMiles(item.distance);
+            return mi == null || mi <= 5;
+          }
+          default: return true;
+        }
+      });
+    }
+
+    // Kids programs (no _live) — stage chips OR together against item.ages.
+    if (item.ages) {
+      const stageIds = ids.filter(id => STAGE_AGE[id]);
+      if (stageIds.length) {
+        const [aMin, aMax] = parseAgeRange(item.ages);
+        const stageOk = stageIds.some(id => {
+          const [bMin, bMax] = STAGE_AGE[id];
+          return rangesOverlap(aMin, aMax, bMin, bMax);
+        });
+        if (!stageOk) return false;
+      }
+      return true;
+    }
+
+    // Health & wellness — chips map to the item's _health sub-category (OR).
+    if (item._health) {
+      const healthIds = ids.filter(id => ['wellness', 'pediatricians', 'therapists', 'dentists'].includes(id));
+      if (healthIds.length && !healthIds.includes(item._health)) return false;
+      return true;
+    }
+
+    return true;
+  }
+
   const ageIds = ids.filter(id => QUICK_AGE[id]);
   const ageOk = ageIds.length === 0 || ageIds.some(id => {
     const [lo, hi] = QUICK_AGE[id]; const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
@@ -936,9 +1128,48 @@ export const LocalPicksTab = ({
   location, locationGeo,
   placesRadius = 50,
   savedItems = [], setSavedItems, flash,
+  joinedEvents = [], setJoinedEvents,
+  ratings = {}, setRatings,
+  requireVerify,
   filterOpen, setFilterOpen,
+  account, openPremium,
+  initialSeeAll = null, onConsumeSeeAll,
   onDiscuss,
 }) => {
+  const isPremium = !!account?.isPremium;
+  // SeeAll-card action helpers — save, RSVP, rate. Save & rate are direct;
+  // RSVP gates through requireVerify so unverified moms see the prompt.
+  const isSaved   = (id) => savedItems.includes(id);
+  const toggleSave = (id, label) => {
+    const next = isSaved(id) ? savedItems.filter(x => x !== id) : [...savedItems, id];
+    setSavedItems?.(next);
+    flash?.(isSaved(id) ? 'Removed from saved' : `✦ Saved · ${label || 'item'}`);
+  };
+  const isGoing = (id) => joinedEvents.includes(id);
+  const toggleGoing = (item) => {
+    const already = isGoing(item.id);
+    if (!already && requireVerify && !requireVerify('meetup', item.title)) return;
+    const next = already ? joinedEvents.filter(x => x !== item.id) : [...joinedEvents, item.id];
+    setJoinedEvents?.(next);
+    flash?.(already ? `Removed RSVP · ${item.title}` : `✦ You're going · ${item.title}`);
+  };
+  const myRating = (id) => ratings?.[id]?.stars || 0;
+  const [rateTarget, setRateTarget] = useState(null); // { item, kind } | null
+  const openRate = (item, kind) => setRateTarget({ item, kind });
+  const saveRating = (stars, note) => {
+    if (!rateTarget) return;
+    setRatings?.({
+      ...ratings,
+      [rateTarget.item.id]: { stars, note, when: Date.now() },
+    });
+    flash?.(`✦ Rated ${stars}/5 · ${rateTarget.item.title}`);
+  };
+  // Advanced filters are premium-only — non-Plus users see the PremiumSheet
+  // instead of the filter drawer when they tap any "advanced filter" entry.
+  const openAdvancedFilter = () => {
+    if (!isPremium) { openPremium?.(); return; }
+    setFilterOpen?.(true);
+  };
   const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
   // Prefer the user's captured coords (onboarding geo); fall back to the
   // centroid of their selected area.
@@ -979,9 +1210,9 @@ export const LocalPicksTab = ({
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [shareItem, setShareItem] = useState(null);
 
-  const isSaved = (id) => savedItems.includes(id);
+  // `isSaved` + `toggleSave` are already declared above (with flash hooks).
+  // `isInterested` is the only fresh helper this block contributes.
   const isInterested = (id) => savedItems.includes(`int-${id}`);
-  const toggleSave = (id) => setSavedItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   // Build the PlaceDetailSheet input — rich live detail when the card came from
   // /api/places (it carries `_live`), else the minimal hardcoded card fields.
@@ -1017,6 +1248,19 @@ export const LocalPicksTab = ({
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
   const seeAllSection = effectiveSections.find(s => s.key === seeAll);
+
+  // Cross-tab intent: HomeTab and ConnectTab route their "See all" links
+  // here so every "see all" lands on the same Explore SeeAllSheet (same
+  // section, same quick filters, same advanced sheet). We accept the key
+  // only if it matches a known section so a stale key doesn't open a blank
+  // sheet, then clear the parent so a plain nav-bar visit is unaffected.
+  useEffect(() => {
+    if (!initialSeeAll) return;
+    if (SECTIONS.some(s => s.key === initialSeeAll)) {
+      setSeeAll(initialSeeAll);
+    }
+    onConsumeSeeAll?.();
+  }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1069,34 +1313,6 @@ export const LocalPicksTab = ({
           </div>
         )}
 
-        {/* Bottom CTA — opens the advanced filter sheet */}
-        <div className="px-5" style={{ marginTop: 20, marginBottom: 6 }}>
-          <button
-            onClick={() => setFilterOpen?.(true)}
-            className="w-full active:scale-[.99] transition-transform"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              height: 48, borderRadius: 14,
-              background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-              color: '#fff', border: 'none', cursor: 'pointer',
-              fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 13.5,
-              boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)',
-            }}
-          >
-            <SlidersHorizontal size={15}/>
-            Explore more using advanced filters
-            {advCount > 0 && (
-              <span style={{
-                background: 'rgba(255,255,255,.22)',
-                fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 11,
-                padding: '2px 7px', borderRadius: 999,
-                marginLeft: 2,
-              }}>
-                {advCount}
-              </span>
-            )}
-          </button>
-        </div>
       </div>
 
       {seeAllSection && (
@@ -1106,26 +1322,67 @@ export const LocalPicksTab = ({
           items={seeAllSection.allItems}
           renderItem={(item) => {
             if (seeAllSection.kind === 'event') {
-              return <EventCard key={item.id} item={item} onClick={() => openEvent(item)}/>;
+              return (
+                <EventCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openEvent(item)}
+                  saved={isSaved(item.id)}
+                  onSave={() => toggleSave(item.id, item.title)}
+                  going={isGoing(item.id)}
+                  onGoing={() => toggleGoing(item)}
+                />
+              );
             }
             if (seeAllSection.kind === 'program') {
-              return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
+              return (
+                <ProgramCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openProgram(item)}
+                  saved={isSaved(item.id)}
+                  onSave={() => toggleSave(item.id, item.title)}
+                  myRating={myRating(item.id)}
+                  onRate={() => openRate(item, 'place')}
+                />
+              );
             }
             if (seeAllSection.kind === 'school') {
-              return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
+              return (
+                <SchoolCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openSchool(item)}
+                  saved={isSaved(item.id)}
+                  onSave={() => toggleSave(item.id, item.title)}
+                  myRating={myRating(item.id)}
+                  onRate={() => openRate(item, 'place')}
+                />
+              );
             }
-            return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
+            return (
+              <PhotoCard
+                key={item.id}
+                item={item}
+                onClick={() => openTopPlace(item)}
+                saved={isSaved(item.id)}
+                onSave={() => toggleSave(item.id, item.title)}
+                myRating={myRating(item.id)}
+                onRate={() => openRate(item, 'place')}
+              />
+            );
           }}
           columns={2}
           quickFilters={QUICK_FILTERS_BY_SECTION[seeAllSection.key]}
           matchQuickFilter={(item, ids) => quickFilterMatch(item, ids, userCoords)}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          onOpenAdvancedFilter={openAdvancedFilter}
           advancedFilterCount={advCount}
+          lockedPremium={!isPremium}
           onClose={() => setSeeAll(null)}
         />
       )}
 
-      {filterOpen && (
+      {filterOpen && isPremium && (
         <PlacesFilterSheet
           filters={filters}
           setFilters={setFilters}
@@ -1177,6 +1434,20 @@ export const LocalPicksTab = ({
           item={shareItem}
           flash={flash}
           onClose={() => setShareItem(null)}
+        />
+      )}
+
+      {rateTarget && (
+        <RateSheet
+          item={{
+            name: rateTarget.item.title,
+            area: rateTarget.item.distance,
+            dist: rateTarget.item.distance,
+          }}
+          kind={rateTarget.kind}
+          current={myRating(rateTarget.item.id)}
+          onSave={saveRating}
+          onClose={() => setRateTarget(null)}
         />
       )}
     </div>
