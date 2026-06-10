@@ -62,6 +62,8 @@ export const MainApp = ({
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  chatAuthor,
+  myUserId,
 }) => {
   void setPrefs;
   const [tab, setTab] = useState('home');
@@ -185,7 +187,9 @@ export const MainApp = ({
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
         initialSeeAll={connectSeeAll}
-        onConsumeSeeAll={() => setConnectSeeAll(null)}/>}
+        onConsumeSeeAll={() => setConnectSeeAll(null)}
+        chatAuthor={chatAuthor}
+        myUserId={myUserId}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}
@@ -286,6 +290,8 @@ export const MainApp = ({
           }}
           onMessageMom={(mom) => { openMessage?.(mom); setHubDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setHubDiscussion(null); }}
+          author={chatAuthor}
+          myUserId={myUserId}
           flash={flash}
           onClose={() => setHubDiscussion(null)}
         />

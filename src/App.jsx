@@ -322,6 +322,8 @@ function PrototypeApp({ bare = false }) {
     setPendingAction(null);
   };
 
+  const chatAuthor = { name: account?.firstName || 'Mama', photo: profile?.photos?.[0] || null };
+
   const inner = (
     <div className="w-full h-full relative">
       {!splashShown && loginOpen ? (
@@ -390,6 +392,8 @@ function PrototypeApp({ bare = false }) {
             openPremium={()=>setPremiumOpen(true)}
             restart={restart}
             flash={flash}
+            chatAuthor={chatAuthor}
+            myUserId={myUserId}
           />}
 
           {scheduleMom && <ScheduleSheet mom={scheduleMom}
@@ -416,7 +420,7 @@ function PrototypeApp({ bare = false }) {
           {messageMom && <MessageSheet
             mom={messageMom}
             isPremium={!!account?.isPremium}
-            author={{ name: account?.firstName || 'Mama', photo: profile?.photos?.[0] || null }}
+            author={chatAuthor}
             myUserId={myUserId}
             flash={flash}
             onClose={() => setMessageMom(null)}

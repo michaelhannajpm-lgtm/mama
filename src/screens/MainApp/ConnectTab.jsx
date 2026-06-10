@@ -632,6 +632,8 @@ export const ConnectTab = ({
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
   initialSeeAll = null, onConsumeSeeAll,
+  chatAuthor,
+  myUserId,
 }) => {
   void profile; void prefs;
   void openProfile;
@@ -1012,6 +1014,8 @@ export const ConnectTab = ({
           onToggleJoin={toggleJoinDiscussion}
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
+          author={chatAuthor}
+          myUserId={myUserId}
           flash={flash}
           onClose={() => setSelectedDiscussion(null)}
         />
