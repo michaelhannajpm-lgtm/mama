@@ -2,6 +2,8 @@
 
 A React/Vite app for **Go Mama**, a mom-friendship matching app. Anti-Tinder positioning, coral + navy editorial aesthetic (ported from the GoMama Expo prototype on 2026-06-01). Modular React structure under `src/`: `data/`, `components/`, `screens/`, `sheets/`, `lib/`. Supabase Auth + Postgres backend; Vercel hosting. Admin dashboard at `/admin`.
 
+> **Data access exception (chat):** the app is otherwise service-role-only — the browser Supabase client is auth-only and all data flows through `api/*`. The **chat** tables (`conversations`, `conversation_participants`, `messages`, `message_reactions`; see `supabase/_apply_phase8_chat.sql`) are the one **browser-accessible** surface, secured by RLS keyed on `auth.uid()`. Every user gets a real session via anonymous sign-in (`ensureSession()` in `src/lib/supabase.js`); `src/lib/chat.js` is the only chat data interface. Requires "Anonymous sign-ins" enabled in the Supabase dashboard.
+
 ## Project context
 
 These files are auto-loaded as context — read them before making changes:
