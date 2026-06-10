@@ -10,6 +10,7 @@ import { MyVillageSheet } from '../../sheets/MyVillageSheet';
 import { MamaHubSheet } from '../../sheets/MamaHubSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
+import { SubjectThreadSheet } from '../../sheets/SubjectThreadSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { updateMomProfile } from '../../lib/onboarding';
 import { ChevronDown } from 'lucide-react';
@@ -59,10 +60,11 @@ export const MainApp = ({
   savedItems, setSavedItems,
   goingItems, setGoingItems,
   ratings, setRatings,
-  messageHistory = {},
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  chatAuthor,
+  myUserId,
 }) => {
   void setPrefs;
   const [tab, setTab] = useState('home');
@@ -84,6 +86,9 @@ export const MainApp = ({
     }
     try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ }
   };
+  // Subject thread — place / event discussion opened from a detail sheet.
+  const [subjectThread, setSubjectThread] = useState(null);
+
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
   const [hubDiscussion, setHubDiscussion] = useState(null);
@@ -172,7 +177,10 @@ export const MainApp = ({
         goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
         city={locationGeo?.city || location || 'Tampa'}
-        openVillage={() => setVillageOpen(true)}/>}
+        openVillage={() => setVillageOpen(true)}
+        onDiscuss={setSubjectThread}
+        chatAuthor={chatAuthor}
+        myUserId={myUserId}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
@@ -180,21 +188,24 @@ export const MainApp = ({
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
-        messageHistory={messageHistory}
         account={account} requestAccount={requestAccount} flash={flash}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
         initialSeeAll={connectSeeAll}
-        onConsumeSeeAll={() => setConnectSeeAll(null)}/>}
+        onConsumeSeeAll={() => setConnectSeeAll(null)}
+        chatAuthor={chatAuthor}
+        myUserId={myUserId}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}
         flash={flash}
-        filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
+        filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
         account={account}
@@ -262,11 +273,17 @@ export const MainApp = ({
           savedItems={savedItems} setSavedItems={setSavedItems}
           goingItems={goingItems} setGoingItems={setGoingItems}
           joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
-          messageHistory={messageHistory}
           openMessage={openMessage}
           flash={flash}
           moms={nearbyMoms}
           onClose={() => setVillageOpen(false)}
+        />
+      )}
+
+      {subjectThread && (
+        <SubjectThreadSheet
+          subject={subjectThread} author={chatAuthor} myUserId={myUserId} flash={flash}
+          onClose={() => setSubjectThread(null)}
         />
       )}
 
@@ -289,6 +306,8 @@ export const MainApp = ({
           }}
           onMessageMom={(mom) => { openMessage?.(mom); setHubDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setHubDiscussion(null); }}
+          author={chatAuthor}
+          myUserId={myUserId}
           flash={flash}
           onClose={() => setHubDiscussion(null)}
         />

@@ -788,6 +788,7 @@ export const LocalPicksTab = ({
   placesRadius = 50,
   savedItems = [], setSavedItems, flash,
   filterOpen, setFilterOpen,
+  onDiscuss,
 }) => {
   const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
   // Prefer the user's captured coords (onboarding geo); fall back to the
@@ -971,6 +972,7 @@ export const LocalPicksTab = ({
               : encodeURIComponent(p.address || p.title || '');
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank', 'noopener');
           }}
+          onDiscuss={() => onDiscuss?.({ type: 'place', id: selectedPlace.id, title: selectedPlace.title })}
           onClose={() => setSelectedPlace(null)}
         />
       )}

@@ -259,6 +259,8 @@ export const HomeTab = ({
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
   city = 'Tampa',
+  onDiscuss,
+  chatAuthor, myUserId,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -442,6 +444,7 @@ export const HomeTab = ({
             title: selectedEvent.title, kind: selectedEvent.kind || 'Event',
             when: selectedEvent.when, place: selectedEvent.place, photo: selectedEvent.photo,
           })}
+          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -464,6 +467,7 @@ export const HomeTab = ({
             place: selectedPlace.distance, photo: selectedPlace.photo,
           })}
           onDirections={() => flash?.('Opening directions…')}
+          onDiscuss={() => onDiscuss?.({ type: 'place', id: selectedPlace.id, title: selectedPlace.title })}
           onClose={() => setSelectedPlace(null)}
         />
       )}
@@ -511,6 +515,8 @@ export const HomeTab = ({
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
           flash={flash}
+          author={chatAuthor}
+          myUserId={myUserId}
           onClose={() => setSelectedDiscussion(null)}
         />
       )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   MapPin, Star, Phone, Globe, Bookmark, Share2,
-  Sparkles, Navigation, Clock, Check, ChevronLeft,
+  Sparkles, Navigation, Clock, Check, ChevronLeft, MessageCircle,
 } from 'lucide-react';
 import { C } from '../theme';
 
@@ -50,7 +50,7 @@ export const PlaceDetailSheet = ({
   place,
   saved = false,
   interested = false,
-  onSave, onShare, onDirections, onInterested,
+  onSave, onShare, onDirections, onInterested, onDiscuss,
   onClose,
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -278,6 +278,17 @@ export const PlaceDetailSheet = ({
               label="Share"
             />
           </div>
+
+          {/* Discuss button — only when a thread handler is provided */}
+          {onDiscuss && (
+            <button onClick={onDiscuss} className="active:scale-[.98] transition-transform" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              width: '100%', padding: '11px', borderRadius: 12, marginTop: 8,
+              background: C.sage, color: C.sageDark, border: `1px solid ${C.sageDark}33`,
+              fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <MessageCircle size={15}/> Discuss this place
+            </button>
+          )}
 
           {/* Visited indicator placeholder — keeps social proof front-of-mind */}
           <div className="mt-4 rounded-2xl p-3 flex items-center gap-2.5" style={{

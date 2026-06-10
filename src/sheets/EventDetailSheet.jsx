@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   MapPin, Clock, Users, Check, Star, Bookmark, Share2,
-  Sparkles, CalendarDays,
+  Sparkles, CalendarDays, MessageCircle,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
@@ -42,7 +42,7 @@ export const EventDetailSheet = ({
   saved = false,
   joined = false,
   interested = false,
-  onJoin, onInterested, onSave, onShare,
+  onJoin, onInterested, onSave, onShare, onDiscuss,
   onClose,
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -229,6 +229,17 @@ export const EventDetailSheet = ({
               label="Share"
             />
           </div>
+
+          {/* Discuss button — only when a thread handler is provided */}
+          {onDiscuss && (
+            <button onClick={onDiscuss} className="active:scale-[.98] transition-transform" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              width: '100%', padding: '11px', borderRadius: 12, marginTop: 8,
+              background: C.sage, color: C.sageDark, border: `1px solid ${C.sageDark}33`,
+              fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <MessageCircle size={15}/> Discuss this event
+            </button>
+          )}
         </div>
       </div>
     </Sheet>

@@ -628,11 +628,13 @@ export const ConnectTab = ({
   joinedEvents = [], setJoinedEvents,
   scheduled1to1 = {},
   savedItems = [], setSavedItems,
-  messageHistory = {},
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
   initialSeeAll = null, onConsumeSeeAll,
+  chatAuthor,
+  myUserId,
+  onDiscuss,
 }) => {
   void profile; void prefs;
   void openProfile;
@@ -757,12 +759,6 @@ export const ConnectTab = ({
   };
 
   const handleMessage = (mom) => {
-    const used = (messageHistory?.[mom.id] || []).filter(m => m.fromUser).length;
-    const isPremium = !!account?.isPremium;
-    if (!isPremium && used >= 3) {
-      openPremium?.();
-      return;
-    }
     openMessage?.(mom);
   };
 
@@ -840,14 +836,13 @@ export const ConnectTab = ({
           subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
           items={seeAllMoms}
           renderItem={(item) => {
-            const used = (messageHistory?.[item.id] || []).filter(m => m.fromUser).length;
             return (
               <MomListCard
                 key={item.id}
                 item={item}
                 sharedTags={item.sharedTags}
                 scheduledSlot={scheduledFor(item)}
-                messagesUsed={used}
+                messagesUsed={0}
                 freeLimit={3}
                 isPremium={!!account?.isPremium}
                 connectionStatus={connections[item.id] || 'none'}
@@ -1001,6 +996,7 @@ export const ConnectTab = ({
             place: selectedEvent.place,
             photo: selectedEvent.photo,
           })}
+          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -1020,6 +1016,8 @@ export const ConnectTab = ({
           onToggleJoin={toggleJoinDiscussion}
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
+          author={chatAuthor}
+          myUserId={myUserId}
           flash={flash}
           onClose={() => setSelectedDiscussion(null)}
         />
