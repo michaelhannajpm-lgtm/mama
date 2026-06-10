@@ -63,6 +63,7 @@ returns boolean language sql stable security definer set search_path = public as
     where p.conversation_id = conv and p.user_id = auth.uid()
   );
 $$;
+grant execute on function public.is_participant(uuid) to authenticated;
 
 -- ---------- RLS ----------
 alter table public.conversations            enable row level security;
@@ -101,7 +102,14 @@ create policy msg_update on public.messages for update to authenticated
 
 -- reactions
 create policy react_select on public.message_reactions for select to authenticated
-  using (exists (select 1 from public.messages m where m.id = message_id));
+  using (
+    exists (
+      select 1 from public.messages m
+      join public.conversations c on c.id = m.conversation_id
+      where m.id = message_id
+        and (c.kind = 'subject' or public.is_participant(c.id))
+    )
+  );
 create policy react_write on public.message_reactions for insert to authenticated
   with check (user_id = auth.uid());
 create policy react_delete on public.message_reactions for delete to authenticated
@@ -124,10 +132,14 @@ begin
   if blocked then raise exception 'user unavailable'; end if;
 
   pair := least(me::text, other_user_id::text) || ':' || greatest(me::text, other_user_id::text);
-  select id into conv from public.conversations where kind = 'dm' and dm_pair_key = pair;
+  insert into public.conversations (kind, dm_pair_key, created_by)
+    values ('dm', pair, me)
+    on conflict (dm_pair_key) where kind = 'dm' do nothing
+    returning id into conv;
   if conv is null then
-    insert into public.conversations (kind, dm_pair_key, created_by)
-      values ('dm', pair, me) returning id into conv;
+    -- lost the race (or already existed): fetch the canonical row
+    select id into conv from public.conversations where kind = 'dm' and dm_pair_key = pair;
+  else
     insert into public.conversation_participants (conversation_id, user_id)
       values (conv, me), (conv, other_user_id);
   end if;
