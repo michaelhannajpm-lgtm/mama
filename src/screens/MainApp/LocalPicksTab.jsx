@@ -4,7 +4,7 @@ import {
   Music, Activity, Sparkles, ChevronRight,
   HeartHandshake, Stethoscope, Users,
   SlidersHorizontal, ShieldCheck, Palette, BookOpen,
-  Tent, Trees,
+  Tent, Trees, CalendarDays, Clock,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
@@ -14,15 +14,107 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
 
 // ==========================================================================
-// LocalPicksTab — V5 "Local Picks" surface.
+// LocalPicksTab — the "Explore" surface (file kept, exported as
+// LocalPicksTab and rendered when the Explore tab is active).
 //
 //   Sections (in order):
-//     1. Top places nearby      — photo cards w/ rating + distance
-//     2. Fun & entertainment    — photo cards (zoos, museums, attractions)
-//     3. Schools & childcare    — photo cards w/ rating + tag
-//     4. Extracurricular & camps — icon cards (classes, camps, programs)
-//     5. Health & wellness       — photo cards (pediatric, mental, postpartum)
+//     1. Events                  — recurring + one-off group activities
+//     2. Meetups                 — small mom-led playdates
+//     3. Top local picks         — curated nearby spots
+//     4. Kids programs           — classes + camps
+//     5. Schools & childcare     — preschools, daycares, K-8
+//     6. Health & wellness       — pediatric, mental, postpartum
+//
+//   Each section shows ~2.2 cards horizontally (peek of the next card to
+//   hint scrollability). A coral "Explore more using advanced filters"
+//   CTA at the bottom opens PlacesFilterSheet.
 // ==========================================================================
+
+// 0a. Events — large/recurring group activities.
+const EVENTS_EXPLORE = [
+  {
+    id: 'ev_stroll', title: 'Stroller Walk + Coffee',
+    when: 'Tue · 9:00 AM', going: 8, distance: '1.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1483721310020-03333e577078?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_storytime', title: 'Storytime + Coffee',
+    when: 'Wed · 10:00 AM', going: 6, distance: '2.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_brunch', title: 'Saturday Mom Brunch',
+    when: 'Sat · 12:30 PM', going: 7, distance: '1.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop',
+  },
+];
+
+const EVENTS_EXPLORE_ALL = [
+  ...EVENTS_EXPLORE,
+  {
+    id: 'ev_playgroup', title: 'Saturday Playgroup',
+    when: 'Sat · 10:30 AM', going: 12, distance: '2.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_yoga', title: 'Mom + Baby Yoga',
+    when: 'Fri · 9:30 AM', going: 4, distance: '0.9 mi away',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_picnic', title: 'Sunday Park Picnic',
+    when: 'Sun · 1:00 PM', going: 9, distance: '1.0 mi away',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_kidsfair', title: 'Tampa Kids & Family Fair',
+    when: 'Sat · 11:00 AM', going: 41, distance: '3.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+  },
+];
+
+// 0b. Meetups — small, informal, mom-led.
+const MEETUPS_EXPLORE = [
+  {
+    id: 'mt_coffee', title: 'Coffee Hour at Buddy Brew',
+    when: 'Thu · 10:00 AM', going: 5, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_sunset', title: 'Sunset Stroll · Bayshore',
+    when: 'Mon · 6:00 PM', going: 5, distance: '1.3 mi away',
+    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_libplay', title: 'Library Playdate',
+    when: 'Wed · 11:00 AM', going: 4, distance: '1.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&auto=format&fit=crop',
+  },
+];
+
+const MEETUPS_EXPLORE_ALL = [
+  ...MEETUPS_EXPLORE,
+  {
+    id: 'mt_dadpark', title: 'Davis Islands Park Hang',
+    when: 'Sat · 9:30 AM', going: 6, distance: '1.1 mi away',
+    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_armtre', title: 'Armature Works Breakfast',
+    when: 'Fri · 8:30 AM', going: 3, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_hydekids', title: 'Hyde Park Toddler Run',
+    when: 'Tue · 10:00 AM', going: 5, distance: '0.5 mi away',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_curtisfair', title: 'Curtis Hixon Splash Hangout',
+    when: 'Thu · 11:00 AM', going: 7, distance: '0.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+];
 
 // 1. Top places nearby — curated nearby family-friendly spots.
 const TOP_PLACES_NEARBY = [
@@ -282,20 +374,36 @@ const HEALTH_WELLNESS_ALL = [
 // Category filter map titles to data sources without a giant switch.
 const SECTIONS = [
   {
+    key: 'events',
+    title: 'Events',
+    kind: 'event',
+    items: EVENTS_EXPLORE,
+    allItems: EVENTS_EXPLORE_ALL,
+    seeAllSubtitle: 'Fairs, festivals, recurring groups',
+  },
+  {
+    key: 'meetups',
+    title: 'Meetups',
+    kind: 'event',
+    items: MEETUPS_EXPLORE,
+    allItems: MEETUPS_EXPLORE_ALL,
+    seeAllSubtitle: 'Small, informal, mom-led',
+  },
+  {
     key: 'places',
-    title: 'Top Spots',
+    title: 'Top local picks',
     kind: 'photo',
     items: TOP_PLACES_NEARBY,
     allItems: TOP_PLACES_NEARBY_ALL,
     seeAllSubtitle: 'Top rated near you',
   },
   {
-    key: 'fun',
-    title: 'Fun & entertainment',
-    kind: 'photo',
-    items: FUN_ENTERTAINMENT,
-    allItems: FUN_ENTERTAINMENT_ALL,
-    seeAllSubtitle: 'Days out, weekend ideas',
+    key: 'kids',
+    title: 'Kids programs',
+    kind: 'program',
+    items: EXTRACURRICULAR_CAMPS,
+    allItems: EXTRACURRICULAR_CAMPS_ALL,
+    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
   },
   {
     key: 'schools',
@@ -304,14 +412,6 @@ const SECTIONS = [
     items: SCHOOLS_CHILDCARE,
     allItems: SCHOOLS_CHILDCARE_ALL,
     seeAllSubtitle: `${SCHOOLS_CHILDCARE_ALL.length} options within 5 mi`,
-  },
-  {
-    key: 'extras',
-    title: 'Extracurricular & camps',
-    kind: 'program',
-    items: EXTRACURRICULAR_CAMPS,
-    allItems: EXTRACURRICULAR_CAMPS_ALL,
-    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
   },
   {
     key: 'health',
@@ -325,39 +425,44 @@ const SECTIONS = [
 
 // Map section keys to filter Category labels for filtering visibility.
 const SECTION_CATEGORY = {
-  places:  'Top Spots',
-  fun:     'Fun & entertainment',
+  events:  'Events',
+  meetups: 'Meetups',
+  places:  'Top local picks',
+  kids:    'Kids programs',
   schools: 'Schools & childcare',
-  extras:  'Extracurricular & camps',
   health:  'Health & wellness',
 };
 
 // Only data-backed quick filters (wired in quickFilterMatch). Unbacked chips
 // like Rainy day / Live events / Waitlist / Mental / Postpartum were removed.
 const QUICK_FILTERS_BY_SECTION = {
+  events: [
+    { id: 'thisweek',  label: 'This week', icon: CalendarDays },
+    { id: 'weekend',   label: 'Weekend'                        },
+    { id: 'morning',   label: 'Morning',   icon: Clock         },
+    { id: 'recurring', label: 'Recurring'                      },
+  ],
+  meetups: [
+    { id: 'small',   label: 'Small (≤6)', icon: Users },
+    { id: 'today',   label: 'Today',      icon: Clock },
+    { id: 'weekend', label: 'Weekend'                  },
+  ],
   places: [
     { id: 'free',     label: 'Free'                                 },
     { id: 'indoor',   label: 'Indoor'                               },
     { id: 'outdoor',  label: 'Outdoor'                              },
     { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
   ],
-  fun: [
-    { id: 'top',     label: 'Top rated', icon: Star  },
-    { id: 'near',    label: 'Near me',   icon: MapPin },
-    { id: 'indoor',  label: 'Indoor'                  },
-    { id: 'outdoor', label: 'Outdoor'                 },
-    { id: 'free',    label: 'Free'                    },
-  ],
-  schools: [
-    { id: 'top',  label: 'Top rated', icon: Star  },
-    { id: 'near', label: 'Near me',   icon: MapPin },
-  ],
-  extras: [
+  kids: [
     { id: 'baby', label: 'Baby (0–1)',    icon: Sparkles },
     { id: 'tod',  label: 'Toddler (1–3)', icon: Activity },
     { id: 'pre',  label: 'Pre-K (3–5)',   icon: BookOpen },
     { id: 'kid',  label: 'Kid (5+)',      icon: Users    },
     { id: 'top',  label: 'Top rated',     icon: Star     },
+  ],
+  schools: [
+    { id: 'top',  label: 'Top rated', icon: Star  },
+    { id: 'near', label: 'Near me',   icon: MapPin },
   ],
   health: [
     { id: 'top',  label: 'Top rated', icon: Star  },
@@ -391,6 +496,50 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
   </div>
 );
 
+
+// Event card — photo + name + when + going count + distance. Used for
+// both Events and Meetups (same shape, different data sets).
+const EventCard = ({ item, onClick }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
+    background: '#fff', borderRadius: 12,
+    border: `1px solid ${C.line}`,
+    boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
+    overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
+  }}>
+    <img src={item.photo} alt="" style={{
+      width: '100%', height: 96, objectFit: 'cover', display: 'block',
+    }}/>
+    <div style={{ padding: '8px 10px 10px' }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.25,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden', minHeight: 31,
+      }}>
+        {item.title}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4, marginTop: 5,
+        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, color: C.coralDeep,
+      }}>
+        <Clock size={10}/> {item.when}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginTop: 3,
+        fontFamily: 'Albert Sans', fontSize: 10, color: C.muted,
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Users size={10}/> {item.going} going
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <MapPin size={10}/> {item.distance}
+        </span>
+      </div>
+    </div>
+  </button>
+);
 
 const PhotoCard = ({ item, onClick }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
@@ -845,6 +994,11 @@ export const LocalPicksTab = ({
   const openSchool = (item) => setSelectedPlace(item._live
     ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg }, userCoords)
     : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg, kind: 'School' });
+  const openEvent = (item) => setSelectedPlace({
+    id: item.id, title: item.title, photo: item.photo,
+    when: item.when, going: item.going, distance: item.distance,
+    kind: 'Event',
+  });
 
   // Advanced filter badge count (category + the live-backed filters).
   const advCount =
@@ -866,36 +1020,45 @@ export const LocalPicksTab = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Lone filter button — replaces the old quick-tiles jump row */}
-      <div className="px-5" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="flex items-center justify-end">
-          <LocalPicksFilterIconBtn
-            count={advCount}
-            onClick={() => setFilterOpen?.(true)}
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 4, paddingBottom: 16 }}>
         {visibleSections.map(section => (
-          <div key={section.key} id={`localpicks-section-${section.key}`}>
+          <div key={section.key} id={`explore-section-${section.key}`} className="px-5">
             <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
-            <div className="grid grid-cols-2" style={{ gap: 10 }}>
-              {section.items.map(item => {
-                if (section.kind === 'program') {
-                  return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
-                }
-                if (section.kind === 'school') {
-                  return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
-                }
-                return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
-              })}
+            {/* Horizontal scroll — ~2.2 cards visible to hint there's more */}
+            <div
+              className="flex"
+              style={{
+                overflowX: 'auto', overflowY: 'hidden',
+                scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                gap: 10,
+                paddingBottom: 4,
+              }}
+            >
+              {section.items.map(item => (
+                <div
+                  key={item.id}
+                  style={{
+                    flex: '0 0 45%', scrollSnapAlign: 'start',
+                    display: 'flex',
+                  }}
+                >
+                  {section.kind === 'event' ? (
+                    <EventCard item={item} onClick={() => openEvent(item)}/>
+                  ) : section.kind === 'program' ? (
+                    <ProgramCard item={item} onClick={() => openProgram(item)}/>
+                  ) : section.kind === 'school' ? (
+                    <SchoolCard item={item} onClick={() => openSchool(item)}/>
+                  ) : (
+                    <PhotoCard item={item} onClick={() => openTopPlace(item)}/>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         ))}
 
         {visibleSections.length === 0 && (
-          <div style={{
+          <div className="px-5" style={{
             marginTop: 40, textAlign: 'center',
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
             lineHeight: 1.5,
@@ -905,6 +1068,35 @@ export const LocalPicksTab = ({
               : 'No local picks to show here yet · check back soon'}
           </div>
         )}
+
+        {/* Bottom CTA — opens the advanced filter sheet */}
+        <div className="px-5" style={{ marginTop: 20, marginBottom: 6 }}>
+          <button
+            onClick={() => setFilterOpen?.(true)}
+            className="w-full active:scale-[.99] transition-transform"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              height: 48, borderRadius: 14,
+              background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+              color: '#fff', border: 'none', cursor: 'pointer',
+              fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 13.5,
+              boxShadow: '0 6px 16px -6px rgba(214,68,106,.55)',
+            }}
+          >
+            <SlidersHorizontal size={15}/>
+            Explore more using advanced filters
+            {advCount > 0 && (
+              <span style={{
+                background: 'rgba(255,255,255,.22)',
+                fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 11,
+                padding: '2px 7px', borderRadius: 999,
+                marginLeft: 2,
+              }}>
+                {advCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {seeAllSection && (
@@ -913,6 +1105,9 @@ export const LocalPicksTab = ({
           subtitle={seeAllSection.seeAllSubtitle}
           items={seeAllSection.allItems}
           renderItem={(item) => {
+            if (seeAllSection.kind === 'event') {
+              return <EventCard key={item.id} item={item} onClick={() => openEvent(item)}/>;
+            }
             if (seeAllSection.kind === 'program') {
               return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
             }
@@ -988,36 +1183,3 @@ export const LocalPicksTab = ({
   );
 };
 
-// Round filter icon button. Coral accent + count badge when any filter
-// is active. Matches the pattern in ThisWeekTab / ConnectTab.
-const LocalPicksFilterIconBtn = ({ count = 0, onClick }) => (
-  <button
-    onClick={onClick}
-    aria-label="Open advanced filters"
-    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
-    style={{
-      width: 34, height: 34,
-      background: count > 0 ? C.coral : C.paper,
-      color: count > 0 ? '#fff' : C.navy,
-      border: `1px solid ${count > 0 ? C.coral : C.divider}`,
-    }}
-  >
-    <SlidersHorizontal size={14}/>
-    {count > 0 && (
-      <span
-        className="absolute"
-        style={{
-          top: -3, right: -3,
-          minWidth: 16, height: 16, padding: '0 4px',
-          borderRadius: 8,
-          background: C.coralDeep, color: '#fff',
-          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `1.5px solid ${C.cream}`,
-        }}
-      >
-        {count > 9 ? '9+' : count}
-      </span>
-    )}
-  </button>
-);
