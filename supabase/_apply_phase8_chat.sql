@@ -64,6 +64,9 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 grant execute on function public.is_participant(uuid) to authenticated;
+-- Harden: keep it off the anon RPC surface (Supabase grants new funcs to anon
+-- by default). RLS policy evaluation only needs `authenticated`.
+revoke execute on function public.is_participant(uuid) from anon, public;
 
 -- ---------- RLS ----------
 alter table public.conversations            enable row level security;
@@ -147,6 +150,8 @@ begin
 end;
 $$;
 grant execute on function public.get_or_create_dm(uuid) to authenticated;
+-- Harden: signed-in users only (not anon).
+revoke execute on function public.get_or_create_dm(uuid) from anon, public;
 
 -- ---------- realtime ----------
 alter publication supabase_realtime add table public.messages;
