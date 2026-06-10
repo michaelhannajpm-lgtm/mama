@@ -116,56 +116,112 @@ const ProgressBanner = ({ step, total, onBack }) => (
   </div>
 );
 
-const OptionCard = ({ active, onClick, emoji, label, sub, span = 1 }) => (
-  <button
-    onClick={onClick}
-    className="rounded-2xl flex flex-col items-center justify-center transition-all active:scale-[.97]"
-    style={{
-      padding: '14px 10px 12px',
-      background: active ? C.lilac : '#fff',
-      border: `1.5px solid ${active ? C.navySoft : C.line}`,
-      cursor: 'pointer',
-      gap: 6,
-      position: 'relative',
-      minHeight: 92,
-      boxShadow: active
-        ? '0 10px 22px -10px rgba(27,42,78,.28)'
-        : '0 2px 6px -2px rgba(27,42,78,.06)',
-      gridColumn: span === 2 ? 'span 2' : undefined,
-    }}
-  >
-    {active && (
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute', top: 7, right: 7,
-          width: 18, height: 18, borderRadius: 999,
-          background: C.coral, color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'popBadge 240ms cubic-bezier(.4,1.5,.5,1)',
-        }}
-      >
-        <Check size={11} strokeWidth={3.5}/>
-      </div>
-    )}
-    <div style={{ fontSize: 30, lineHeight: 1 }}>{emoji}</div>
-    <div style={{
-      fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
-      color: C.navy, textAlign: 'center', lineHeight: 1.15,
-      letterSpacing: '-.005em',
-    }}>
-      {label}
-    </div>
-    {sub && (
+const OptionCard = ({
+  active, onClick, emoji, label, sub, span = 1,
+  count, onDec, onInc, // when defined, shows a − N + pill instead of the check
+}) => {
+  const hasCounter = count != null;
+  const handleCard = () => {
+    // When in counter mode and already active, the card itself is inert —
+    // the user adjusts via − / +. Otherwise tap toggles selection.
+    if (hasCounter && active) return;
+    onClick?.();
+  };
+  return (
+    <button
+      onClick={handleCard}
+      className="rounded-2xl flex flex-col items-center justify-center transition-all active:scale-[.97]"
+      style={{
+        padding: '14px 10px 12px',
+        background: active ? C.lilac : '#fff',
+        border: `1.5px solid ${active ? C.navySoft : C.line}`,
+        cursor: hasCounter && active ? 'default' : 'pointer',
+        gap: 6,
+        position: 'relative',
+        minHeight: 92,
+        boxShadow: active
+          ? '0 10px 22px -10px rgba(27,42,78,.28)'
+          : '0 2px 6px -2px rgba(27,42,78,.06)',
+        gridColumn: span === 2 ? 'span 2' : undefined,
+      }}
+    >
+      {active && !hasCounter && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute', top: 7, right: 7,
+            width: 18, height: 18, borderRadius: 999,
+            background: C.coral, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'popBadge 240ms cubic-bezier(.4,1.5,.5,1)',
+          }}
+        >
+          <Check size={11} strokeWidth={3.5}/>
+        </div>
+      )}
+      {active && hasCounter && (
+        <div
+          style={{
+            position: 'absolute', top: 6, right: 6,
+            display: 'flex', alignItems: 'center',
+            background: C.coral, color: '#fff',
+            borderRadius: 999, padding: '2px 3px',
+            boxShadow: '0 4px 10px -4px rgba(214,68,106,.6)',
+            animation: 'popBadge 240ms cubic-bezier(.4,1.5,.5,1)',
+            fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
+          }}
+        >
+          <span
+            role="button"
+            aria-label={`Remove one ${label}`}
+            onClick={(e) => { e.stopPropagation(); onDec?.(); }}
+            style={{
+              width: 18, height: 18, borderRadius: 999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', userSelect: 'none', lineHeight: 1,
+            }}
+          >
+            −
+          </span>
+          <span style={{
+            minWidth: 14, textAlign: 'center', padding: '0 2px',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {count}
+          </span>
+          <span
+            role="button"
+            aria-label={`Add one ${label}`}
+            onClick={(e) => { e.stopPropagation(); onInc?.(); }}
+            style={{
+              width: 18, height: 18, borderRadius: 999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', userSelect: 'none', lineHeight: 1,
+            }}
+          >
+            +
+          </span>
+        </div>
+      )}
+      <div style={{ fontSize: 30, lineHeight: 1 }}>{emoji}</div>
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 500,
-        color: C.muted, lineHeight: 1.2, textAlign: 'center',
+        fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 700,
+        color: C.navy, textAlign: 'center', lineHeight: 1.15,
+        letterSpacing: '-.005em',
       }}>
-        {sub}
+        {label}
       </div>
-    )}
-  </button>
-);
+      {sub && (
+        <div style={{
+          fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 500,
+          color: C.muted, lineHeight: 1.2, textAlign: 'center',
+        }}>
+          {sub}
+        </div>
+      )}
+    </button>
+  );
+};
 
 const QuestionHeader = ({ children, why }) => (
   <>
@@ -288,17 +344,52 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
   }, []);
 
   const stage = profile.stage || [];
+  const stageCounts = profile.stageCounts || {};
   const lookingFor = profile.lookingFor || [];
   const describes = profile.describes || [];
   const radius = distance ?? DEFAULT_DISTANCE;
   const hasLocation = !!(location && location.trim());
 
-  const toggleStage = (label) => {
+  // Stage cards support multi-select WITH per-stage counters. Tapping an
+  // inactive card adds it with count=1; the inline − / + controls bump
+  // the count; decrementing past 1 removes the stage entirely.
+  const incStage = (label) => {
     setProfile(p => {
       const cur = p.stage || [];
-      const has = cur.includes(label);
-      return { ...p, stage: has ? cur.filter(x => x !== label) : [...cur, label] };
+      const counts = p.stageCounts || {};
+      const inCur = cur.includes(label);
+      return {
+        ...p,
+        stage: inCur ? cur : [...cur, label],
+        stageCounts: { ...counts, [label]: (counts[label] || 0) + 1 },
+      };
     });
+  };
+  const decStage = (label) => {
+    setProfile(p => {
+      const cur = p.stage || [];
+      const counts = p.stageCounts || {};
+      const next = (counts[label] || 0) - 1;
+      if (next <= 0) {
+        const nextCounts = { ...counts };
+        delete nextCounts[label];
+        return { ...p, stage: cur.filter(x => x !== label), stageCounts: nextCounts };
+      }
+      return { ...p, stageCounts: { ...counts, [label]: next } };
+    });
+  };
+  // Legacy entry — tap inactive card or want to fully clear a selection.
+  const toggleStage = (label) => {
+    const isOn = stage.includes(label);
+    if (isOn) {
+      setProfile(p => {
+        const counts = { ...(p.stageCounts || {}) };
+        delete counts[label];
+        return { ...p, stage: (p.stage || []).filter(x => x !== label), stageCounts: counts };
+      });
+    } else {
+      incStage(label);
+    }
   };
 
   const toggleLookingFor = (label) => {
@@ -431,13 +522,37 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               </p>
             </div>
 
+            {/* Tampa skyline hero — grounds the "where are you joining from"
+                question in the city the app is launching in. */}
+            <div style={{
+              marginTop: 18, borderRadius: 16, overflow: 'hidden',
+              border: `1px solid ${C.line}`,
+              boxShadow: '0 6px 16px -12px rgba(27,42,78,.35)',
+              position: 'relative',
+            }}>
+              <img
+                src="https://images.unsplash.com/photo-1561063139-e183e66909c4?w=800&auto=format&fit=crop"
+                alt="Tampa, Florida skyline"
+                style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{
+                position: 'absolute', left: 10, bottom: 8,
+                color: '#fff',
+                fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800,
+                letterSpacing: '.14em', textTransform: 'uppercase',
+                textShadow: '0 1px 4px rgba(0,0,0,.55)',
+              }}>
+                Tampa, FL
+              </div>
+            </div>
+
             {/* Use-current-location row — matches the Profile location sheet */}
             <button
               onClick={detectLocation}
               disabled={geoStatus === 'detecting'}
               className="w-full flex items-center active:scale-[.99] transition-transform"
               style={{
-                marginTop: 22,
+                marginTop: 14,
                 gap: 9, padding: '12px 14px', borderRadius: 13,
                 background: C.coralSoft, border: `1px solid ${C.coral}`,
                 cursor: geoStatus === 'detecting' ? 'default' : 'pointer',
@@ -528,6 +643,9 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
                   sub={opt.sub}
                   active={stage.includes(opt.label)}
                   onClick={() => toggleStage(opt.label)}
+                  count={stage.includes(opt.label) ? (stageCounts[opt.label] || 1) : 0}
+                  onDec={() => decStage(opt.label)}
+                  onInc={() => incStage(opt.label)}
                   span={i === STAGE_OPTS.length - 1 ? 2 : 1}
                 />
               ))}
