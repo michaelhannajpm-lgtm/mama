@@ -221,5 +221,3 @@ export const BADGE_META = {
   'Editor pick':   { icon: Award,    color: '#2A1E22', fill: false },
   'Yours':         { icon: Sparkles, color: '#5E7A5A', fill: false },
 };
-
-export const PLACE_CATEGORIES_ALL_DATA = PLACE_CATEGORIES; // alias kept for clarity

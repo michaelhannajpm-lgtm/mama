@@ -13,12 +13,13 @@ import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import { youngestStageLabel } from '../../data/taxonomy';
 
 // ==========================================================================
 // ConnectTab — V5 "Connect" surface.
 //
 //   • Search input + add-friend icon
-//   • "Moms nearby" — 3 round avatar cards + "9 more moms nearby" link
+//   • "Your best matches" — 3 round avatar cards + see-all link
 //   • "Upcoming meetups" — 3 event cards
 //   • "Popular topics" — coloured chip row
 // ==========================================================================
@@ -130,8 +131,18 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
   </div>
 );
 
+// Kid ages → "Mom of a toddler" (youngest child's life stage). Prefer raw
+// buckets; fall back to parsing the preformatted "0–1 · 3–5 yrs" string.
+const kidAgesLabel = (item) => {
+  const buckets = Array.isArray(item.kidBuckets) && item.kidBuckets.length
+    ? item.kidBuckets
+    : (item.kids && item.kids !== 'Kids' ? item.kids.replace(/\s*yrs$/, '').split(' · ') : []);
+  return youngestStageLabel(buckets);
+};
+
 const MomCard = ({ item, onClick }) => {
   const Icon = item.Icon;
+  const ages = kidAgesLabel(item);
   return (
     <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
       background: '#fff', borderRadius: 14,
@@ -157,23 +168,36 @@ const MomCard = ({ item, onClick }) => {
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
-        <div style={{
-          position: 'absolute', top: 2, right: 2,
-          width: 10, height: 10, borderRadius: 5,
-          background: C.sageDark, border: '2px solid #fff',
-        }}/>
+        {/* Distance marker — sits on the avatar like a map pin, so it never
+            wraps onto its own awkward line. Hidden when distance is unknown. */}
+        {item.distanceMi != null && (
+          <div style={{
+            position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)',
+            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 999,
+            padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 2,
+            boxShadow: '0 2px 6px -3px rgba(27,42,78,.3)', whiteSpace: 'nowrap',
+          }}>
+            <MapPin size={8} color={C.coralDeep} strokeWidth={2.4}/>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.navy }}>
+              {item.distanceMi.toFixed(1)} mi
+            </span>
+          </div>
+        )}
       </div>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-        color: C.navy, marginTop: 6, lineHeight: 1.1,
+        color: C.navy, marginTop: 11, lineHeight: 1.1,
       }}>
         {item.name}
       </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 2,
-      }}>
-        {item.kids} · {item.distance}
-      </div>
+      {ages && (
+        <div className="flex items-center justify-center" style={{
+          gap: 3, marginTop: 3, fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600, color: C.muted,
+          whiteSpace: 'nowrap',
+        }}>
+          <Baby size={9}/> {ages}
+        </div>
+      )}
       <div style={{ marginTop: 6, display: 'inline-flex' }}>
         <span style={{
           background: item.tagBg, color: item.tagFg,
@@ -190,7 +214,7 @@ const MomCard = ({ item, onClick }) => {
   );
 };
 
-// Richer per-mom row for the SeeAll "Moms nearby" screen. Each row pairs
+// Richer per-mom row for the SeeAll "Your best matches" screen. Each row pairs
 // a square hero photo, identity + tag, "shared ground" coral pill, a
 // connection-request primary CTA, and three secondary CTAs:
 //   • Profile       — opens MomDetailSheet (full bio gated behind Plus)
@@ -772,14 +796,15 @@ export const ConnectTab = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
-        {/* Moms nearby */}
-        <SectionHead title="Moms nearby" onLink={() => setSeeAll('moms')}/>
+        {/* Your best matches — ranked by shared ground (kids, interests,
+            values, free slots) minus a distance penalty. */}
+        <SectionHead title="Your best matches" onLink={() => setSeeAll('moms')}/>
         {gridMoms.length === 0 ? (
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
             padding: '8px 2px',
           }}>
-            No moms nearby yet — check back soon.
+            No matches yet — check back soon.
           </div>
         ) : (
           <div className="grid grid-cols-3" style={{ gap: 8 }}>
@@ -811,7 +836,7 @@ export const ConnectTab = ({
 
       {seeAll === 'moms' && (
         <SeeAllSheet
-          title="Moms nearby"
+          title="Your best matches"
           subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
           items={seeAllMoms}
           renderItem={(item) => {

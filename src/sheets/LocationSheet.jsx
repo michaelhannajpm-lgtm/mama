@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { LocateFixed } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 import { NeighborhoodPicker } from '../components/NeighborhoodPicker';
+import { nearestArea } from '../lib/places.js';
 
 // ==========================================================================
 // LocationSheet — update neighborhood (onboarding-style picker) + travel
@@ -26,8 +28,26 @@ export const LocationSheet = ({ location, locationGeo, distance, onSave, onClose
   const [label, setLabel] = useState(location || '');
   const [radius, setRadius] = useState(distance ?? 5);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState('');
 
   const onSelect = (entry) => { setGeo(entry); setLabel(entry?.label || ''); };
+
+  // Resolve the device's GPS fix to the nearest known Tampa Bay area.
+  const useCurrentLocation = () => {
+    setGeoError('');
+    if (!navigator.geolocation) { setGeoError('Location isn’t available on this device.'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const entry = nearestArea(coords.latitude, coords.longitude);
+        if (entry) onSelect(entry);
+        setLocating(false);
+      },
+      () => { setGeoError('Couldn’t get your location. Pick an area below.'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  };
   const save = async () => {
     setSaving(true);
     await onSave?.({ location: label, locationGeo: geo, distance: radius });
@@ -44,6 +64,27 @@ export const LocationSheet = ({ location, locationGeo, distance, onSave, onClose
         <h3 className="mt-1.5" style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.navy, letterSpacing: '-.02em' }}>
           Your <span style={{ fontStyle: 'italic', color: C.coral }}>location</span>
         </h3>
+
+        <button
+          onClick={useCurrentLocation}
+          disabled={locating}
+          className="mt-5 w-full flex items-center active:scale-[.99] transition-transform"
+          style={{
+            gap: 9, padding: '12px 14px', borderRadius: 13,
+            background: C.coralSoft, border: `1px solid ${C.coral}`,
+            cursor: locating ? 'default' : 'pointer',
+          }}
+        >
+          <LocateFixed size={16} color={C.coralDeep} strokeWidth={2.2} style={{ flexShrink: 0 }}/>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.coralDeep }}>
+            {locating ? 'Locating…' : 'Use my current location'}
+          </span>
+        </button>
+        {geoError && (
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.coralDeep, marginTop: 6 }}>
+            {geoError}
+          </div>
+        )}
 
         <div className="mt-5">
           <Label>Neighborhood</Label>

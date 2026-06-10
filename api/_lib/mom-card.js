@@ -78,6 +78,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     firstName: firstNameOf(row),
     age: row.age ?? null,
     kids: kidsLabel(row.kids_ages),
+    kidBuckets: truthyKeys(row.kids_ages),  // raw ordered buckets for flexible display
     type: pres.label,
     tag: pres.label,          // alias of `type`: MomCard reads `tag`, ProfileSheet reads `type`
     tagBg: pres.tagBg,

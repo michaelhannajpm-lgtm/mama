@@ -4,6 +4,7 @@ import {
   MapPin, ChevronRight, Star, Clock, ShieldCheck, Users, Bookmark,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { youngestStageLabel } from '../../data/taxonomy';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
@@ -15,10 +16,10 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 // ==========================================================================
 // HomeTab — editorial landing feed (replaces ThisWeekTab in routing).
 //
+//   • Single "Upcoming events" row (all things to do, no time filter) —
+//     the first section
+//   • Promo rows: Moms near you · Trending places · Groups for you
 //   • Conditional "get verified" banner
-//   • Count-pill time filter (Today / This Week / This Month / Others)
-//     scoping ONLY the activities row below it
-//   • Promo rows: Trending places · Moms near you · Groups for you
 //   • Saved-spots summary (only when something is saved)
 //   • "See all activities" CTA
 //
@@ -26,70 +27,21 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 // math lives in src/lib/home-feed.js.
 // ==========================================================================
 
-const FILTERS = [
-  { id: 'today',  label: 'Today'      },
-  { id: 'week',   label: 'This Week'  },
-  { id: 'month',  label: 'This Month' },
-  { id: 'others', label: 'Others'     },
-];
-
-const SECTION_TITLES = {
-  today:  'Happening today',
-  week:   'This week',
-  month:  'Later this month',
-  others: 'Ongoing & weekly',
-};
-
-// Empty-state nudge per filter. `to` switches the filter when tapped.
-const EMPTY_NUDGE = {
-  today:  { text: 'Nothing scheduled today — peek at This Week', to: 'week'   },
-  week:   { text: 'No dated events this week — browse ongoing',   to: 'others' },
-  month:  { text: 'No dated events this month — browse ongoing',  to: 'others' },
-  others: { text: 'No recurring groups yet.',                     to: null     },
-};
-
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const whenLabel = (item, filter) => {
-  if (filter === 'others') return item.recurring || 'Ongoing';
-  if (filter === 'today')  return item.time || 'Today';
+// Label a single activity — dated events show their day, recurring ones show
+// their cadence. No time-filter context needed.
+const whenLabel = (item) => {
   if (item.startsAt) {
     const d = new Date(item.startsAt);
     return `${DOW[d.getDay()]} ${d.getDate()}${item.time ? ` · ${item.time}` : ''}`;
   }
-  return item.time || '';
+  return item.recurring || item.time || 'Ongoing';
 };
 
 const placePhoto = (p) => p.hero_photo || p.blob_url || p.url || null;
 
 // -------------------------- shared bits --------------------------
-
-const CountPill = ({ label, count, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className="active:scale-[.97] transition-transform"
-    style={{
-      flexShrink: 0,
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '6px 11px', borderRadius: 14,
-      background: active ? `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})` : C.paper,
-      color: active ? '#fff' : C.navySoft,
-      border: `1px solid ${active ? C.coralDeep : C.divider}`,
-      fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
-      cursor: 'pointer',
-    }}
-  >
-    {label}
-    <span style={{
-      fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
-      padding: '1px 5px', borderRadius: 8,
-      background: active ? 'rgba(255,255,255,.25)' : C.cream,
-      color: active ? '#fff' : C.muted,
-    }}>
-      {count}
-    </span>
-  </button>
-);
 
 const SectionHead = ({ title, link = 'See all', onLink }) => (
   <div className="flex items-center justify-between" style={{ marginTop: 14, marginBottom: 8 }}>
@@ -118,7 +70,7 @@ const VerifyBanner = ({ onVerify }) => (
     className="text-left active:scale-[.99] transition-transform"
     style={{
       width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 12px', borderRadius: 14, marginBottom: 4,
+      padding: '10px 12px', borderRadius: 14, marginTop: 14, marginBottom: 4,
       background: `linear-gradient(135deg, ${C.peach}, ${C.coralSoft})`,
       border: `1px solid ${C.coralSoft}`, cursor: 'pointer',
     }}
@@ -146,22 +98,22 @@ const VerifyBanner = ({ onVerify }) => (
   </button>
 );
 
-const ActivityCard = ({ item, filter, onClick }) => (
+const ActivityCard = ({ item, onClick }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, width: 132, background: '#fff', borderRadius: 12,
+    flexShrink: 0, width: 220, background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`, boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden', padding: 0, cursor: 'pointer',
   }}>
-    <div style={{ position: 'relative', height: 76 }}>
+    <div style={{ position: 'relative', height: 140 }}>
       {item.photo
-        ? <img src={item.photo} alt="" style={{ width: '100%', height: 76, objectFit: 'cover', display: 'block' }}/>
-        : <div style={{ width: '100%', height: 76, background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.saffron})` }}/>}
+        ? <img src={item.photo} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}/>
+        : <div style={{ width: '100%', height: 140, background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.saffron})` }}/>}
       <div style={{
         position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,.95)',
         padding: '3px 7px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 3,
         fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800, color: C.coralDeep, letterSpacing: '.03em',
       }}>
-        <Clock size={9}/> {whenLabel(item, filter)}
+        <Clock size={9}/> {whenLabel(item)}
       </div>
     </div>
     <div style={{ padding: '6px 8px 9px' }}>
@@ -188,13 +140,13 @@ const ActivityCard = ({ item, filter, onClick }) => (
 
 const PlaceCard = ({ item, onClick }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, width: 124, background: '#fff', borderRadius: 12,
+    flexShrink: 0, width: 220, background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`, boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden', padding: 0, cursor: 'pointer',
   }}>
     {placePhoto(item)
-      ? <img src={placePhoto(item)} alt="" style={{ width: '100%', height: 66, objectFit: 'cover', display: 'block' }}/>
-      : <div style={{ width: '100%', height: 66, background: C.lilac }}/>}
+      ? <img src={placePhoto(item)} alt="" style={{ width: '100%', height: 130, objectFit: 'cover', display: 'block' }}/>
+      : <div style={{ width: '100%', height: 130, background: C.lilac }}/>}
     <div style={{ padding: '6px 8px 9px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, color: C.navy, lineHeight: 1.2,
@@ -213,27 +165,54 @@ const PlaceCard = ({ item, onClick }) => (
   </button>
 );
 
-const MomChip = ({ item, onClick }) => (
-  <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
-    flexShrink: 0, width: 78, background: 'transparent', border: 'none', padding: 0, textAlign: 'center', cursor: 'pointer',
-  }}>
-    <div className="rounded-full overflow-hidden flex items-center justify-center" style={{
-      width: 54, height: 54, margin: '0 auto', background: C.coralSoft,
+const MomChip = ({ item, onClick }) => {
+  const hasDistance = item.distanceMi != null;
+  const buckets = Array.isArray(item.kidBuckets) && item.kidBuckets.length
+    ? item.kidBuckets
+    : (item.kids && item.kids !== 'Kids' ? item.kids.replace(/\s*yrs$/, '').split(' · ') : []);
+  const sub = (item.sharedTags && item.sharedTags[0]) || (hasDistance ? '' : youngestStageLabel(buckets)) || '';
+  return (
+    <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
+      flexShrink: 0, width: 90, textAlign: 'center', cursor: 'pointer',
+      background: '#fff', borderRadius: 14, border: `1px solid ${C.line}`,
+      boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)', padding: '12px 6px 10px',
     }}>
-      {item.photo
-        ? <img src={item.photo} alt="" style={{ width: 54, height: 54, objectFit: 'cover' }}/>
-        : <span style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 700, color: C.coralDeep }}>
-            {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
-          </span>}
-    </div>
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy, marginTop: 5, lineHeight: 1.15 }}>
-      {item.firstName || item.name}
-    </div>
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 8.5, color: C.sageDark, fontWeight: 700, marginTop: 1 }}>
-      {(item.sharedTags && item.sharedTags[0]) || item.kids || item.distance || ''}
-    </div>
-  </button>
-);
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <div className="rounded-full overflow-hidden flex items-center justify-center" style={{
+          width: 54, height: 54, background: C.coralSoft,
+        }}>
+          {item.photo
+            ? <img src={item.photo} alt="" style={{ width: 54, height: 54, objectFit: 'cover' }}/>
+            : <span style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 700, color: C.coralDeep }}>
+                {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
+              </span>}
+        </div>
+        {/* Distance marker pill — matches the Connect card. */}
+        {hasDistance && (
+          <div style={{
+            position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)',
+            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 999,
+            padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 2,
+            boxShadow: '0 2px 6px -3px rgba(27,42,78,.3)', whiteSpace: 'nowrap',
+          }}>
+            <MapPin size={8} color={C.coralDeep} strokeWidth={2.4}/>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.navy }}>
+              {item.distanceMi.toFixed(1)} mi
+            </span>
+          </div>
+        )}
+      </div>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy, marginTop: hasDistance ? 11 : 6, lineHeight: 1.15 }}>
+        {item.firstName || item.name}
+      </div>
+      {sub && (
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 8.5, color: C.sageDark, fontWeight: 700, marginTop: 2 }}>
+          {sub}
+        </div>
+      )}
+    </button>
+  );
+};
 
 const GroupRow = ({ item, onClick }) => {
   const Icon = item.Icon || Users;
@@ -279,8 +258,8 @@ export const HomeTab = ({
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
+  city = 'Tampa',
 }) => {
-  const [filter, setFilter] = useState('today');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [selectedMom, setSelectedMom] = useState(null);
@@ -290,10 +269,21 @@ export const HomeTab = ({
   const [shareItem, setShareItem] = useState(null);
   const [seeAll, setSeeAll] = useState(false);
 
+  // All things to do — dated (this month, which nests today/week) + recurring,
+  // deduped. No time filter; one combined "Local Events" list.
   const buckets = bucketActivities(thisWeek, events, new Date());
-  const activities = buckets[filter] || [];
+  const seenActivity = new Set();
+  const activities = [...buckets.month, ...buckets.others].filter((a) => {
+    if (seenActivity.has(a.id)) return false;
+    seenActivity.add(a.id);
+    return true;
+  });
+  const eventsTitle = 'Upcoming events';
   const trending = pickTrendingPlaces(places, 8);
-  const moms = nearbyMoms.slice(0, 8);
+  // Closest moms first (nulls — no shared coords — sink to the end).
+  const moms = [...nearbyMoms]
+    .sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity))
+    .slice(0, 8);
   const topGroups = groups.slice(0, 3);
 
   const v = profile?.verified || {};
@@ -308,9 +298,9 @@ export const HomeTab = ({
 
   const openActivity = (item) => setSelectedEvent({
     id: item.id, title: item.name, photo: item.photo,
-    when: whenLabel(item, filter), place: item.place,
+    when: whenLabel(item), place: item.place,
     distance: item.mi != null ? `${item.mi} mi` : 'Near you',
-    tags: item.tags || [], kind: filter === 'others' ? 'Recurring' : 'Activity',
+    tags: item.tags || [], kind: item.startsAt ? 'Activity' : 'Recurring',
   });
   const openPlace = (p) => setSelectedPlace({
     id: p.id, title: p.name, photo: placePhoto(p),
@@ -322,44 +312,33 @@ export const HomeTab = ({
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingTop: 2, paddingBottom: 16 }}>
 
-        {/* Verify banner — only when not yet verified */}
-        {!isVerified && <VerifyBanner onVerify={onVerify}/>}
-
-        {/* Time filter — count pills */}
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingTop: 8, paddingBottom: 2 }}>
-          {FILTERS.map(f => (
-            <CountPill
-              key={f.id}
-              label={f.label}
-              count={(buckets[f.id] || []).length}
-              active={filter === f.id}
-              onClick={() => setFilter(f.id)}
-            />
-          ))}
-        </div>
-
-        {/* Activities row (scoped by filter) */}
-        <SectionHead title={SECTION_TITLES[filter]} onLink={activities.length ? () => setSeeAll(true) : null}/>
+        {/* Local Events — all things to do around the chosen city, no filter */}
+        <SectionHead title={eventsTitle} onLink={activities.length ? () => setSeeAll(true) : null}/>
         {activities.length ? (
           <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
             {activities.map(item => (
-              <ActivityCard key={item.id} item={item} filter={filter} onClick={() => openActivity(item)}/>
+              <ActivityCard key={item.id} item={item} onClick={() => openActivity(item)}/>
             ))}
           </div>
         ) : (
-          <button
-            onClick={() => EMPTY_NUDGE[filter].to && setFilter(EMPTY_NUDGE[filter].to)}
-            className="text-left active:scale-[.99] transition-transform"
-            style={{
-              width: '100%', padding: '16px 14px', borderRadius: 12,
-              background: C.blush, border: `1px dashed ${C.coralSoft}`, cursor: 'pointer',
-              fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600, color: C.inkSoft,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-            }}
-          >
-            {EMPTY_NUDGE[filter].text}
-            {EMPTY_NUDGE[filter].to && <ChevronRight size={14} color={C.coralDeep}/>}
-          </button>
+          <div style={{
+            width: '100%', padding: '16px 14px', borderRadius: 12,
+            background: C.blush, border: `1px dashed ${C.coralSoft}`,
+            fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600, color: C.inkSoft,
+          }}>
+            No events found around {city} yet — check back soon.
+          </div>
+        )}
+
+        {/* Moms near you — tap a mom to open her profile; See all → Connect's
+            "Your best matches" drawer (with filters). */}
+        {moms.length > 0 && (
+          <>
+            <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
+            <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
+            </div>
+          </>
         )}
 
         {/* Trending places near you */}
@@ -372,16 +351,8 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* Moms near you — tap a mom to open her profile; See all → Connect's
-            "Moms nearby" drawer (with filters). */}
-        {moms.length > 0 && (
-          <>
-            <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
-            <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-              {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
-            </div>
-          </>
-        )}
+        {/* Verify banner — only when not yet verified */}
+        {!isVerified && <VerifyBanner onVerify={onVerify}/>}
 
         {/* Groups for you — tap a group to open its discussion; See all →
             Connect's "Popular discussions" drawer (with filters). */}
@@ -419,7 +390,7 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* See all activities CTA — only when the current filter has activities */}
+        {/* See all activities CTA — only when there are events to show */}
         {activities.length > 0 && (
           <button
             onClick={() => setSeeAll(true)}
@@ -438,11 +409,11 @@ export const HomeTab = ({
 
       {seeAll && (
         <SeeAllSheet
-          title={SECTION_TITLES[filter]}
+          title={eventsTitle}
           subtitle={`${activities.length} ${activities.length === 1 ? 'idea' : 'ideas'} for you`}
           items={activities}
           renderItem={(item) => (
-            <ActivityCard key={item.id} item={item} filter={filter} onClick={() => openActivity(item)}/>
+            <ActivityCard key={item.id} item={item} onClick={() => openActivity(item)}/>
           )}
           columns={2}
           onClose={() => setSeeAll(false)}

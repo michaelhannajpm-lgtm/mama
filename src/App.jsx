@@ -174,6 +174,11 @@ function PrototypeApp({ bare = false }) {
     free_slots: prefs?.slots || [],
     lat: locationGeo?.lat ?? null,
     lng: locationGeo?.lng ?? null,
+    // Administrative location — used as a ranking fallback when coords are
+    // absent, and for the same-neighborhood/city affinity nudge.
+    city: locationGeo?.city ?? null,
+    neighborhood: locationGeo?.neighborhood ?? null,
+    county: locationGeo?.county ?? null,
   });
 
   const loadNearbyMoms = async (verifiedOnly = nearbyVerifiedOnly) => {

@@ -20,6 +20,58 @@ import { linkFacebook, linkInstagram, getLinkedProviders, computeVerified } from
 // Notifications / Privacy, all persisted) · refer · sign out.
 // ==========================================================================
 
+// Starburst/sunburst seal outline — the universal "award sticker" shape. N
+// outer spikes alternating with inner valleys around a center point.
+const sealPoints = (cx, cy, outer, inner, spikes) => {
+  const pts = [];
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (Math.PI / spikes) * i - Math.PI / 2;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`);
+  }
+  return pts.join(' ');
+};
+
+const SEAL_POINTS = sealPoints(25, 25, 24, 19.5, 12);
+
+// An earned achievement seal (gradient sunburst + white icon) or a locked,
+// dashed-outline version. Reads as a medal, never as a button.
+const BadgeSeal = ({ id, Icon, earned }) => (
+  <div style={{ position: 'relative', width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <svg width="50" height="50" viewBox="0 0 50 50" style={{
+      position: 'absolute', inset: 0,
+      filter: earned ? 'drop-shadow(0 4px 7px rgba(94,122,59,.45))' : 'none',
+    }}>
+      <defs>
+        <linearGradient id={`seal-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={C.sage}/>
+          <stop offset="100%" stopColor={C.sageDark}/>
+        </linearGradient>
+      </defs>
+      <polygon
+        points={SEAL_POINTS}
+        fill={earned ? `url(#seal-${id})` : C.cream}
+        stroke={earned ? '#fff' : C.divider}
+        strokeWidth={earned ? 2 : 1.2}
+        strokeLinejoin="round"
+        strokeDasharray={earned ? undefined : '3 2.5'}
+      />
+      {earned && <circle cx="25" cy="25" r="15.5" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1"/>}
+    </svg>
+    <Icon size={17} color={earned ? '#fff' : C.muted} style={{ position: 'relative' }}/>
+    {earned && (
+      <div style={{
+        position: 'absolute', right: 1, bottom: 1,
+        width: 17, height: 17, borderRadius: 9, background: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 1px 3px rgba(27,42,78,.3)',
+      }}>
+        <Check size={11} color={C.sageDark} strokeWidth={3.5}/>
+      </div>
+    )}
+  </div>
+);
+
 const NOTIFICATION_ITEMS = [
   { key: 'meetups',  label: 'Meetup reminders',   sub: 'Upcoming 1:1s and events',        default: true },
   { key: 'messages', label: 'New messages',       sub: 'When a mom messages you',          default: true },
@@ -345,19 +397,13 @@ export const YouTab = ({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
           {badges.map(b => (
             <div key={b.id} title={b.earned ? b.label : b.hint} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center',
-              opacity: b.earned ? 1 : 0.45,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center',
             }}>
+              <BadgeSeal id={b.id} Icon={b.Icon} earned={b.earned}/>
               <div style={{
-                width: 44, height: 44, borderRadius: 22,
-                background: b.earned ? C.sage : C.cream,
-                color: b.earned ? C.sageDark : C.muted,
-                border: `1px solid ${b.earned ? C.sageDark + '55' : C.divider}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, lineHeight: 1.15,
+                color: b.earned ? C.navy : C.muted,
               }}>
-                <b.Icon size={18}/>
-              </div>
-              <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy, lineHeight: 1.15 }}>
                 {b.label}
               </div>
             </div>

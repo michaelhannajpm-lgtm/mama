@@ -33,64 +33,26 @@ export const INTEREST_NO_PREF = 'Surprise me';
 
 export const KID_AGES = ['0–1','1–3','3–5','5–8','8–12','12–18'];
 
-export const NEIGHBORHOODS = [
-  // SF Bay Area
-  'Mission, SF', 'Bernal Heights, SF', 'Noe Valley, SF', 'Castro, SF',
-  'Hayes Valley, SF', 'Pacific Heights, SF', 'Marina, SF', 'North Beach, SF',
-  'Outer Sunset, SF', 'Glen Park, SF', 'Potrero Hill, SF', 'Inner Richmond, SF',
-  'Cole Valley, SF', 'Dogpatch, SF', 'Russian Hill, SF',
-  'Oakland, CA', 'Berkeley, CA', 'Sausalito, CA',
-  // LA
-  'Silver Lake, LA', 'Echo Park, LA', 'Pasadena, CA', 'Santa Monica, CA',
-  'Manhattan Beach, CA', 'Venice, CA', 'Culver City, CA',
-  // NYC
-  'Brooklyn, NY', 'Park Slope, Brooklyn', 'Williamsburg, Brooklyn',
-  'Cobble Hill, Brooklyn', 'Upper West Side, NYC', 'Astoria, Queens',
-  // Chicago
-  'Lincoln Park, Chicago', 'Lakeview, Chicago', 'Logan Square, Chicago',
-  'Wicker Park, Chicago',
-  // Boston
-  'Cambridge, MA', 'Brookline, MA', 'Somerville, MA', 'Boston, MA',
-  // Pacific NW
-  'Capitol Hill, Seattle', 'Ballard, Seattle', 'Seattle, WA',
-  'Portland, OR', 'Beaverton, OR',
-  // Texas
-  'Austin, TX', 'South Congress, Austin', 'Dallas, TX', 'Houston, TX',
-  // Florida
-  'Tampa, FL', 'Hyde Park, Tampa', 'South Tampa, FL', 'Seminole Heights, Tampa',
-  'St. Petersburg, FL', 'Clearwater, FL',
-  'Miami, FL', 'Miami Beach, FL', 'Coconut Grove, Miami', 'Orlando, FL',
-  // Mountain & SW
-  'Denver, CO', 'Boulder, CO', 'Phoenix, AZ', 'Scottsdale, AZ', 'Salt Lake City, UT',
-  // Southeast
-  'Atlanta, GA', 'Decatur, GA', 'Nashville, TN', 'Charlotte, NC',
-  'Raleigh, NC', 'Asheville, NC', 'Charleston, SC',
-  // Midwest & East
-  'Minneapolis, MN', 'Madison, WI', 'Detroit, MI',
-  'Washington, DC', 'Bethesda, MD', 'Arlington, VA', 'Philadelphia, PA',
-];
+// Friendly life-stage noun per kid-age bucket. Chosen so each reads naturally
+// after "Mom of a …" (e.g. "Mom of a big kid").
+export const KID_STAGE = {
+  '0–1': 'baby',
+  '1–3': 'toddler',
+  '3–5': 'preschooler',
+  '5–8': 'big kid',
+  '8–12': 'tween',
+  '12–18': 'teen',
+};
 
-export const DISTANCES = [
-  { val: 5,   label: '5 mi' },
-  { val: 10,  label: '10 mi' },
-  { val: 20,  label: '20 mi' },
-  { val: 30,  label: '30 mi' },
-  { val: 50,  label: '50 mi' },
-  { val: 100, label: '100 mi' },
-  { val: 150, label: '150+ mi' },
-];
-
-// Map TIME_WINDOWS → coarse bucket for matching events. With 4 windows
-// the mapping is identity — kept for legacy callers that look up via this map.
-export const WINDOW_TO_BUCKET = {
-  'morning':   'morning',
-  'noon':      'noon',
-  'afternoon': 'afternoon',
-  'night-owl': 'night-owl',
+// "Mom of a toddler" from a set of age buckets — keys off the YOUNGEST kid so
+// the label stays one short, never-wrapping phrase on compact cards. Returns ''
+// when no recognizable bucket is present.
+export const youngestStageLabel = (buckets = []) => {
+  const youngest = KID_AGES.find((b) => buckets.includes(b));
+  return youngest ? `Mom of a ${KID_STAGE[youngest]}` : '';
 };
 
 export const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-export const DAY_LABELS = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
 export const TIME_WINDOWS = [
   { id: 'morning',   label: '6 AM–12 PM', emoji: '☀️' },
   { id: 'noon',      label: '12–2 PM',    emoji: '🌞' },

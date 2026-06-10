@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Check, Sparkles, Navigation, Lock } from 'lucide-react';
+import { ChevronLeft, Check, Sparkles, LocateFixed, Lock } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { SUGGESTED_EVENTS } from '../../data/events';
@@ -411,64 +411,39 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               </p>
             </div>
 
-            {/* Dark sage CTA */}
+            {/* Use-current-location row — matches the Profile location sheet */}
             <button
               onClick={detectLocation}
               disabled={geoStatus === 'detecting'}
-              className="w-full flex items-center justify-center gap-3 active:scale-[.98] transition-transform"
+              className="w-full flex items-center active:scale-[.99] transition-transform"
               style={{
                 marginTop: 22,
-                padding: '14px 18px',
-                borderRadius: 16,
-                background: C.sageDark,
-                color: '#fff',
-                border: 'none', cursor: 'pointer',
-                boxShadow: '0 12px 24px -10px rgba(94,122,59,.5)',
-                opacity: geoStatus === 'detecting' ? 0.78 : 1,
+                gap: 9, padding: '12px 14px', borderRadius: 13,
+                background: C.coralSoft, border: `1px solid ${C.coral}`,
+                cursor: geoStatus === 'detecting' ? 'default' : 'pointer',
               }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 999,
-                background: 'rgba(255,255,255,.22)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Navigation size={14} color="#fff" strokeWidth={2.5}/>
-              </div>
-              <div className="flex flex-col" style={{ alignItems: 'flex-start' }}>
-                <span style={{
-                  fontFamily: 'Albert Sans', fontSize: 15, fontWeight: 800,
-                  lineHeight: 1.1,
-                }}>
-                  {geoStatus === 'detecting' ? 'Finding you…' : 'Use My Location'}
-                </span>
-                <span style={{
-                  fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 500,
-                  opacity: 0.92, lineHeight: 1.2, marginTop: 2,
-                }}>
-                  Find moms and activities near you
-                </span>
-              </div>
+              <LocateFixed size={16} color={C.coralDeep} strokeWidth={2.2} style={{ flexShrink: 0 }}/>
+              <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.coralDeep }}>
+                {geoStatus === 'detecting' ? 'Locating…' : 'Use my current location'}
+              </span>
             </button>
-
-            {/* OR · Choose My Area divider */}
-            <div className="flex items-center" style={{ marginTop: 22, padding: '0 8px', gap: 12 }}>
-              <div style={{ flex: 1, height: 1, background: C.line }}/>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700,
-                  color: C.muted, letterSpacing: '.16em',
-                }}>OR</div>
-                <div style={{
-                  fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-                  color: C.navy, marginTop: 1, letterSpacing: '-.005em',
-                }}>Choose My Area</div>
+            {(geoStatus === 'denied' || geoStatus === 'unsupported') && (
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.coralDeep, marginTop: 6 }}>
+                {geoStatus === 'denied'
+                  ? 'Couldn’t get your location. Pick an area below.'
+                  : 'Location isn’t available on this device.'}
               </div>
-              <div style={{ flex: 1, height: 1, background: C.line }}/>
-            </div>
+            )}
 
-            {/* Searchable neighborhood picker */}
-            <div style={{ marginTop: 16 }}>
+            {/* Searchable neighborhood picker — matches the Profile location sheet */}
+            <div style={{ marginTop: 20 }}>
+              <div className="uppercase" style={{
+                fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.16em',
+                color: C.muted, fontWeight: 700, marginBottom: 8,
+              }}>
+                Neighborhood
+              </div>
               <NeighborhoodPicker value={locationGeo} onSelect={handleAreaSelect} />
             </div>
           </div>
