@@ -197,7 +197,6 @@ export const MyVillageSheet = ({
   savedItems = [], setSavedItems,
   goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents,
-  messageHistory = {},
   moms = [],
   openMessage,
   flash,
@@ -208,19 +207,6 @@ export const MyVillageSheet = ({
   const joiningResolved = joinedEvents
     .map(id => SUGGESTED_EVENTS.find(e => e.id === id))
     .filter(Boolean);
-
-  // DMs: any mom we have message history with. Sort by most recent message.
-  const dmRows = Object.entries(messageHistory)
-    .map(([momId, msgs]) => {
-      if (!msgs || !msgs.length) return null;
-      const numericId = Number(momId);
-      const mom = moms.find(m => String(m.id) === String(momId)) || SAMPLE_MOMS.find(m => m.id === numericId);
-      if (!mom) return null;
-      const last = msgs[msgs.length - 1];
-      return { mom, last, count: msgs.length };
-    })
-    .filter(Boolean)
-    .sort((a, b) => (b.last.ts || 0) - (a.last.ts || 0));
 
   // Group chats: one per joined event. Tap opens a flash placeholder for now.
   const groupRows = joiningResolved.map(ev => ({
@@ -237,7 +223,7 @@ export const MyVillageSheet = ({
 
   const totalCount =
     savedResolved.length + interestedResolved.length + joiningResolved.length +
-    dmRows.length + groupRows.length;
+    groupRows.length;
 
   return (
     <Sheet onClose={onClose} tall>
@@ -288,22 +274,8 @@ export const MyVillageSheet = ({
             ))}
 
         {/* INDIVIDUAL CHATS */}
-        <Eyebrow Icon={MessageCircle} label="Individual chats" count={dmRows.length} color={C.coralDeep}/>
-        {dmRows.length === 0
-          ? <EmptyHint icon={MessageCircle} text="Message a mom and your chat will appear here."/>
-          : dmRows.map(({ mom, last, count }) => (
-              <ChatRow
-                key={`dm-${mom.id}`}
-                photo={mom.photo}
-                name={mom.name}
-                preview={last.fromUser ? `You: ${last.text}` : last.text}
-                meta={`${count} msg${count === 1 ? '' : 's'}`}
-                onOpen={() => {
-                  onClose?.();
-                  openMessage?.(mom);
-                }}
-              />
-            ))}
+        <Eyebrow Icon={MessageCircle} label="Individual chats" count={0} color={C.coralDeep}/>
+        <EmptyHint icon={MessageCircle} text="Message a mom and your chat will appear here."/>
 
         {/* GROUP CHATS */}
         <Eyebrow Icon={Users} label="Group chats" count={groupRows.length} color={C.sageDark}/>

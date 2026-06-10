@@ -59,7 +59,6 @@ export const MainApp = ({
   savedItems, setSavedItems,
   goingItems, setGoingItems,
   ratings, setRatings,
-  messageHistory = {},
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
@@ -180,7 +179,6 @@ export const MainApp = ({
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
-        messageHistory={messageHistory}
         account={account} requestAccount={requestAccount} flash={flash}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
@@ -262,7 +260,6 @@ export const MainApp = ({
           savedItems={savedItems} setSavedItems={setSavedItems}
           goingItems={goingItems} setGoingItems={setGoingItems}
           joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
-          messageHistory={messageHistory}
           openMessage={openMessage}
           flash={flash}
           moms={nearbyMoms}

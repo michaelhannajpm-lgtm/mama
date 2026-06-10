@@ -80,8 +80,8 @@ function PrototypeApp({ bare = false }) {
   // star map keyed by item id.
   const [goingItems, setGoingItems] = useState([]);
   const [ratings, setRatings] = useState({});
-  // Message history per mom: { [momId]: [{ text, fromUser, ts }, ...] }
-  const [messageHistory, setMessageHistory] = useState({});
+  // Current user's id for chat — resolved once the session is established.
+  const [myUserId, setMyUserId] = useState(null);
 
   // Live places loaded from /api/places (approved + visible rows, grouped by
   // category). Null until the first load resolves; screens fall back to their
@@ -153,7 +153,6 @@ function PrototypeApp({ bare = false }) {
     setGoingItems([]);
     setRatings({});
     setPendingAction(null);
-    setMessageHistory({});
     setAccount(next.account);
     setLoginOpen(false);
     setSeededLoginOpen(false);
@@ -255,7 +254,7 @@ function PrototypeApp({ bare = false }) {
     };
 
     // Guarantee a session (anonymous if needed) so chat RLS + Realtime work.
-    ensureSession();
+    ensureSession().then(setMyUserId);
     // Try once immediately — handles the "already signed in" case.
     hydrate();
 
@@ -285,7 +284,6 @@ function PrototypeApp({ bare = false }) {
     setGoingItems([]);
     setRatings({});
     setPendingAction(null);
-    setMessageHistory({});
     setSplashShown(false);
     await signOut();
   };
@@ -382,7 +380,6 @@ function PrototypeApp({ bare = false }) {
             savedItems={savedItems} setSavedItems={setSavedItems}
             goingItems={goingItems} setGoingItems={setGoingItems}
             ratings={ratings} setRatings={setRatings}
-            messageHistory={messageHistory}
             account={account} requestAccount={requestAccount}
             nearbyMoms={nearbyMoms}
             nearbyVerifiedOnly={nearbyVerifiedOnly}
@@ -416,18 +413,14 @@ function PrototypeApp({ bare = false }) {
             isPremium={!!account?.isPremium}
             onClose={()=>setProfileMom(null)}
             openPremium={()=>{ setProfileMom(null); setPremiumOpen(true); }}/>}
-          {messageMom && <MessageSheet mom={messageMom}
-            history={messageHistory[messageMom.id] || []}
+          {messageMom && <MessageSheet
+            mom={messageMom}
             isPremium={!!account?.isPremium}
-            onSend={(text)=>{
-              setMessageHistory(h => ({
-                ...h,
-                [messageMom.id]: [...(h[messageMom.id] || []), { text, fromUser: true, ts: Date.now() }],
-              }));
-              flash(`Sent to ${messageMom.name.split(' ')[0]}`);
-            }}
-            onClose={()=>setMessageMom(null)}
-            openPremium={()=>{ setMessageMom(null); setPremiumOpen(true); }}/>}
+            author={{ name: account?.firstName || 'Mama', photo: profile?.photos?.[0] || null }}
+            myUserId={myUserId}
+            flash={flash}
+            onClose={() => setMessageMom(null)}
+            openPremium={() => { setMessageMom(null); setPremiumOpen(true); }}/>}
           {premiumOpen && <PremiumSheet
             onClose={()=>setPremiumOpen(false)}
             onActivate={()=>{
