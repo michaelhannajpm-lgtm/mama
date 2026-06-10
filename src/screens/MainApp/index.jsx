@@ -10,6 +10,7 @@ import { MyVillageSheet } from '../../sheets/MyVillageSheet';
 import { MamaHubSheet } from '../../sheets/MamaHubSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
+import { SubjectThreadSheet } from '../../sheets/SubjectThreadSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { updateMomProfile } from '../../lib/onboarding';
 import { ChevronDown } from 'lucide-react';
@@ -85,6 +86,9 @@ export const MainApp = ({
     }
     try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ }
   };
+  // Subject thread — place / event discussion opened from a detail sheet.
+  const [subjectThread, setSubjectThread] = useState(null);
+
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
   const [hubDiscussion, setHubDiscussion] = useState(null);
@@ -173,7 +177,8 @@ export const MainApp = ({
         goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
         city={locationGeo?.city || location || 'Tampa'}
-        openVillage={() => setVillageOpen(true)}/>}
+        openVillage={() => setVillageOpen(true)}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
@@ -189,14 +194,16 @@ export const MainApp = ({
         initialSeeAll={connectSeeAll}
         onConsumeSeeAll={() => setConnectSeeAll(null)}
         chatAuthor={chatAuthor}
-        myUserId={myUserId}/>}
+        myUserId={myUserId}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}
         flash={flash}
-        filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}/>}
+        filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
         account={account}
@@ -268,6 +275,13 @@ export const MainApp = ({
           flash={flash}
           moms={nearbyMoms}
           onClose={() => setVillageOpen(false)}
+        />
+      )}
+
+      {subjectThread && (
+        <SubjectThreadSheet
+          subject={subjectThread} author={chatAuthor} myUserId={myUserId} flash={flash}
+          onClose={() => setSubjectThread(null)}
         />
       )}
 

@@ -634,6 +634,7 @@ export const ConnectTab = ({
   initialSeeAll = null, onConsumeSeeAll,
   chatAuthor,
   myUserId,
+  onDiscuss,
 }) => {
   void profile; void prefs;
   void openProfile;
@@ -995,6 +996,7 @@ export const ConnectTab = ({
             place: selectedEvent.place,
             photo: selectedEvent.photo,
           })}
+          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
           onClose={() => setSelectedEvent(null)}
         />
       )}

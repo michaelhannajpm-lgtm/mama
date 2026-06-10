@@ -259,6 +259,7 @@ export const HomeTab = ({
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
   city = 'Tampa',
+  onDiscuss,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -442,6 +443,7 @@ export const HomeTab = ({
             title: selectedEvent.title, kind: selectedEvent.kind || 'Event',
             when: selectedEvent.when, place: selectedEvent.place, photo: selectedEvent.photo,
           })}
+          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -464,6 +466,7 @@ export const HomeTab = ({
             place: selectedPlace.distance, photo: selectedPlace.photo,
           })}
           onDirections={() => flash?.('Opening directions…')}
+          onDiscuss={() => onDiscuss?.({ type: 'place', id: selectedPlace.id, title: selectedPlace.title })}
           onClose={() => setSelectedPlace(null)}
         />
       )}
