@@ -50,3 +50,34 @@ test('handles non-array rows without throwing', () => {
   assert.deepEqual(moms, []);
   assert.equal(total, 0);
 });
+
+test('without coords, falls back to administrative tiers (city > county > elsewhere)', () => {
+  const user = { city: 'Tampa', county: 'Hillsborough' }; // no lat/lng
+  const rows = [
+    baseRow({ id: 'elsewhere', city: 'Sarasota', county: 'Manatee' }),
+    baseRow({ id: 'same-county', city: 'Brandon', county: 'Hillsborough' }),
+    baseRow({ id: 'same-city', city: 'Tampa', county: 'Hillsborough' }),
+  ];
+  const { moms } = rankAndShape(rows, user, { limit: 3 });
+  assert.deepEqual(moms.map((m) => m.id), ['same-city', 'same-county', 'elsewhere']);
+});
+
+test('same-neighborhood nudge breaks a tie between equally-compatible moms', () => {
+  const user = { lat: 0, lng: 0, city: 'Tampa', neighborhood: 'Hyde Park' };
+  const rows = [
+    baseRow({ id: 'other-hood',  city: 'Tampa', neighborhood: 'Seminole Heights', home_lat: 0, home_lng: 0 }),
+    baseRow({ id: 'same-hood',   city: 'Tampa', neighborhood: 'Hyde Park',         home_lat: 0, home_lng: 0 }),
+  ];
+  const { moms } = rankAndShape(rows, user, { limit: 1 });
+  assert.equal(moms[0].id, 'same-hood');
+});
+
+test('strong commonality still outranks mere proximity', () => {
+  const user = { lat: 0, lng: 0, interests: ['A', 'B', 'C'], neighborhood: 'Hyde Park' };
+  const rows = [
+    baseRow({ id: 'compatible-far', interests: ['A', 'B', 'C'], home_lat: 0, home_lng: 0.05 }),
+    baseRow({ id: 'empty-samehood', interests: [], neighborhood: 'Hyde Park', home_lat: 0, home_lng: 0 }),
+  ];
+  const { moms } = rankAndShape(rows, user, { limit: 1 });
+  assert.equal(moms[0].id, 'compatible-far');
+});

@@ -9,7 +9,10 @@ import { YouTab } from './YouTab';
 import { MyVillageSheet } from '../../sheets/MyVillageSheet';
 import { MamaHubSheet } from '../../sheets/MamaHubSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
+import { LocationSheet } from '../../sheets/LocationSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import { updateMomProfile } from '../../lib/onboarding';
+import { ChevronDown } from 'lucide-react';
 
 // ====================================================================
 // MAIN APP — 4 tabs (V5 layout):
@@ -21,18 +24,19 @@ import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 // ====================================================================
 
 // Bottom tab bar. 'hub' is a launcher (opens MamaHubSheet) rather than a
-// content tab. Profile lives in the top-right header button instead.
+// content tab. Profile sits at the bottom-right with a user icon.
 const TABS = [
   { id: 'home',       icon: Home,    label: 'Home',        headerLabel: 'Home'        },
   { id: 'localpicks', icon: MapPin,  label: 'Local Picks', headerLabel: 'Local Picks' },
   { id: 'connect',    icon: Users,   label: 'Connect',     headerLabel: 'Connect'     },
   { id: 'hub',        icon: LayoutGrid, label: 'My Hub',   headerLabel: 'My Hub'      },
+  { id: 'profile',    icon: User,    label: 'Profile',     headerLabel: 'My Profile'  },
 ];
 
 const HEADER_SUBTITLES = {
-  home:       'Things to do, near you',
+  home:       'Your village this week',
   connect:    'Meet moms who get it',
-  localpicks: 'The best places, programs, schools, and resources near you.',
+  localpicks: 'The best local picks near you',
   hub:        'Your village, all in one place',
   profile:    'Everything for you and your family',
 };
@@ -63,6 +67,23 @@ export const MainApp = ({
   void setPrefs;
   const [tab, setTab] = useState('home');
   const [villageOpen, setVillageOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+
+  // Location lives in app-level state (not the profile object). Mirror the
+  // YouTab save path so a change from the Home header updates the profile too.
+  const saveLocation = async ({ location: loc, locationGeo: geo, distance: dist }) => {
+    setLocation?.(loc);
+    setLocationGeo?.(geo || null);
+    setDistance?.(dist);
+    const api = { distance_miles: dist };
+    if (geo) {
+      if (geo.neighborhood || geo.label) api.neighborhood = geo.neighborhood || geo.label;
+      if (geo.city) api.city = geo.city;
+      if (geo.lat != null) api.home_lat = geo.lat;
+      if (geo.lng != null) api.home_lng = geo.lng;
+    }
+    try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ }
+  };
   // Group discussion opened from inside the Mama Hub. Local to MainApp so
   // it can stack above the hub.
   const [hubDiscussion, setHubDiscussion] = useState(null);
@@ -82,12 +103,13 @@ export const MainApp = ({
 
   const activeLabel = HEADER_LABELS[tab] || '';
   const savedCount = savedItems?.length || 0;
-  const isProfile = tab === 'profile';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const headerTitle = tab === 'home'
-    ? `${greeting}${account?.firstName ? `, ${account.firstName}` : ''}`
-    : activeLabel;
+  const isHome = tab === 'home';
+  // Home anchors on place ("Tampa, FL") rather than a greeting. Prefer the
+  // resolved geo city, fall back to the free-text location, then Tampa.
+  const locationLabel = locationGeo?.city
+    ? `${locationGeo.city}, FL`
+    : (location || 'Tampa, FL');
+  const headerTitle = isHome ? locationLabel : activeLabel;
 
   return (
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
@@ -97,51 +119,42 @@ export const MainApp = ({
       <div className="px-5" style={{ paddingTop: 6, paddingBottom: 8 }}>
         <div className="flex items-start justify-between">
           <div style={{ minWidth: 0, flex: 1, paddingRight: 10 }}>
-            <div style={{
-              fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
-              color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
-            }}>
-              {headerTitle}
-            </div>
+            {isHome ? (
+              /* Small text link — opens LocationSheet, updates profile */
+              <button
+                aria-label="Change your location"
+                onClick={() => setLocationOpen(true)}
+                className="inline-flex items-center active:opacity-70 transition-opacity"
+                style={{
+                  gap: 4, padding: 0, background: 'none', border: 'none', cursor: 'pointer',
+                  maxWidth: '100%',
+                }}
+              >
+                <MapPin size={13} color={C.coralDeep} strokeWidth={2.4} style={{ flexShrink: 0 }}/>
+                <span style={{
+                  fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.coralDeep,
+                  textDecoration: 'underline', textUnderlineOffset: 2,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {headerTitle}
+                </span>
+                <ChevronDown size={13} color={C.coralDeep} strokeWidth={2.4} style={{ flexShrink: 0 }}/>
+              </button>
+            ) : (
+              <div style={{
+                fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
+                color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {headerTitle}
+              </div>
+            )}
             <div style={{
               fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
               marginTop: 4, lineHeight: 1.35,
             }}>
               {HEADER_SUBTITLES[tab]}
             </div>
-          </div>
-          <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-            {/* Profile — top-right avatar + first-name pill (opens the Profile view) */}
-            <button
-              aria-label="Profile"
-              onClick={() => setTab('profile')}
-              className="flex items-center active:scale-[.97] transition-transform"
-              style={{
-                gap: 7, height: 40, paddingLeft: 4, paddingRight: 13, borderRadius: 999,
-                background: isProfile ? C.coralSoft : C.paper,
-                border: `1px solid ${isProfile ? C.coralDeep : C.divider}`,
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                className="rounded-full flex items-center justify-center overflow-hidden"
-                style={{
-                  width: 32, height: 32, flexShrink: 0,
-                  background: profile?.photos?.[0]
-                    ? `center/cover no-repeat url('${profile.photos[0]}')`
-                    : (isProfile ? C.paper : C.coralSoft),
-                }}
-              >
-                {!profile?.photos?.[0] && <User size={15} color={C.coralDeep}/>}
-              </div>
-              <span style={{
-                fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
-                color: isProfile ? C.coralDeep : C.navy,
-                maxWidth: 92, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {account?.firstName || 'Profile'}
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -158,6 +171,7 @@ export const MainApp = ({
         goToConnectMoms={() => goToConnectSeeAll('moms')}
         goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
+        city={locationGeo?.city || location || 'Tampa'}
         openVillage={() => setVillageOpen(true)}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
@@ -234,6 +248,14 @@ export const MainApp = ({
           })}
         </div>
       </div>
+
+      {locationOpen && (
+        <LocationSheet
+          location={location} locationGeo={locationGeo} distance={distance}
+          onSave={saveLocation}
+          onClose={() => setLocationOpen(false)}
+        />
+      )}
 
       {villageOpen && (
         <MyVillageSheet

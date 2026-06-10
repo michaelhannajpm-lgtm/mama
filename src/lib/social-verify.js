@@ -26,15 +26,28 @@ export const getLinkedProviders = async () => {
 
 // Real Meta OAuth for Facebook via Supabase. Redirects out to Facebook and
 // back to the current page; throws if the provider/manual-linking isn't set up.
+//
+// Two cases:
+//   • Already signed in → linkIdentity() attaches Facebook as an extra identity.
+//     (linkIdentity targets the GoTrue *user* endpoint, so it NEEDS a session —
+//     without one the anon JWT has no `sub` claim and GoTrue rejects with
+//     "invalid claim: missing sub claim".)
+//   • Not signed in → signInWithOAuth() signs the user in *with* Facebook, which
+//     also creates the Facebook identity. So a brand-new user verifies in one
+//     step instead of being dead-ended at "sign in first".
+// Both redirect out to Facebook and back to the current page.
 export const linkFacebook = async () => {
   if (!isSupabaseReady()) throw new Error('Auth not configured');
-  const { data, error } = await supabase.auth.linkIdentity({
-    provider: 'facebook',
-    options: {
-      redirectTo: window.location.origin + window.location.pathname,
-      scopes: 'public_profile',
-    },
-  });
+
+  const options = {
+    redirectTo: window.location.origin + window.location.pathname,
+    scopes: 'public_profile',
+  };
+  const { data: sessionData } = await supabase.auth.getSession();
+
+  const { data, error } = sessionData?.session
+    ? await supabase.auth.linkIdentity({ provider: 'facebook', options })
+    : await supabase.auth.signInWithOAuth({ provider: 'facebook', options });
   if (error) throw error;
   return data;
 };

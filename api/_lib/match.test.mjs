@@ -47,3 +47,26 @@ test('score is clamped into [0,100] and integer', () => {
   assert.ok(Number.isInteger(score));
   assert.ok(score >= 0 && score <= 100);
 });
+
+test('adjacent kid-age buckets earn partial credit and a Similar-age tag', () => {
+  const u = { kids_ages: { '1–3': true } };
+  const m = { kids_ages: { '3–5': true } }; // one bucket apart
+  const { score, sharedTags } = scoreMom(u, m);
+  assert.equal(score, 15);                 // 0.5 * WEIGHTS.kids(30)
+  assert.deepEqual(sharedTags, ['Similar-age kids']);
+});
+
+test('far-apart kid-age buckets still score 0 on kids', () => {
+  const u = { kids_ages: { '0–1': true } };
+  const m = { kids_ages: { '12–18': true } }; // 5 buckets apart
+  const { score, sharedTags } = scoreMom(u, m);
+  assert.equal(score, 0);
+  assert.deepEqual(sharedTags, []);
+});
+
+test('exact kid-age match still wins the "Same kid ages" tag, not "Similar"', () => {
+  const u = { kids_ages: { '3–5': true } };
+  const m = { kids_ages: { '3–5': true } };
+  const { sharedTags } = scoreMom(u, m);
+  assert.equal(sharedTags[0], 'Same kid ages');
+});

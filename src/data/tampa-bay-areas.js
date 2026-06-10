@@ -30,6 +30,17 @@ export const TAMPA_BAY_AREAS = [
   { id: 'temple-terrace',   label: 'Temple Terrace',    city: 'Temple Terrace', neighborhood: null,             county: 'Hillsborough', lat: 28.04, lng: -82.39 },
   { id: 'seffner',          label: 'Seffner',           city: 'Seffner',      neighborhood: null,               county: 'Hillsborough', lat: 27.99, lng: -82.28 },
   { id: 'dover',            label: 'Dover',             city: 'Dover',        neighborhood: null,               county: 'Hillsborough', lat: 27.99, lng: -82.22 },
+  { id: 'gibsonton',        label: 'Gibsonton',         city: 'Gibsonton',    neighborhood: null,               county: 'Hillsborough', lat: 27.85, lng: -82.38 },
+  { id: 'bloomingdale',     label: 'Bloomingdale',      city: 'Valrico',      neighborhood: 'Bloomingdale',     county: 'Hillsborough', lat: 27.89, lng: -82.25 },
+  { id: 'thonotosassa',     label: 'Thonotosassa',      city: 'Thonotosassa', neighborhood: null,               county: 'Hillsborough', lat: 28.06, lng: -82.30 },
+  { id: 'mango',            label: 'Mango',             city: 'Mango',        neighborhood: null,               county: 'Hillsborough', lat: 27.99, lng: -82.31 },
+  { id: 'progress-village', label: 'Progress Village',  city: 'Tampa',        neighborhood: 'Progress Village', county: 'Hillsborough', lat: 27.88, lng: -82.37 },
+  { id: 'palm-river',       label: 'Palm River',        city: 'Tampa',        neighborhood: 'Palm River-Clair Mel', county: 'Hillsborough', lat: 27.93, lng: -82.39 },
+  { id: 'egypt-lake-leto',  label: 'Egypt Lake-Leto',   city: 'Tampa',        neighborhood: 'Egypt Lake-Leto',  county: 'Hillsborough', lat: 28.01, lng: -82.50 },
+  { id: 'university',       label: 'University',        city: 'Tampa',        neighborhood: 'University',        county: 'Hillsborough', lat: 28.07, lng: -82.42 },
+  { id: 'northdale',        label: 'Northdale',         city: 'Tampa',        neighborhood: 'Northdale',        county: 'Hillsborough', lat: 28.10, lng: -82.51 },
+  { id: 'cheval',           label: 'Cheval',            city: 'Lutz',         neighborhood: 'Cheval',           county: 'Hillsborough', lat: 28.15, lng: -82.52 },
+  { id: 'keystone',         label: 'Keystone',          city: 'Odessa',       neighborhood: 'Keystone',         county: 'Hillsborough', lat: 28.13, lng: -82.62 },
 
   // --- Pinellas ---
   { id: 'st-petersburg',    label: 'St. Petersburg',    city: 'St. Petersburg', neighborhood: null,             county: 'Pinellas', lat: 27.77, lng: -82.64 },
@@ -47,6 +58,19 @@ export const TAMPA_BAY_AREAS = [
   { id: 'treasure-island',  label: 'Treasure Island',   city: 'Treasure Island', neighborhood: null,            county: 'Pinellas', lat: 27.77, lng: -82.77 },
   { id: 'madeira-beach',    label: 'Madeira Beach',     city: 'Madeira Beach', neighborhood: null,              county: 'Pinellas', lat: 27.80, lng: -82.79 },
   { id: 'indian-rocks-beach', label: 'Indian Rocks Beach', city: 'Indian Rocks Beach', neighborhood: null,      county: 'Pinellas', lat: 27.88, lng: -82.85 },
+  { id: 'belleair',         label: 'Belleair',          city: 'Belleair',     neighborhood: null,               county: 'Pinellas', lat: 27.92, lng: -82.81 },
+  { id: 'belleair-beach',   label: 'Belleair Beach',    city: 'Belleair Beach', neighborhood: null,             county: 'Pinellas', lat: 27.92, lng: -82.84 },
+  { id: 'belleair-bluffs',  label: 'Belleair Bluffs',   city: 'Belleair Bluffs', neighborhood: null,            county: 'Pinellas', lat: 27.92, lng: -82.82 },
+  { id: 'indian-shores',    label: 'Indian Shores',     city: 'Indian Shores', neighborhood: null,              county: 'Pinellas', lat: 27.86, lng: -82.85 },
+  { id: 'kenneth-city',     label: 'Kenneth City',      city: 'Kenneth City', neighborhood: null,               county: 'Pinellas', lat: 27.81, lng: -82.71 },
+  { id: 'north-redington-beach', label: 'North Redington Beach', city: 'North Redington Beach', neighborhood: null, county: 'Pinellas', lat: 27.82, lng: -82.83 },
+  { id: 'redington-beach',  label: 'Redington Beach',   city: 'Redington Beach', neighborhood: null,            county: 'Pinellas', lat: 27.81, lng: -82.81 },
+  { id: 'redington-shores', label: 'Redington Shores',  city: 'Redington Shores', neighborhood: null,           county: 'Pinellas', lat: 27.83, lng: -82.84 },
+  { id: 'south-pasadena',   label: 'South Pasadena',    city: 'South Pasadena', neighborhood: null,             county: 'Pinellas', lat: 27.75, lng: -82.74 },
+  { id: 'lealman',          label: 'Lealman',           city: 'Lealman',      neighborhood: null,               county: 'Pinellas', lat: 27.82, lng: -82.68 },
+  { id: 'east-lake',        label: 'East Lake',         city: 'East Lake',    neighborhood: null,               county: 'Pinellas', lat: 28.11, lng: -82.69 },
+  { id: 'feather-sound',    label: 'Feather Sound',     city: 'Clearwater',   neighborhood: 'Feather Sound',    county: 'Pinellas', lat: 27.90, lng: -82.66 },
+  { id: 'tierra-verde',     label: 'Tierra Verde',      city: 'Tierra Verde', neighborhood: null,               county: 'Pinellas', lat: 27.69, lng: -82.72 },
 
   // --- Pasco ---
   { id: 'new-port-richey',  label: 'New Port Richey',   city: 'New Port Richey', neighborhood: null,            county: 'Pasco', lat: 28.24, lng: -82.72 },
@@ -55,9 +79,17 @@ export const TAMPA_BAY_AREAS = [
   { id: 'zephyrhills',      label: 'Zephyrhills',       city: 'Zephyrhills',  neighborhood: null,               county: 'Pasco', lat: 28.23, lng: -82.18 },
   { id: 'land-o-lakes',     label: "Land O' Lakes",     city: "Land O' Lakes", neighborhood: null,              county: 'Pasco', lat: 28.22, lng: -82.46 },
   { id: 'dade-city',        label: 'Dade City',         city: 'Dade City',    neighborhood: null,               county: 'Pasco', lat: 28.36, lng: -82.20 },
+  { id: 'san-antonio',      label: 'San Antonio',       city: 'San Antonio',  neighborhood: null,               county: 'Pasco', lat: 28.34, lng: -82.27 },
+  { id: 'st-leo',           label: 'St. Leo',           city: 'St. Leo',      neighborhood: null,               county: 'Pasco', lat: 28.34, lng: -82.26 },
   { id: 'hudson',           label: 'Hudson',            city: 'Hudson',       neighborhood: null,               county: 'Pasco', lat: 28.36, lng: -82.69 },
   { id: 'holiday',          label: 'Holiday',           city: 'Holiday',      neighborhood: null,               county: 'Pasco', lat: 28.19, lng: -82.74 },
   { id: 'trinity',          label: 'Trinity',           city: 'Trinity',      neighborhood: null,               county: 'Pasco', lat: 28.18, lng: -82.66 },
+  { id: 'bayonet-point',    label: 'Bayonet Point',     city: 'Bayonet Point', neighborhood: null,              county: 'Pasco', lat: 28.33, lng: -82.68 },
+  { id: 'elfers',           label: 'Elfers',            city: 'Elfers',       neighborhood: null,               county: 'Pasco', lat: 28.22, lng: -82.72 },
+  { id: 'jasmine-estates',  label: 'Jasmine Estates',   city: 'Jasmine Estates', neighborhood: null,            county: 'Pasco', lat: 28.29, lng: -82.69 },
+  { id: 'shady-hills',      label: 'Shady Hills',       city: 'Shady Hills',  neighborhood: null,               county: 'Pasco', lat: 28.40, lng: -82.55 },
+  { id: 'beacon-square',    label: 'Beacon Square',     city: 'Beacon Square', neighborhood: null,              county: 'Pasco', lat: 28.21, lng: -82.75 },
+  { id: 'lacoochee',        label: 'Lacoochee',         city: 'Lacoochee',    neighborhood: null,               county: 'Pasco', lat: 28.46, lng: -82.18 },
   { id: 'odessa',           label: 'Odessa',            city: 'Odessa',       neighborhood: null,               county: 'Hillsborough', lat: 28.19, lng: -82.59 },
 
   // --- Hernando ---
@@ -65,6 +97,9 @@ export const TAMPA_BAY_AREAS = [
   { id: 'spring-hill',      label: 'Spring Hill',       city: 'Spring Hill',  neighborhood: null,               county: 'Hernando', lat: 28.48, lng: -82.53 },
   { id: 'weeki-wachee',     label: 'Weeki Wachee',      city: 'Weeki Wachee', neighborhood: null,               county: 'Hernando', lat: 28.52, lng: -82.57 },
   { id: 'hernando-beach',   label: 'Hernando Beach',    city: 'Hernando Beach', neighborhood: null,             county: 'Hernando', lat: 28.47, lng: -82.66 },
+  { id: 'ridge-manor',      label: 'Ridge Manor',       city: 'Ridge Manor',  neighborhood: null,               county: 'Hernando', lat: 28.52, lng: -82.18 },
+  { id: 'masaryktown',      label: 'Masaryktown',       city: 'Masaryktown',  neighborhood: null,               county: 'Hernando', lat: 28.44, lng: -82.46 },
+  { id: 'high-point',       label: 'High Point',        city: 'High Point',   neighborhood: null,               county: 'Hernando', lat: 28.49, lng: -82.55 },
 
   // --- Manatee ---
   { id: 'bradenton',        label: 'Bradenton',         city: 'Bradenton',    neighborhood: null,               county: 'Manatee', lat: 27.50, lng: -82.57 },
@@ -75,6 +110,12 @@ export const TAMPA_BAY_AREAS = [
   { id: 'anna-maria',       label: 'Anna Maria',        city: 'Anna Maria',   neighborhood: null,               county: 'Manatee', lat: 27.53, lng: -82.73 },
   { id: 'holmes-beach',     label: 'Holmes Beach',      city: 'Holmes Beach', neighborhood: null,               county: 'Manatee', lat: 27.50, lng: -82.71 },
   { id: 'longboat-key',     label: 'Longboat Key',      city: 'Longboat Key', neighborhood: null,               county: 'Manatee', lat: 27.41, lng: -82.66 },
+  { id: 'bradenton-beach',  label: 'Bradenton Beach',   city: 'Bradenton Beach', neighborhood: null,            county: 'Manatee', lat: 27.47, lng: -82.70 },
+  { id: 'bayshore-gardens', label: 'Bayshore Gardens',  city: 'Bayshore Gardens', neighborhood: null,           county: 'Manatee', lat: 27.42, lng: -82.59 },
+  { id: 'samoset',          label: 'Samoset',           city: 'Samoset',      neighborhood: null,               county: 'Manatee', lat: 27.47, lng: -82.53 },
+  { id: 'memphis',          label: 'Memphis',           city: 'Memphis',      neighborhood: null,               county: 'Manatee', lat: 27.54, lng: -82.55 },
+  { id: 'cortez',           label: 'Cortez',            city: 'Cortez',       neighborhood: null,               county: 'Manatee', lat: 27.47, lng: -82.69 },
+  { id: 'myakka-city',      label: 'Myakka City',       city: 'Myakka City',  neighborhood: null,               county: 'Manatee', lat: 27.36, lng: -82.16 },
 ];
 
 // One-tap "Popular areas" shown in the picker's empty state. Each must be a

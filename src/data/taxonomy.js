@@ -33,6 +33,25 @@ export const INTEREST_NO_PREF = 'Surprise me';
 
 export const KID_AGES = ['0–1','1–3','3–5','5–8','8–12','12–18'];
 
+// Friendly life-stage noun per kid-age bucket. Chosen so each reads naturally
+// after "Mom of a …" (e.g. "Mom of a big kid").
+export const KID_STAGE = {
+  '0–1': 'baby',
+  '1–3': 'toddler',
+  '3–5': 'preschooler',
+  '5–8': 'big kid',
+  '8–12': 'tween',
+  '12–18': 'teen',
+};
+
+// "Mom of a toddler" from a set of age buckets — keys off the YOUNGEST kid so
+// the label stays one short, never-wrapping phrase on compact cards. Returns ''
+// when no recognizable bucket is present.
+export const youngestStageLabel = (buckets = []) => {
+  const youngest = KID_AGES.find((b) => buckets.includes(b));
+  return youngest ? `Mom of a ${KID_STAGE[youngest]}` : '';
+};
+
 export const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 export const TIME_WINDOWS = [
   { id: 'morning',   label: '6 AM–12 PM', emoji: '☀️' },
