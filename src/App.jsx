@@ -32,6 +32,7 @@ import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
+import { ensureSession } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces, fetchConfig } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
@@ -253,6 +254,8 @@ function PrototypeApp({ bare = false }) {
       }
     };
 
+    // Guarantee a session (anonymous if needed) so chat RLS + Realtime work.
+    ensureSession();
     // Try once immediately — handles the "already signed in" case.
     hydrate();
 
