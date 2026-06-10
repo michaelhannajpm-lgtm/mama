@@ -12,8 +12,12 @@ import { MomDetailSheet } from '../../sheets/MomDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
+import { GroupsAdvancedFilterSheet, GROUPS_FILTER_DEFAULT } from '../../sheets/GroupsAdvancedFilterSheet';
 import { InviteFriendButton } from '../../components/InviteFriendButton';
-import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import {
+  GROUP_DISCUSSIONS, TOP_DISCUSSIONS,
+  GROUP_CATEGORIES_VISIBLE, matchesGroupFilters,
+} from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
 
 // ==========================================================================
@@ -110,99 +114,217 @@ const sharpenPhoto = (url) => {
   return url.replace(/([?&])w=\d+/, '$1w=320').replace(/([?&])q=\d+/, '$1q=85');
 };
 
+// MomCard — competitor-class profile card for the Connect "Recommended
+// Moms for you" horizontal scroll. Modeled after Hinge / Peanut / Bumble
+// BFF in 2026: a tall photo-hero card with overlays (match %, online dot,
+// distance pill, verified shield), then identity + 2 shared-interest
+// chips below the photo. Keeps the editorial Go Mama palette so it doesn't
+// read like a swipe deck.
+//
+// Surface inputs: { photo, firstName, name, kids, kidBuckets, distanceMi,
+//   overlap, verified, online, sharedTags, hue }
 const MomCard = ({ item, onClick }) => {
   const ages = kidAgesLabel(item);
-  // "Shared ground" pills — surface 1-2 commonalities so the card explains
-  // *why* she's recommended at a glance. Falls back to kid-stage when the
-  // server didn't shape sharedTags.
   const shared = (item.sharedTags && item.sharedTags.length)
     ? item.sharedTags.slice(0, 2)
     : (ages ? [`Same stage: ${ages}`] : []);
 
+  // Match percentage — surfaced as a coral pill top-left of the hero photo,
+  // copying the Hinge "compatibility" badge. Falls back to a deterministic
+  // 80-95 if the server hasn't computed one yet.
+  const matchPct = item.overlap != null
+    ? Math.round(item.overlap)
+    : (80 + (((item.id || item.name || '').toString().charCodeAt(0) || 0) % 16));
+
+  const isOnline = item.online !== false; // default true unless explicitly false
+  const isVerified = item.verified !== false; // default true (prototype seed is verified)
+
   return (
     <button
       onClick={onClick}
-      className="active:scale-[.97] transition-transform"
+      className="text-left active:scale-[.98] transition-transform"
       style={{
-        // No surrounding card — clean transparent surface so the avatar is
-        // the hero.
-        background: 'transparent', border: 'none', padding: '4px 2px',
-        textAlign: 'center', cursor: 'pointer',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        width: 178, flexShrink: 0,
+        background: '#fff', borderRadius: 18,
+        border: `1px solid ${C.line}`,
+        boxShadow: '0 8px 22px -14px rgba(27,42,78,.35)',
+        overflow: 'hidden', padding: 0, cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
       }}
     >
-      <div style={{ position: 'relative', display: 'inline-block' }}>
+      {/* Hero photo — full-bleed at the top, ~178×196 (4:5-ish, fills the
+          eye line). Gradient overlay at the bottom darkens the photo just
+          enough that white overlays stay legible. */}
+      <div style={{ position: 'relative', width: '100%', height: 196 }}>
         {item.photo ? (
           <img
             src={sharpenPhoto(item.photo)}
             alt=""
             style={{
-              width: 88, height: 88, borderRadius: 44, objectFit: 'cover',
-              display: 'block',
-              boxShadow: '0 8px 18px -10px rgba(27,42,78,.35)',
+              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
             }}
           />
         ) : (
           <div style={{
-            width: 88, height: 88, borderRadius: 44,
-            background: item.hue || C.coralSoft,
+            width: '100%', height: '100%',
+            background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 32,
-            boxShadow: '0 8px 18px -10px rgba(27,42,78,.35)',
+            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 56,
           }}>
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
-        {/* Distance pin sits on the bottom of the avatar */}
+
+        {/* Bottom legibility gradient — for the distance pill */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%)',
+          pointerEvents: 'none',
+        }}/>
+
+        {/* Top-left: match % */}
+        <div style={{
+          position: 'absolute', top: 8, left: 8,
+          background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+          color: '#fff', borderRadius: 999,
+          padding: '3px 8px',
+          fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+          letterSpacing: '.02em',
+          display: 'flex', alignItems: 'center', gap: 3,
+          boxShadow: '0 3px 8px -4px rgba(214,68,106,.6)',
+        }}>
+          <Sparkles size={9}/> {matchPct}% match
+        </div>
+
+        {/* Top-right: online dot + verified shield. Stacked vertically so
+            both signals fit even when the photo is short. */}
+        <div style={{
+          position: 'absolute', top: 8, right: 8,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
+        }}>
+          {isOnline && (
+            <div style={{
+              background: 'rgba(255,255,255,.95)', borderRadius: 999,
+              padding: '2.5px 6px',
+              fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.sageDark,
+              letterSpacing: '.03em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 3,
+              boxShadow: '0 2px 5px -3px rgba(27,42,78,.4)',
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: 3, background: C.sageDark,
+              }}/>
+              Online
+            </div>
+          )}
+          {isVerified && (
+            <div
+              aria-label="Verified"
+              style={{
+                width: 22, height: 22, borderRadius: 11,
+                background: C.sageDark, color: '#fff',
+                border: '2px solid #fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 5px -2px rgba(27,42,78,.35)',
+              }}
+            >
+              <ShieldCheck size={11}/>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom-left: distance pill on the photo */}
         {item.distanceMi != null && (
           <div style={{
-            position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
-            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 999,
-            padding: '2px 7px', display: 'flex', alignItems: 'center', gap: 2,
-            boxShadow: '0 2px 6px -3px rgba(27,42,78,.3)', whiteSpace: 'nowrap',
+            position: 'absolute', bottom: 8, left: 8,
+            background: 'rgba(255,255,255,.95)',
+            borderRadius: 999, padding: '3px 8px',
+            display: 'flex', alignItems: 'center', gap: 3,
+            boxShadow: '0 2px 6px -3px rgba(27,42,78,.4)',
           }}>
             <MapPin size={9} color={C.coralDeep} strokeWidth={2.4}/>
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800, color: C.navy }}>
+            <span style={{
+              fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 800, color: C.navy,
+            }}>
               {item.distanceMi.toFixed(1)} mi
             </span>
           </div>
         )}
       </div>
 
-      <div style={{
-        fontFamily: 'Fraunces', fontSize: 14, fontWeight: 600,
-        color: C.navy, marginTop: 12, lineHeight: 1.1, letterSpacing: '-.01em',
-      }}>
-        {item.name}
-      </div>
-
-      {/* Shared ground with me — 1-2 small coral chips. Card has no chrome
-          so these read as the dominant social signal. */}
-      {shared.length > 0 && (
+      {/* Identity + shared-ground row */}
+      <div style={{ padding: '10px 10px 12px' }}>
         <div style={{
-          marginTop: 6,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+          fontFamily: 'Fraunces', fontSize: 14.5, fontWeight: 600,
+          color: C.navy, letterSpacing: '-.01em', lineHeight: 1.05,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {shared.map((tag, i) => (
-            <span
-              key={tag + i}
-              style={{
-                background: i === 0 ? C.coralSoft : '#fff',
-                color: C.coralDeep,
-                border: i === 0 ? 'none' : `1px solid ${C.coral}33`,
-                fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
-                padding: '2px 7px', borderRadius: 8,
-                display: 'inline-flex', alignItems: 'center', gap: 3,
-                whiteSpace: 'nowrap', maxWidth: '100%',
-                overflow: 'hidden', textOverflow: 'ellipsis',
-              }}
-            >
-              {i === 0 && <Heart size={8} fill={C.coralDeep} color={C.coralDeep}/>}
-              {tag}
-            </span>
-          ))}
+          {item.name}
         </div>
-      )}
+        {ages && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3,
+            marginTop: 3,
+            fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 600, color: C.muted,
+            whiteSpace: 'nowrap',
+          }}>
+            <Baby size={9}/> {ages}
+          </div>
+        )}
+
+        {/* Mom type — small pill right under the identity so a mom can see
+            at a glance what kind of mom this is (Solo / Multicultural /
+            New to area …). Reads `tag` (server card shape) or `type`
+            (legacy sample data); skips silently when neither is present. */}
+        {(item.tag || item.type) && (
+          <div
+            className="mt-1.5 inline-flex items-center gap-1.5"
+            style={{
+              background: item.tagBg || C.lilac,
+              color: item.tagFg || '#5E4A8A',
+              fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 800,
+              padding: '3px 7px', borderRadius: 9,
+              maxWidth: '100%',
+            }}
+          >
+            {item.Icon ? <item.Icon size={9}/> : <Briefcase size={9}/>}
+            <span style={{
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {item.tag || item.type}
+            </span>
+          </div>
+        )}
+
+        {/* Shared ground chips — small, no wrap, coral-led for hierarchy.
+            The first chip is filled (signal), the rest are outlined (context). */}
+        {shared.length > 0 && (
+          <div style={{
+            marginTop: 8,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            {shared.map((tag, i) => (
+              <span
+                key={tag + i}
+                style={{
+                  background: i === 0 ? C.coralSoft : '#fff',
+                  color: C.coralDeep,
+                  border: i === 0 ? `1px solid ${C.coral}26` : `1px solid ${C.coral}33`,
+                  fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700,
+                  padding: '3px 8px', borderRadius: 9,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  whiteSpace: 'nowrap', maxWidth: '100%',
+                  overflow: 'hidden', textOverflow: 'ellipsis',
+                  alignSelf: 'flex-start',
+                }}
+              >
+                {i === 0 && <Heart size={8} fill={C.coralDeep} color={C.coralDeep}/>}
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </button>
   );
 };
@@ -637,9 +759,10 @@ export const ConnectTab = ({
   void openProfile;
   void requestAccount;
 
-  // Live moms come decorated (Icon + resolved colors) from App. The 3-up grid
-  // shows the top 3; the See-all list shows the full ranked set with filters.
-  const gridMoms = nearbyMoms.slice(0, 3);
+  // Live moms come decorated (Icon + resolved colors) from App. The
+  // horizontal scroll surfaces the top 6 (~2.2 cards visible at a time);
+  // the See-all list shows the full ranked set with filters.
+  const gridMoms = nearbyMoms.slice(0, 6);
 
   // See-all quick-filter state (single-select chip). 'verified' re-fetches
   // server-side (verified is a DB filter); the rest filter the loaded list.
@@ -664,26 +787,39 @@ export const ConnectTab = ({
   const [selectedMom, setSelectedMom] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [shareItem, setShareItem] = useState(null);
-  // Group-discussion sheet state: the selected discussion + a Set of joined
-  // discussion ids (local to ConnectTab for the prototype).
+  // Group-discussion sheet state. Group join is now Plus-gated *and*
+  // host-approved, so we track per-discussion status as
+  // 'pending' (request sent) → 'accepted' (host approved). The accepted
+  // simulation fires ~3s later so the prototype demonstrates the flow.
   const [selectedDiscussion, setSelectedDiscussion] = useState(null);
-  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
+  const [discussionJoinStatus, setDiscussionJoinStatus] = useState({}); // { id: 'pending'|'accepted' }
   const openDiscussion = (d) => setSelectedDiscussion(d);
-  const toggleJoinDiscussion = () => {
+
+  const requestJoinDiscussion = () => {
     if (!selectedDiscussion) return;
-    const alreadyJoined = joinedDiscussions.has(selectedDiscussion.id);
-    if (!alreadyJoined && requireVerify && !requireVerify('group', selectedDiscussion.title)) return;
-    setJoinedDiscussions(prev => {
-      const next = new Set(prev);
-      if (next.has(selectedDiscussion.id)) {
-        next.delete(selectedDiscussion.id);
-        flash?.(`Left ${selectedDiscussion.title}`);
-      } else {
-        next.add(selectedDiscussion.id);
-        flash?.(`✦ Joined ${selectedDiscussion.title}`);
-      }
+    const current = discussionJoinStatus[selectedDiscussion.id];
+    if (current) return; // already pending or accepted
+    if (requireVerify && !requireVerify('group', selectedDiscussion.title)) return;
+    setDiscussionJoinStatus(prev => ({ ...prev, [selectedDiscussion.id]: 'pending' }));
+    flash?.(`✦ Request sent to ${selectedDiscussion.hostName || 'the host'}`);
+    const reviewedId = selectedDiscussion.id;
+    setTimeout(() => {
+      setDiscussionJoinStatus(prev =>
+        prev[reviewedId] === 'pending' ? { ...prev, [reviewedId]: 'accepted' } : prev,
+      );
+      flash?.(`✦ You're in — welcome to ${selectedDiscussion.title}`);
+    }, 3000);
+  };
+
+  const leaveDiscussion = () => {
+    if (!selectedDiscussion) return;
+    const id = selectedDiscussion.id;
+    setDiscussionJoinStatus(prev => {
+      const next = { ...prev };
+      delete next[id];
       return next;
     });
+    flash?.(`Left ${selectedDiscussion.title}`);
   };
   const [invited, setInvited] = useState({}); // {momId: true} — local prototype state
 
@@ -713,6 +849,17 @@ export const ConnectTab = ({
 
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
+
+  // Group-discussion filters. `groupQuickCategories` is a Set of visible
+  // category ids toggled from the See-all chip row; `groupAdvanced` holds
+  // the Plus-gated multi-facet filter (topics, kid ages, mom stages,
+  // neighborhoods). They compose: a discussion must match both blocks.
+  const [groupQuickCategories, setGroupQuickCategories] = useState(new Set());
+  const [groupAdvanced, setGroupAdvanced] = useState(GROUPS_FILTER_DEFAULT);
+  const [groupAdvancedOpen, setGroupAdvancedOpen] = useState(false);
+  const groupAdvancedCount =
+    groupAdvanced.topics.length + groupAdvanced.kidAges.length +
+    groupAdvanced.momStages.length + groupAdvanced.neighborhoods.length;
 
   // Honor a cross-tab intent from Home ("See all moms / groups"): open the
   // requested drawer on mount, then clear it on the parent so a plain
@@ -803,9 +950,25 @@ export const ConnectTab = ({
             No matches yet — check back soon.
           </div>
         ) : (
-          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+          // Horizontal scroll, ~2.2 cards visible at once. Scroll-snap on
+          // each card so the row feels like a deck rather than a free scroll.
+          <div
+            className="flex"
+            style={{
+              overflowX: 'auto', overflowY: 'hidden',
+              scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+              gap: 12,
+              paddingBottom: 8,
+              // Negative margin + padding pair lets the cards bleed past the
+              // section padding without truncation, matching the Explore tab.
+              marginLeft: -20, marginRight: -20,
+              paddingLeft: 20, paddingRight: 20,
+            }}
+          >
             {gridMoms.map(item => (
-              <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
+              <div key={item.id} style={{ scrollSnapAlign: 'start', display: 'flex' }}>
+                <MomCard item={item} onClick={() => openMomDetail(item)}/>
+              </div>
             ))}
           </div>
         )}
@@ -885,8 +1048,16 @@ export const ConnectTab = ({
       {seeAll === 'topics' && (
         <SeeAllSheet
           title="Popular Mom Groups"
-          subtitle={`${GROUP_DISCUSSIONS.length} active threads · Tampa moms`}
-          items={GROUP_DISCUSSIONS}
+          subtitle={`${GROUP_DISCUSSIONS.length} active groups · Tampa moms`}
+          items={GROUP_DISCUSSIONS.filter(d =>
+            matchesGroupFilters(d, {
+              categoryIds: [...groupQuickCategories],
+              topics: groupAdvanced.topics,
+              kidAges: groupAdvanced.kidAges,
+              momStages: groupAdvanced.momStages,
+              neighborhoods: groupAdvanced.neighborhoods,
+            }),
+          )}
           renderItem={(d) => (
             <DiscussionCard
               key={d.id}
@@ -896,15 +1067,39 @@ export const ConnectTab = ({
           )}
           layout="list"
           gap={10}
-          quickFilters={[
-            { id: 'sleep',     label: 'Sleep',     icon: Moon       },
-            { id: 'daycare',   label: 'Daycare',   icon: BookOpen   },
-            { id: 'play',      label: 'Playdates', icon: Users      },
-            { id: 'postpartum',label: 'Postpartum',icon: Heart      },
-            { id: 'feeding',   label: 'Feeding',   icon: Coffee     },
-            { id: 'working',   label: 'Working',   icon: Briefcase  },
-          ]}
+          quickFilters={GROUP_CATEGORIES_VISIBLE}
+          activeQuickFilter={groupQuickCategories}
+          onQuickFilter={(id) => {
+            setGroupQuickCategories(prev => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+          }}
+          matchQuickFilter={(item) => {
+            if (groupQuickCategories.size === 0) return true;
+            return groupQuickCategories.has(item.categoryId);
+          }}
+          onOpenAdvancedFilter={() => {
+            if (!account?.isPremium) {
+              openPremium?.();
+              flash?.('✦ Advanced filters are a Plus perk');
+              return;
+            }
+            setGroupAdvancedOpen(true);
+          }}
+          advancedFilterCount={groupAdvancedCount}
+          lockedPremium={!account?.isPremium}
+          accent={C.sage}
           onClose={() => setSeeAll(null)}
+        />
+      )}
+
+      {groupAdvancedOpen && (
+        <GroupsAdvancedFilterSheet
+          filters={groupAdvanced}
+          setFilters={setGroupAdvanced}
+          onClose={() => setGroupAdvancedOpen(false)}
         />
       )}
 
@@ -952,24 +1147,17 @@ export const ConnectTab = ({
       {selectedEvent && (
         <EventDetailSheet
           event={selectedEvent}
-          saved={isSaved(selectedEvent.id)}
+          variant="meetup"
           joined={isJoined(selectedEvent.id)}
           interested={isSaved(`int-${selectedEvent.id}`)}
+          flash={flash}
           onJoin={() => {
             const alreadyJoined = isJoined(selectedEvent.id);
             if (!alreadyJoined && requireVerify && !requireVerify('meetup', selectedEvent.title)) return;
             toggleJoined(selectedEvent.id);
-            flash?.(alreadyJoined
-              ? `Removed RSVP · ${selectedEvent.title}`
-              : `✦ You're going · ${selectedEvent.title}`);
           }}
           onInterested={() => {
             toggleSave(`int-${selectedEvent.id}`);
-            flash?.(isSaved(`int-${selectedEvent.id}`) ? 'Removed interest' : '✦ Marked as interested');
-          }}
-          onSave={() => {
-            toggleSave(selectedEvent.id);
-            flash?.(isSaved(selectedEvent.id) ? 'Removed from saved' : '✦ Saved');
           }}
           onShare={() => setShareItem({
             title: selectedEvent.title,
@@ -978,7 +1166,15 @@ export const ConnectTab = ({
             place: selectedEvent.place,
             photo: selectedEvent.photo,
           })}
-          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
+          onDiscuss={() => onDiscuss?.({
+            type: 'meetup-chat',
+            id: `meetup-chat-${selectedEvent.id}`,
+            title: `${selectedEvent.title} · moms going`,
+            // Chat is intentionally short-lived: the group thread should
+            // close 2 days after the meetup ends. The receiving handler
+            // can use this hint to gate writes / show a banner.
+            expiresHint: '2 days after meetup',
+          })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -994,8 +1190,11 @@ export const ConnectTab = ({
       {selectedDiscussion && (
         <GroupDiscussionSheet
           discussion={selectedDiscussion}
-          joined={joinedDiscussions.has(selectedDiscussion.id)}
-          onToggleJoin={toggleJoinDiscussion}
+          joinStatus={discussionJoinStatus[selectedDiscussion.id] || 'none'}
+          onRequestJoin={requestJoinDiscussion}
+          onLeave={leaveDiscussion}
+          isPremium={!!account?.isPremium}
+          openPremium={openPremium}
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
           author={chatAuthor}

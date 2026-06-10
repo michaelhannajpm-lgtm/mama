@@ -21,7 +21,7 @@ const SLIDES = [
   {
     img: '/landing/hero-this-week.png',
     eyebrow: 'THIS WEEK',
-    title: 'Explore moms events & meetups',
+    title: 'Explore local events & meetups',
     stat: 'Family days out, picked for Tampa moms',
     badge: 'calendar',
   },

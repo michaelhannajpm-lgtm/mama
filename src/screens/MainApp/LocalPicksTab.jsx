@@ -10,6 +10,7 @@ import {
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
+import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { RateSheet } from '../../sheets/RateSheet';
@@ -574,7 +575,7 @@ const GoingButton = ({ going, onClick }) => (
       fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
     }}
   >
-    {going ? <><Check size={12}/> Going</> : "I'm going"}
+    {going ? <><Check size={12}/> I'm going</> : "I'm going"}
   </div>
 );
 
@@ -1151,7 +1152,9 @@ export const LocalPicksTab = ({
     if (!already && requireVerify && !requireVerify('meetup', item.title)) return;
     const next = already ? joinedEvents.filter(x => x !== item.id) : [...joinedEvents, item.id];
     setJoinedEvents?.(next);
-    flash?.(already ? `Removed RSVP · ${item.title}` : `✦ You're going · ${item.title}`);
+    // Detail sheet handles its own flash on I'm-going; here we only toast
+    // when the user backs out of an RSVP, so the inline button stays quiet.
+    if (already) flash?.(`Removed RSVP · ${item.title}`);
   };
   const myRating = (id) => ratings?.[id]?.stars || 0;
   const [rateTarget, setRateTarget] = useState(null); // { item, kind } | null
@@ -1206,8 +1209,11 @@ export const LocalPicksTab = ({
     [places, filters, userCoords],
   );
 
-  // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
+  // Detail-sheet state — PlaceDetailSheet handles places, programs, and
+  // schools; EventDetailSheet handles events and meetups (the latter via
+  // the meetup variant).
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [shareItem, setShareItem] = useState(null);
 
   // `isSaved` + `toggleSave` are already declared above (with flash hooks).
@@ -1225,11 +1231,19 @@ export const LocalPicksTab = ({
   const openSchool = (item) => setSelectedPlace(item._live
     ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg }, userCoords)
     : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg, kind: 'School' });
-  const openEvent = (item) => setSelectedPlace({
-    id: item.id, title: item.title, photo: item.photo,
-    when: item.when, going: item.going, distance: item.distance,
-    kind: 'Event',
-  });
+  // Events and meetups both open in EventDetailSheet. The meetup variant
+  // adds the blurred-going avatars, "Meetup instructions" section, and
+  // "Chat with moms going" CTA — gated on item._source === 'meetup'.
+  const openEvent = (item) => {
+    const isMeetupItem = item._source === 'meetup';
+    setSelectedEvent({
+      id: item.id, title: item.title, photo: item.photo,
+      when: item.when, going: item.going, distance: item.distance,
+      place: item.place,
+      kind: isMeetupItem ? 'Meetup' : 'Event',
+      _variant: isMeetupItem ? 'meetup' : 'event',
+    });
+  };
 
   // Advanced filter badge count (category + the live-backed filters).
   const advCount =
@@ -1322,13 +1336,15 @@ export const LocalPicksTab = ({
           items={seeAllSection.allItems}
           renderItem={(item) => {
             if (seeAllSection.kind === 'event') {
+              // Events & meetups intentionally drop the inline Save badge —
+              // the only save-style action moms see on these cards lives in
+              // the detail sheet, and the spec asked for it to be removed
+              // there too. We keep the inline "I'm going" CTA.
               return (
                 <EventCard
                   key={item.id}
                   item={item}
                   onClick={() => openEvent(item)}
-                  saved={isSaved(item.id)}
-                  onSave={() => toggleSave(item.id, item.title)}
                   going={isGoing(item.id)}
                   onGoing={() => toggleGoing(item)}
                 />
@@ -1426,6 +1442,36 @@ export const LocalPicksTab = ({
           }}
           onDiscuss={() => onDiscuss?.({ type: 'place', id: selectedPlace.id, title: selectedPlace.title })}
           onClose={() => setSelectedPlace(null)}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailSheet
+          event={selectedEvent}
+          variant={selectedEvent._variant || 'event'}
+          joined={isGoing(selectedEvent.id)}
+          interested={isInterested(selectedEvent.id)}
+          flash={flash}
+          onJoin={() => toggleGoing(selectedEvent)}
+          onInterested={() => toggleSave(`int-${selectedEvent.id}`)}
+          onShare={() => setShareItem({
+            title: selectedEvent.title,
+            kind: selectedEvent.kind || 'Event',
+            when: selectedEvent.when,
+            place: selectedEvent.place,
+            photo: selectedEvent.photo,
+          })}
+          onDiscuss={() => {
+            const isMeetupItem = selectedEvent._variant === 'meetup';
+            const chatType = isMeetupItem ? 'meetup-chat' : 'event-chat';
+            onDiscuss?.({
+              type: chatType,
+              id: `${chatType}-${selectedEvent.id}`,
+              title: `${selectedEvent.title} · moms going`,
+              expiresHint: `2 days after the ${isMeetupItem ? 'meetup' : 'event'}`,
+            });
+          }}
+          onClose={() => setSelectedEvent(null)}
         />
       )}
 

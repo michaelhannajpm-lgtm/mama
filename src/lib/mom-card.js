@@ -1,11 +1,12 @@
 // Turn a server mom card (abstract icon/color keys) into a render-ready object:
 // resolve iconKey → lucide component and tagBg/tagFg token names → C.* colors.
-import { Briefcase, Home, Heart, Baby, Sparkles, Coffee, ShieldCheck } from 'lucide-react';
+import { Briefcase, Home, Heart, Baby, Sparkles, Coffee, ShieldCheck, Globe, Compass } from 'lucide-react';
 import { C } from '../theme';
 
 const ICONS = {
   working: Briefcase, home: Home, solo: Heart, new: Baby,
   multi: Sparkles, hybrid: Coffee, verified: ShieldCheck,
+  multicultural: Globe, new_to_area: Compass,
 };
 export const momIconFromKey = (key) => ICONS[key] || ShieldCheck;
 

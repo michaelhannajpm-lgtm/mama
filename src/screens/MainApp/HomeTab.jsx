@@ -189,7 +189,15 @@ const MomChip = ({ item, onClick }) => {
   const buckets = Array.isArray(item.kidBuckets) && item.kidBuckets.length
     ? item.kidBuckets
     : (item.kids && item.kids !== 'Kids' ? item.kids.replace(/\s*yrs$/, '').split(' · ') : []);
-  const sub = (item.sharedTags && item.sharedTags[0]) || (hasDistance ? '' : youngestStageLabel(buckets)) || '';
+  // Mom type wins the sub-line ("Solo mom" / "Multicultural mom" / …) when
+  // present; otherwise fall back to the previous shared-tag / life-stage
+  // heuristic so older card shapes still read sensibly.
+  const sub =
+    item.tag
+    || item.type
+    || (item.sharedTags && item.sharedTags[0])
+    || (hasDistance ? '' : youngestStageLabel(buckets))
+    || '';
   return (
     <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
       flexShrink: 0, width: 90, textAlign: 'center', cursor: 'pointer',
@@ -609,26 +617,22 @@ export const HomeTab = ({
       {selectedEvent && (
         <EventDetailSheet
           event={selectedEvent}
-          saved={isSaved(selectedEvent.id)}
+          variant="event"
           joined={isJoined(selectedEvent.id)}
           interested={isGoing(selectedEvent.id)}
-          onJoin={() => {
-            toggleJoined(selectedEvent.id);
-            flash?.(isJoined(selectedEvent.id) ? `Removed RSVP · ${selectedEvent.title}` : `✦ You're going · ${selectedEvent.title}`);
-          }}
-          onInterested={() => {
-            toggleGoing(selectedEvent.id);
-            flash?.(isGoing(selectedEvent.id) ? 'Removed interest' : '✦ Marked as interested');
-          }}
-          onSave={() => {
-            toggleSave(selectedEvent.id);
-            flash?.(isSaved(selectedEvent.id) ? 'Removed from saved' : '✦ Saved');
-          }}
+          flash={flash}
+          onJoin={() => toggleJoined(selectedEvent.id)}
+          onInterested={() => toggleGoing(selectedEvent.id)}
           onShare={() => setShareItem({
             title: selectedEvent.title, kind: selectedEvent.kind || 'Event',
             when: selectedEvent.when, place: selectedEvent.place, photo: selectedEvent.photo,
           })}
-          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
+          onDiscuss={() => onDiscuss?.({
+            type: 'event-chat',
+            id: `event-chat-${selectedEvent.id}`,
+            title: `${selectedEvent.title} · moms going`,
+            expiresHint: '2 days after the event',
+          })}
           onClose={() => setSelectedEvent(null)}
         />
       )}

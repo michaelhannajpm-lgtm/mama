@@ -113,7 +113,15 @@ export const SeeAllSheet = ({
             {quickFilters.map(f => {
               const Icon = f.icon;
               const controlled = typeof onQuickFilter === 'function';
-              const isActive = controlled ? activeQuickFilter === f.id : active.has(f.id);
+              // activeQuickFilter accepts either a single id (legacy single-
+              // select) or a Set/array of ids (multi-select chip row).
+              const activeMulti = activeQuickFilter && typeof activeQuickFilter === 'object'
+                && (activeQuickFilter instanceof Set
+                    ? activeQuickFilter
+                    : (Array.isArray(activeQuickFilter) ? new Set(activeQuickFilter) : null));
+              const isActive = controlled
+                ? (activeMulti ? activeMulti.has(f.id) : activeQuickFilter === f.id)
+                : active.has(f.id);
               return (
                 <button
                   key={f.id}
