@@ -178,7 +178,9 @@ export const MainApp = ({
         onVerify={() => setTab('profile')}
         city={locationGeo?.city || location || 'Tampa'}
         openVillage={() => setVillageOpen(true)}
-        onDiscuss={setSubjectThread}/>}
+        onDiscuss={setSubjectThread}
+        chatAuthor={chatAuthor}
+        myUserId={myUserId}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}

@@ -13,6 +13,13 @@ export const ConversationFeed = ({ conversationId, author, myUserId, placeholder
   const [composer, setComposer] = useState('');
   const [replyTo, setReplyTo] = useState(null);
 
+  const loadInto = async (setAlive) => {
+    const data = await listThread(conversationId);
+    const reacts = await listReactions(data.map((r) => r.id));
+    if (setAlive()) { setRows(data); setLikes(reacts); }
+  };
+
+  // public refresh used by composer/like actions (component still mounted)
   const refresh = async () => {
     const data = await listThread(conversationId);
     setRows(data);
@@ -21,12 +28,16 @@ export const ConversationFeed = ({ conversationId, author, myUserId, placeholder
 
   useEffect(() => {
     if (!conversationId) return;
+    let alive = true;
     let unsub = () => {};
     (async () => {
-      await refresh();
-      unsub = subscribe(conversationId, { onMessage: refresh, onReaction: refresh });
+      await loadInto(() => alive);
+      unsub = subscribe(conversationId, {
+        onMessage: () => { if (alive) refresh(); },
+        onReaction: () => { if (alive) refresh(); },
+      });
     })();
-    return () => unsub();
+    return () => { alive = false; unsub(); };
   }, [conversationId]);
 
   const tree = useMemo(() => buildThread(rows), [rows]);

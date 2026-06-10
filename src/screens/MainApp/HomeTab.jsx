@@ -260,6 +260,7 @@ export const HomeTab = ({
   goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
   city = 'Tampa',
   onDiscuss,
+  chatAuthor, myUserId,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -514,6 +515,8 @@ export const HomeTab = ({
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
           flash={flash}
+          author={chatAuthor}
+          myUserId={myUserId}
           onClose={() => setSelectedDiscussion(null)}
         />
       )}
