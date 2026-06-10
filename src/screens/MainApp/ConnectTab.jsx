@@ -124,187 +124,190 @@ const sharpenPhoto = (url) => {
 // chips below the photo. Keeps the editorial Go Mama palette so it doesn't
 // read like a swipe deck.
 //
-// Surface inputs: { photo, firstName, name, kids, kidBuckets, distanceMi,
-//   overlap, verified, online, sharedTags, hue }
-const MomCard = ({ item, onClick }) => {
-  const ages = kidAgesLabel(item);
+// Joins the kid age buckets ("0–1 · 3–5") if present, else falls back to
+// parsing the preformatted "1–3 yrs" string. Always returns a trimmed
+// label like "1–3 yrs" / "0–1 · 3–5 yrs" / null.
+const kidAgesText = (item) => {
+  if (Array.isArray(item.kidBuckets) && item.kidBuckets.length) {
+    return `${item.kidBuckets.join(' · ')} yrs`;
+  }
+  if (item.kids && item.kids !== 'Kids') {
+    const clean = String(item.kids).trim();
+    return /\byrs?\b/i.test(clean) ? clean : `${clean} yrs`;
+  }
+  return null;
+};
+
+// Pluralizes the kid count line ("2 kids" / "1 kid"). Falls back to
+// kidBuckets length, then the raw `kids` string when neither is shaped.
+const kidsCountText = (item) => {
+  const n = item.kidsCount
+    || (Array.isArray(item.kidBuckets) ? item.kidBuckets.length : null);
+  if (typeof n === 'number' && n > 0) return `${n} ${n === 1 ? 'kid' : 'kids'}`;
+  // Some sources pass "1 kid" / "2 kids" already in `kids` instead of an age
+  // string — surface that as-is, suppressing the duplicate age line.
+  if (item.kids && /\bkid/i.test(item.kids)) return item.kids;
+  return null;
+};
+
+// MomCard — small "preview" card used identically on Home, Connect, and the
+// SeeAll moms screen. Single source of truth for how a mom reads in a list.
+// Tap → MomDetailSheet (all deep actions live there).
+//
+// Exported so HomeTab can reuse the exact same component (parity is the
+// product requirement, not a coincidence).
+export const MomCard = ({ item, onClick, compact = false }) => {
+  const kidsLine = kidsCountText(item);
+  const ageLine = kidAgesText(item);
   const shared = (item.sharedTags && item.sharedTags.length)
     ? item.sharedTags.slice(0, 2)
-    : (ages ? [`Same stage: ${ages}`] : []);
+    : [];
 
-  // Match percentage — surfaced as a coral pill top-left of the hero photo,
-  // copying the Hinge "compatibility" badge. Falls back to a deterministic
-  // 80-95 if the server hasn't computed one yet.
   const matchPct = item.overlap != null
     ? Math.round(item.overlap)
     : (80 + (((item.id || item.name || '').toString().charCodeAt(0) || 0) % 16));
 
-  const isOnline = item.online !== false; // default true unless explicitly false
-  const isVerified = item.verified !== false; // default true (prototype seed is verified)
+  const isOnline = item.online !== false;
+  const isVerified = item.verified !== false;
+
+  // Compact = 3-up grid variant used in Connect's "Recommended Moms for you"
+  // section: card stretches with its column and the hero is shorter.
+  const heroHeight = compact ? 88 : 130;
 
   return (
     <button
       onClick={onClick}
       className="text-left active:scale-[.98] transition-transform"
       style={{
-        width: 178, flexShrink: 0,
-        background: '#fff', borderRadius: 18,
+        width: compact ? '100%' : 150, flexShrink: 0,
+        background: '#fff', borderRadius: 16,
         border: `1px solid ${C.line}`,
-        boxShadow: '0 8px 22px -14px rgba(27,42,78,.35)',
+        boxShadow: '0 6px 16px -12px rgba(27,42,78,.3)',
         overflow: 'hidden', padding: 0, cursor: 'pointer',
         display: 'flex', flexDirection: 'column',
       }}
     >
-      {/* Hero photo — full-bleed at the top, ~178×196 (4:5-ish, fills the
-          eye line). Gradient overlay at the bottom darkens the photo just
-          enough that white overlays stay legible. */}
-      <div style={{ position: 'relative', width: '100%', height: 196 }}>
+      {/* Hero photo — slimmed from 196→130 so the card feels like a preview
+          rather than a swipe-deck portrait. Compact mode drops it further to
+          88 so 3 cards fit on a single phone row. */}
+      <div style={{ position: 'relative', width: '100%', height: heroHeight }}>
         {item.photo ? (
           <img
             src={sharpenPhoto(item.photo)}
             alt=""
-            style={{
-              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (
           <div style={{
             width: '100%', height: '100%',
             background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 56,
+            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 40,
           }}>
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
 
-        {/* Bottom legibility gradient — for the distance pill */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%)',
+          background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.4) 100%)',
           pointerEvents: 'none',
         }}/>
 
         {/* Top-left: match % */}
         <div style={{
-          position: 'absolute', top: 8, left: 8,
+          position: 'absolute', top: 6, left: 6,
           background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
           color: '#fff', borderRadius: 999,
-          padding: '3px 8px',
-          fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
-          letterSpacing: '.02em',
-          display: 'flex', alignItems: 'center', gap: 3,
-          boxShadow: '0 3px 8px -4px rgba(214,68,106,.6)',
+          padding: '2px 6px',
+          fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
+          display: 'flex', alignItems: 'center', gap: 2,
+          boxShadow: '0 2px 6px -3px rgba(214,68,106,.55)',
         }}>
-          <Sparkles size={9}/> {matchPct}% match
+          <Sparkles size={8}/> {matchPct}%
         </div>
 
-        {/* Top-right: online dot + verified shield. Stacked vertically so
-            both signals fit even when the photo is short. */}
+        {/* Top-right: verified shield over online dot */}
         <div style={{
-          position: 'absolute', top: 8, right: 8,
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
+          position: 'absolute', top: 6, right: 6,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4,
         }}>
-          {isOnline && (
-            <div style={{
-              background: 'rgba(255,255,255,.95)', borderRadius: 999,
-              padding: '2.5px 6px',
-              fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.sageDark,
-              letterSpacing: '.03em', textTransform: 'uppercase',
-              display: 'flex', alignItems: 'center', gap: 3,
-              boxShadow: '0 2px 5px -3px rgba(27,42,78,.4)',
-            }}>
-              <span style={{
-                width: 6, height: 6, borderRadius: 3, background: C.sageDark,
-              }}/>
-              Online
-            </div>
-          )}
           {isVerified && (
             <div
               aria-label="Verified"
               style={{
-                width: 22, height: 22, borderRadius: 11,
-                background: C.sageDark, color: '#fff',
-                border: '2px solid #fff',
+                width: 18, height: 18, borderRadius: 9,
+                background: C.sageDark, color: '#fff', border: '1.5px solid #fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 5px -2px rgba(27,42,78,.35)',
+                boxShadow: '0 2px 4px -2px rgba(27,42,78,.4)',
               }}
             >
-              <ShieldCheck size={11}/>
+              <ShieldCheck size={9}/>
             </div>
+          )}
+          {isOnline && (
+            <span style={{
+              width: 8, height: 8, borderRadius: 4,
+              background: C.sageDark, border: '1.5px solid #fff',
+              boxShadow: '0 2px 4px -2px rgba(27,42,78,.4)',
+            }}/>
           )}
         </div>
 
-        {/* Bottom-left: distance pill on the photo */}
+        {/* Bottom-left: distance pill */}
         {item.distanceMi != null && (
           <div style={{
-            position: 'absolute', bottom: 8, left: 8,
+            position: 'absolute', bottom: 6, left: 6,
             background: 'rgba(255,255,255,.95)',
-            borderRadius: 999, padding: '3px 8px',
-            display: 'flex', alignItems: 'center', gap: 3,
-            boxShadow: '0 2px 6px -3px rgba(27,42,78,.4)',
+            borderRadius: 999, padding: '2px 6px',
+            display: 'flex', alignItems: 'center', gap: 2,
+            boxShadow: '0 2px 5px -3px rgba(27,42,78,.4)',
           }}>
-            <MapPin size={9} color={C.coralDeep} strokeWidth={2.4}/>
-            <span style={{
-              fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 800, color: C.navy,
-            }}>
+            <MapPin size={8} color={C.coralDeep} strokeWidth={2.4}/>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800, color: C.navy }}>
               {item.distanceMi.toFixed(1)} mi
             </span>
           </div>
         )}
       </div>
 
-      {/* Identity + shared-ground row */}
-      <div style={{ padding: '10px 10px 12px' }}>
+      {/* Identity + kids info */}
+      <div style={{ padding: '8px 9px 10px' }}>
         <div style={{
-          fontFamily: 'Fraunces', fontSize: 14.5, fontWeight: 600,
+          fontFamily: 'Fraunces', fontSize: 13.5, fontWeight: 600,
           color: C.navy, letterSpacing: '-.01em', lineHeight: 1.05,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {item.name}
+          {item.firstName || item.name}
         </div>
-        {ages && (
+
+        {/* Kids count + kid age range — replaces the older "Mom of a toddler"
+            stage label. Count comes first, ages stack below so each line
+            answers a different question at a glance. */}
+        {kidsLine && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 3,
-            marginTop: 3,
-            fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 600, color: C.muted,
+            display: 'flex', alignItems: 'center', gap: 3, marginTop: 3,
+            fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy,
             whiteSpace: 'nowrap',
           }}>
-            <Baby size={9}/> {ages}
+            <Baby size={9} color={C.coralDeep}/> {kidsLine}
+          </div>
+        )}
+        {ageLine && (
+          <div style={{
+            marginTop: 1,
+            paddingLeft: 14, // hangs under the Baby icon visually
+            fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600, color: C.muted,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {ageLine}
           </div>
         )}
 
-        {/* Mom type — small pill right under the identity so a mom can see
-            at a glance what kind of mom this is (Solo / Multicultural /
-            New to area …). Reads `tag` (server card shape) or `type`
-            (legacy sample data); skips silently when neither is present. */}
-        {(item.tag || item.type) && (
-          <div
-            className="mt-1.5 inline-flex items-center gap-1.5"
-            style={{
-              background: item.tagBg || C.lilac,
-              color: item.tagFg || '#5E4A8A',
-              fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 800,
-              padding: '3px 7px', borderRadius: 9,
-              maxWidth: '100%',
-            }}
-          >
-            {item.Icon ? <item.Icon size={9}/> : <Briefcase size={9}/>}
-            <span style={{
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {item.tag || item.type}
-            </span>
-          </div>
-        )}
-
-        {/* Shared ground chips — small, no wrap, coral-led for hierarchy.
-            The first chip is filled (signal), the rest are outlined (context). */}
         {shared.length > 0 && (
           <div style={{
-            marginTop: 8,
-            display: 'flex', flexDirection: 'column', gap: 4,
+            marginTop: 7,
+            display: 'flex', flexDirection: 'column', gap: 3,
           }}>
             {shared.map((tag, i) => (
               <span
@@ -312,16 +315,16 @@ const MomCard = ({ item, onClick }) => {
                 style={{
                   background: i === 0 ? C.coralSoft : '#fff',
                   color: C.coralDeep,
-                  border: i === 0 ? `1px solid ${C.coral}26` : `1px solid ${C.coral}33`,
-                  fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700,
-                  padding: '3px 8px', borderRadius: 9,
+                  border: `1px solid ${C.coral}33`,
+                  fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
+                  padding: '2px 7px', borderRadius: 8,
                   display: 'inline-flex', alignItems: 'center', gap: 3,
                   whiteSpace: 'nowrap', maxWidth: '100%',
                   overflow: 'hidden', textOverflow: 'ellipsis',
                   alignSelf: 'flex-start',
                 }}
               >
-                {i === 0 && <Heart size={8} fill={C.coralDeep} color={C.coralDeep}/>}
+                {i === 0 && <Heart size={7} fill={C.coralDeep} color={C.coralDeep}/>}
                 {tag}
               </span>
             ))}
@@ -1262,25 +1265,16 @@ export const ConnectTab = ({
             No matches yet — check back soon.
           </div>
         ) : (
-          // Horizontal scroll, ~2.2 cards visible at once. Scroll-snap on
-          // each card so the row feels like a deck rather than a free scroll.
-          <div
-            className="flex"
-            style={{
-              overflowX: 'auto', overflowY: 'hidden',
-              scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
-              gap: 12,
-              paddingBottom: 8,
-              // Negative margin + padding pair lets the cards bleed past the
-              // section padding without truncation, matching the Explore tab.
-              marginLeft: -20, marginRight: -20,
-              paddingLeft: 20, paddingRight: 20,
-            }}
-          >
-            {gridMoms.map(item => (
-              <div key={item.id} style={{ scrollSnapAlign: 'start', display: 'flex' }}>
-                <MomCard item={item} onClick={() => openMomDetail(item)}/>
-              </div>
+          // Three compact cards on a single phone row. Smaller hero photo
+          // (88px) keeps the card readable at 1/3 of the viewport width.
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {gridMoms.slice(0, 3).map(item => (
+              <MomCard
+                key={item.id}
+                item={item}
+                compact
+                onClick={() => openMomDetail(item)}
+              />
             ))}
           </div>
         )}
@@ -1312,29 +1306,13 @@ export const ConnectTab = ({
           title="Recommended Moms for you"
           subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
           items={seeAllMoms}
-          renderItem={(item) => {
-            return (
-              <MomListCard
-                key={item.id}
-                item={item}
-                sharedTags={item.sharedTags}
-                scheduledSlot={scheduledFor(item)}
-                proposal={proposals[item.id]}
-                messagesUsed={0}
-                freeLimit={3}
-                isPremium={!!account?.isPremium}
-                connectionStatus={connections[item.id] || 'none'}
-                onConnect={() => handleConnect(item)}
-                onProfile={() => openMomDetail(item)}
-                onMessage={() => handleMessage(item)}
-                onSchedule={() => openSchedule?.(item)}
-                onPropose={(proposal) => handleProposeMeetup(item, proposal)}
-                onPremium={() => openPremium?.()}
-              />
-            );
-          }}
-          layout="list"
-          gap={12}
+          renderItem={(item) => (
+            // Same MomCard preview used on the Connect + Home rows — taps
+            // open MomDetailSheet which hosts every deep action.
+            <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
+          )}
+          columns={2}
+          gap={10}
           // Only 3 visible quick filters; the rest are behind the (Plus-gated)
           // advanced filter button at the top-right of the SeeAllSheet.
           quickFilters={[
@@ -1448,17 +1426,24 @@ export const ConnectTab = ({
         <MomDetailSheet
           mom={selectedMom}
           saved={isSaved(`mom-${selectedMom.id}`)}
-          invited={!!invited[selectedMom.id]}
-          onInvite={() => {
-            setInvited(i => ({ ...i, [selectedMom.id]: true }));
-            flash?.(`✦ Invite sent to ${selectedMom.name}`);
-          }}
+          // All deep actions live here now (moved off the old SeeAll card).
+          connectionStatus={connections[selectedMom.id] || 'none'}
+          scheduledSlot={scheduledFor(selectedMom)}
+          proposal={proposals[selectedMom.id]}
+          isPremium={!!account?.isPremium}
+          messagesUsed={(messageHistory?.[selectedMom.id] || []).filter(m => m.fromUser).length}
+          freeLimit={3}
+          onConnect={() => handleConnect(selectedMom)}
           onMessage={() => {
-            // MessageSheet renders from the mom's .id + .name; the live nearbyMoms
-            // card shape carries both, so the basic chat renders fine.
-            openMessage?.(selectedMom);
+            handleMessage(selectedMom);
             setSelectedMom(null);
           }}
+          onSchedule={() => {
+            openSchedule?.(selectedMom);
+            setSelectedMom(null);
+          }}
+          onPropose={(proposal) => handleProposeMeetup(selectedMom, proposal)}
+          onPremium={() => openPremium?.()}
           onSave={() => {
             const key = `mom-${selectedMom.id}`;
             toggleSave(key);
