@@ -27,7 +27,11 @@ the new palette without a rename.
 | `C.saffron` | `#D9A441` | Highlight, premium pop |
 | `C.rose` | `#FDE2D4` | Atmospheric wash (same as peach) |
 | `C.divider` / `C.line` | `#EFE5E0` | Hairlines |
+| `C.skeleton` | `#ECE3DC` | Skeleton-loader base (never coral) |
+| `C.skeletonSheen` | `#F7F1EB` | Skeleton sweep highlight |
 | `C.premium` | `#1B1517` | Premium card backgrounds |
+
+> These are the **phone-app** tokens. The admin console (`src/screens/admin/**`) deliberately uses a separate `AC` token set (`admin-theme.js`) and supports dark mode — see the `admin-design` skill. Don't use `C` in admin UI or `AC` in the phone app.
 
 ## Semantic mapping
 
@@ -43,7 +47,7 @@ the new palette without a rename.
 | `Fraunces` | Display, serif headlines, sometimes italic for emphasis |
 | `Albert Sans` | UI, body, captions, eyebrows |
 
-Loaded via Google Fonts `@import` at the top of `src/index.css`.
+Loaded via Google Fonts `@import` at the top of `src/index.css`. `Caveat` (a handwriting face) is also imported but is **not** in active use — keep the two-typeface discipline (Fraunces + Albert Sans) unless a design explicitly calls for the handwritten accent.
 
 ## Animations
 
@@ -53,6 +57,8 @@ Defined as CSS keyframes in `src/index.css`:
 - `fadeIn`
 - `fadeInUp`
 - `popBadge`
+- `livePulse` — pulsing "live"/active indicator
+- `radarPulse` — expanding-ring radar sweep (e.g. presence / nearby)
 - `shimmer` — light-band sweep for skeleton loaders (see `components/Skeleton.jsx`)
 
 Used inline as `style={{ animation: '...' }}`.

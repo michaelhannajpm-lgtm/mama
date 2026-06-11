@@ -64,19 +64,19 @@ Copy these reference implementations: `HomeTab` (Local Events Nearby, Upcoming M
 ### Before you write a single line
 
 1. Read the closest existing screen for pattern reference. Defaults:
-   - **Onboarding screen** → `src/screens/onboarding/AboutYou.jsx` or `VillagePreview.jsx`.
-   - **MainApp tab** → `src/screens/MainApp/FavoritesTab.jsx` (simplest), `MatchesTab.jsx` (richer).
-   - **Sheet** → `src/sheets/MessageSheet.jsx` or `ProfileSheet.jsx`.
+   - **Onboarding screen** → `src/screens/onboarding/AboutYou.jsx` (the carousel) or `Account.jsx`.
+   - **MainApp tab** → `src/screens/MainApp/HomeTab.jsx` / `ConnectTab.jsx` / `LocalPicksTab.jsx` (data-backed, all three loading states) or `YouTab.jsx` (settings-style).
+   - **Sheet** → `src/sheets/MessageSheet.jsx` or `ProfileSheet.jsx` (and `src/components/Sheet.jsx` for the drawer primitive — small content = half-height drawer, not full-screen).
 2. Read the relevant context files: `.claude/context/design-tokens.md`, `.claude/context/architecture.md`, `.claude/context/file-layout.md`.
-3. If adding a tab, read `src/screens/MainApp/index.jsx`.
+3. If adding a tab, read `src/screens/MainApp/index.jsx` (the 5-tab shell: Home · Connect · Explore · My Hub · Profile).
 
 ### Where new code goes
 
 Create new files — this is the default, not an exception.
 
-- **New onboarding screen** → `src/screens/onboarding/<Name>.jsx` (named export). Then update the `step===N` router in `src/App.jsx` and add an import there. Renumber later steps; advance with `advance(n, patch)` so the step is persisted to Supabase.
-- **New MainApp tab** → `src/screens/MainApp/<Name>Tab.jsx` (named export). Update `src/screens/MainApp/index.jsx` to import + render it + add a tab-bar button. Tabs are siblings — never import from `App.jsx`.
-- **New sheet/modal** → `src/sheets/<Name>Sheet.jsx`. Update `App.jsx` state (e.g. selected-record state) and the render block.
+- **New onboarding screen** → `src/screens/onboarding/<Name>.jsx` (named export). Wire it into the `step===N` router in `src/App.jsx` (the flow is Landing → AboutYou `step=0` → Account `step=2` → MainApp `step=3`). Persist progress with `recordStep(n, patch)` (writes to `/api/onboarding/step`) before advancing `setStep`; mark the user onboarded with `completeOnboarding()`. `AboutYou` records each of its own carousel sub-steps — follow that pattern for mid-flow capture rather than one record-on-exit.
+- **New MainApp tab** → `src/screens/MainApp/<Name>Tab.jsx` (named export). Update `src/screens/MainApp/index.jsx`: add an entry to the `TABS` array (+ `HEADER_LABELS`), import the tab, and add its `{tab === '<id>' && <…/>}` render block. Tabs are siblings — never import from `App.jsx` or another tab; cross-tab navigation goes through the shell's intent state (see `goToConnectSeeAll` / `goToExploreSeeAll`). Note "My Hub" is `MamaHubSheet` rendered with `asScreen`, not a tab file.
+- **New sheet/modal** → `src/sheets/<Name>Sheet.jsx`, built on the `Sheet` primitive. If it's launched from `App.jsx` add selected-record state + a render block there; if it's launched from within MainApp (most detail/filter sheets), keep its open-state local to the shell.
 - **New leaf component** → `src/components/<Name>.jsx`. Used by sheets, screens, or other components — never importing upward.
 
 ### Module convention
@@ -84,32 +84,33 @@ Create new files — this is the default, not an exception.
 - Import `C` from `'../theme'` (or `'../../theme'` from deeper paths). **Never hardcode hex.**
 
 ### Dependency direction
-`data ← components ← sheets ← screens ← App.jsx`. Don't import upward (a component must not reach into a screen).
+`data ← lib ← components ← sheets ← screens ← App.jsx`. Don't import upward (a component must not reach into a screen). The admin console (`src/screens/admin/**`) is a separate subtree on `AC` tokens — build admin UI per the `admin-design` skill, not this agent.
 
 ### Colors
 - **Always** use `C.tokenName`. Never hardcode hex. (Semantics in Step 1.)
 
 ### Typography
 - Headlines: `Fraunces`, often italic for emphasis (italic + colored together is the brand signature — one word).
-- Body / UI: `Albert Sans`. No third typeface.
+- Body / UI: `Albert Sans`. Hold to these two — `Caveat` is loaded in `index.css` but unused; don't introduce a third typeface without an explicit design reason.
 
 ### Layout
 - Phone-sized (~375×740). Don't assume desktop. No `100vw`/`100vh`, no fixed widths > 375.
-- Inside `PhoneFrame` for `/prototype`; `/live` skips the frame. Either way, don't break out of the frame.
+- The app sits inside `PhoneFrame` on wide viewports and renders full-screen on phone-sized ones (`max-width: 640px`). Either way, don't break out of the frame.
 - Vertical scroll inside the phone, not page-level scroll.
 
 ### State
-- App-level state lives in `src/App.jsx`: `step`, `profile`, `prefs`, `location`, `distance`, `account`, `savedItems`, `scheduled1to1`, `joinedEvents`, the `*Loading` flags, etc. New screens receive what they need via props.
-- Onboarding screens advance with `advance(n, patch)` from App.jsx; `recordStep` writes the patch to Supabase.
+- App-level state lives in `src/App.jsx` (`PrototypeApp`): `step`, `profile`, `prefs`, `location`/`locationGeo`/`distance`, `account`, `savedItems`/`goingItems`/`ratings`, `scheduled1to1`, `joinedEvents`, the live-data + `*Loading` state, `appConfig`, `myUserId`, etc. New screens receive what they need via props; don't add a store/Context.
+- Onboarding: persist with `recordStep(n, patch)` then `setStep`, and `completeOnboarding()` when done (see the flow above).
 - New tabs in `MainApp` add an entry to the tab bar in `MainApp/index.jsx` and a conditional render block.
-- **Data is live.** Render places/events/moms from the `api/*` props (ranked through the recommendation engine — see `src/lib/home-feed.js`, `content-score.js`, `event-cards.js`). Never render hardcoded sample catalogs.
+- **Data is live.** Render places/events/moms from the `api/*` props (ranked through the recommendation engine — see `src/lib/home-feed.js`, `content-score.js`, `event-cards.js`, `mom-card.js`). Never render the static `data/*` catalogs (`PLACES`, `SUGGESTED_EVENTS`) as content — those are taxonomy/fallback only.
 
 ### Animations
-- Use the existing keyframes (`src/index.css`): `slideUp`, `fadeIn`, `fadeInUp`, `popBadge`, `shimmer`. Don't add new ones unless asked. Apply via `style={{ animation: 'fadeInUp 0.4s ease-out' }}`.
+- Use the existing keyframes (`src/index.css`): `slideUp`, `fadeIn`, `fadeInUp`, `popBadge`, `livePulse`, `radarPulse`, `shimmer`. Don't add new ones unless asked. Apply via `style={{ animation: 'fadeInUp 0.4s ease-out' }}`.
 
-### Account / premium gating
-- Any action that creates persistent data (schedule, RSVP, message) must check `account` first and call `requestAccount({ type, ... })` if missing.
-- Premium-gated UI checks `account.isPremium` and shows the partial view + an "Upgrade to Plus" CTA when false.
+### Account / premium / verification gating
+- Any action that creates persistent data (schedule, RSVP, invite, message) must check `account` first and call `requestAccount({ type, ... })` if missing — `handleAccountComplete` replays it after sign-up.
+- Connect / RSVP / join-group are also behind the **verification gate**: call `requireVerify(action, name)` (it opens `VerifyPromptSheet` for unverified moms). This is safety, not premium — keep them separate.
+- Premium-gated UI checks `account.isPremium` and shows the partial view + a "Try Plus" CTA when false. The DM free limit, price, and trial length come from props threaded out of `appConfig` (`freeLimit`/`plusPrice`/`plusTrialDays`) — don't hardcode them. See `premium-model.md`.
 
 ---
 

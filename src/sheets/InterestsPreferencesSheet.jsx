@@ -3,6 +3,7 @@ import { ArrowRight, ChevronLeft, Check, Sparkles, X } from 'lucide-react';
 import { C } from '../theme';
 import { extractFamilyTags, HIGHLIGHT_TAGS } from '../lib/family-tags';
 import { FAMILY_VALUES, ACTIVITIES } from '../data/matching-vocab';
+import { getConfigLookup } from '../lib/config-cache';
 
 // ==========================================================================
 // InterestsPreferencesSheet — a 4-step "tell us about your family" flow.
@@ -204,7 +205,7 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
         {/* ── Step 2: values ───────────────────────────────────── */}
         {s.key === 'values' && (
           <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {FAMILY_VALUES.map(o => (
+            {getConfigLookup('family_values', FAMILY_VALUES).map(o => (
               <SelectCard key={o.label} emoji={o.emoji} label={o.label}
                 selected={values.includes(o.label)}
                 disabled={!values.includes(o.label) && values.length >= VALUES_CAP}
@@ -216,7 +217,7 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
         {/* ── Step 3: activities — 2-up grid (matches the values step) ── */}
         {s.key === 'acts' && (
           <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {ACTIVITIES.map(o => (
+            {getConfigLookup('activities', ACTIVITIES).map(o => (
               <SelectCard key={o.label} emoji={o.emoji} label={o.label}
                 selected={interests.includes(o.label)}
                 disabled={!interests.includes(o.label) && interests.length >= ACTS_CAP}

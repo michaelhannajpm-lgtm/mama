@@ -1,5 +1,7 @@
 // Client for the public places API. Fetches /api/places + /api/categories and
 // normalizes into the shapes screens consume (PLACES grouped, TOP_PICKS).
+import { loadConfig } from './config-cache.js';
+
 const EMPTY_GROUPS = { fun: [], sports: [], wellness: [], schools: [], childcare: [], extracurricular: [], camps: [], health: [] };
 
 export const normalizePlacesPayload = (payload) => {
@@ -24,14 +26,12 @@ export const fetchCategories = async () => {
   return Array.isArray(body.rows) ? body.rows : [];
 };
 
-// App-level config (e.g. { defaultPlacesRadiusMiles: 50 }). Returns {} on error.
+// App-level config (e.g. { defaultPlacesRadiusMiles: 50 }). Thin back-compat
+// wrapper over the runtime cache (config-cache.js) — returns the flat config
+// map, {} on error. New code should prefer loadConfig()/getConfigLookup().
 export const fetchConfig = async () => {
-  try {
-    const res = await fetch('/api/config', { headers: { Accept: 'application/json' } });
-    if (!res.ok) return {};
-    const body = await res.json();
-    return body.config || {};
-  } catch { return {}; }
+  const { config } = await loadConfig();
+  return config || {};
 };
 
 // Look up a place by slug/id across a grouped PLACES object (live or fallback).
