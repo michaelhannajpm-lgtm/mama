@@ -1,9 +1,11 @@
 import { Plus, Check, MessageCircle, Info } from 'lucide-react';
 import { C } from '../theme';
 import { DAYS_SHORT_BY_DOW, MONTH_NAMES } from '../data/taxonomy';
-import { SAMPLE_MOMS } from '../data/moms';
 
-export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails }) => {
+// `moms` is the live recommended-moms list (from /api/mom-profiles/nearby,
+// already ranked by the match engine) supplied by the parent — leaf cards
+// never fetch. Defaults to empty so the card degrades to "No matches going yet".
+export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails, moms = [] }) => {
   // Date label like "SAT · MAY 11" — compute the next occurrence of event.day in this month.
   const today = new Date();
   const year = today.getFullYear();
@@ -17,17 +19,18 @@ export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails }) => {
   }
   const dateLabel = `${(DAYS_SHORT_BY_DOW[event.day] || event.day).toUpperCase()} · ${MONTH_NAMES[month].slice(0,3).toUpperCase()} ${dateNum}`;
 
-  // Overlap: SAMPLE_MOMS whose freeSlots contain `${event.day}-${event.bucket}`
+  // Overlap: recommended moms whose freeSlots contain `${event.day}-${event.bucket}`
   const slotKey = `${event.day}-${event.bucket}`;
-  const matchedGoing = SAMPLE_MOMS.filter(m => m.freeSlots.includes(slotKey));
+  const matchedGoing = moms.filter(m => (m.freeSlots || []).includes(slotKey));
 
+  const firstNameOf = (m) => m.firstName || m.name?.split(' ')[0] || 'Mama';
   let overlapLabel;
   if (matchedGoing.length === 0) {
     overlapLabel = 'No matches going yet';
   } else if (matchedGoing.length <= 2) {
-    overlapLabel = `${matchedGoing.map(m => m.name.split(' ')[0]).join(', ')} going`;
+    overlapLabel = `${matchedGoing.map(firstNameOf).join(', ')} going`;
   } else {
-    const names = matchedGoing.slice(0, 2).map(m => m.name.split(' ')[0]).join(', ');
+    const names = matchedGoing.slice(0, 2).map(firstNameOf).join(', ');
     overlapLabel = `${names} +${matchedGoing.length - 2} more going`;
   }
 
@@ -82,7 +85,7 @@ export const GroupCardFull = ({ event, joined, onJoin, onChat, onDetails }) => {
                   fontFamily: 'Fraunces', fontWeight: 500, fontSize: 11,
                   border: `2px solid ${C.paper}`, marginLeft: i === 0 ? 0 : -8, zIndex: 10 - i,
                 }}>
-                  {m.name.split(' ').map(s => s[0]).join('')}
+                  {(m.name || '').split(' ').map(s => s[0]).join('')}
                 </div>
               ))}
             </div>

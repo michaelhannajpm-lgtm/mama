@@ -24,7 +24,7 @@ export const CodeVerify = ({
   accent = C.terracotta,
   cta = 'Verify & continue',
 }) => {
-  const [code, setCode] = useState('123456');
+  const [code, setCode] = useState('');
   const [resent, setResent] = useState(false);
   const codeOk = code.replace(/\D/g, '').length === 6;
 

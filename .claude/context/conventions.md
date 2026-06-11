@@ -2,7 +2,7 @@
 
 ## Things NOT to break
 
-- **CSS keyframes (`slideUp`, `fadeIn`, `fadeInUp`, `popBadge`)** live in `src/index.css` — never inline keyframes inside JSX or duplicate them elsewhere.
+- **CSS keyframes (`slideUp`, `fadeIn`, `fadeInUp`, `popBadge`, `shimmer`)** live in `src/index.css` — never inline keyframes inside JSX or duplicate them elsewhere. (`shimmer` drives the skeleton loaders — see `components/Skeleton.jsx`.)
 - **Google Fonts `@import`** is at the top of `src/index.css` — never re-add a runtime `useEffect` for font loading.
 - **`PhoneFrame`** — wraps the `/prototype` app in a centered ~375×740 phone container. `/live` skips the frame for embedding. Must remain the outermost layout for `/prototype`.
 - **3-message free chat limit** — intentional monetization friction (tightened from 25 on 2026-06-08).

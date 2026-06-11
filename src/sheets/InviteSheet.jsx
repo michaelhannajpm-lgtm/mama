@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Send, Copy, MessageCircle, Instagram, Mail, Share2, Check } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
-import { SAMPLE_MOMS } from '../data/moms';
 
 // ==========================================================================
 // InviteSheet — opens from the "Invite" button on an event/place card.
@@ -60,7 +59,10 @@ const ShareBtn = ({ icon: Icon, label, onClick, active }) => (
   </button>
 );
 
-export const InviteSheet = ({ item, kind, onClose, onSent, flash }) => {
+// `moms` is the live recommended-moms list (from /api/mom-profiles/nearby,
+// already ranked by the match engine) supplied by the parent — leaf sheets
+// never fetch. Falls back to an empty list so sharing still works standalone.
+export const InviteSheet = ({ item, kind, onClose, onSent, flash, moms = [] }) => {
   // Prefill date/time for events; blank for places.
   const initDate = kind === 'event' ? nextDateForDayLabel(item.day) || '' : '';
   const initTime = kind === 'event' ? time12to24(item.time) : '10:00';
@@ -74,7 +76,7 @@ export const InviteSheet = ({ item, kind, onClose, onSent, flash }) => {
   const [picked, setPicked] = useState(() => new Set());
   const [copied, setCopied] = useState(false);
 
-  const matched = useMemo(() => SAMPLE_MOMS.slice(0, 6), []);
+  const matched = useMemo(() => moms.slice(0, 6), [moms]);
 
   const togglePick = (id) => {
     setPicked(prev => {
@@ -221,6 +223,11 @@ export const InviteSheet = ({ item, kind, onClose, onSent, flash }) => {
         {/* Pick moms to invite */}
         <div className="mt-5">
           <SectionLabel>Or send direct · pick moms</SectionLabel>
+          {matched.length === 0 && (
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.muted }}>
+              No matched moms yet — share above to invite a friend.
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {matched.map(m => {
               const active = picked.has(m.id);
@@ -242,7 +249,7 @@ export const InviteSheet = ({ item, kind, onClose, onSent, flash }) => {
                     fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
                     color: active ? C.coralDeep : C.navy,
                   }}>
-                    {m.name.split(' ')[0]}
+                    {m.firstName || m.name?.split(' ')[0]}
                   </span>
                 </button>
               );

@@ -65,17 +65,24 @@ const hueFor = (id) => {
 const milesLabel = (mi) => (mi == null ? null : `${mi.toFixed(1)} mi away`);
 
 export const momCardFromRow = (row, user = {}, distanceMi = null) => {
-  const { score, sharedTags } = scoreMom(user, {
+  const { score, sharedTags, explanation } = scoreMom(user, {
     kids_ages: row.kids_ages, interests: row.interests, values: row.values,
     places: row.places, free_slots: row.free_slots, mom_types: row.mom_types,
+    familyTags: (row.settings && row.settings.familyTags) || [],
   });
   const primaryType = asArray(row.mom_types).find((t) => MOM_TYPE_PRESENTATION[t]);
   const pres = MOM_TYPE_PRESENTATION[primaryType] || DEFAULT_PRESENTATION;
   const nextSlot = asArray(row.free_slots).map(formatSlot).find(Boolean) || null;
 
+  // Privacy settings (mom_profiles.settings.privacy). Undefined ⇒ default on.
+  const privacy = (row.settings && row.settings.privacy) || {};
+  const showLastActive = privacy.show_last_active !== false;   // default true
+  const verifiedOnlyDms = privacy.verified_only_dms !== false;  // default true
+
   return {
     id: row.id,
     auth_user_id: row.auth_user_id || null,
+    username: row.username || null,   // for client-side self-exclusion (handle match)
     name: row.display_name || firstNameOf(row),
     firstName: firstNameOf(row),
     age: row.age ?? null,
@@ -91,6 +98,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     overlap: score,
     tags: sharedTags,
     sharedTags,
+    matchExplanation: explanation,
     nextSlot,
     nextPlace: null,          // mom_profiles has no named next-place; sheets supply a fallback
     hue: hueFor(row.id),
@@ -101,5 +109,10 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     freeSlots: asArray(row.free_slots),
     places: asArray(row.places),
     verified: !!row.verified,
+    // Presence: hidden entirely when she turned off "Show last active".
+    last_seen_at: showLastActive ? (row.last_seen_at || null) : null,
+    presenceHidden: !showLastActive,
+    // DM gate: when on, only verified senders may message her.
+    verifiedOnlyDms,
   };
 };

@@ -10,6 +10,7 @@ const ALLOWED_PATCH_KEYS = new Set([
   'slots', 'places',
   // AboutYou v2 (2026-06-10) — 4-step carousel taxonomy.
   'stage', 'looking_for', 'describes',
+  'onboarding_completed',
 ]);
 
 const sanitizePatch = (raw) => {
@@ -36,6 +37,10 @@ const sanitizePatch = (raw) => {
       if (Number.isFinite(n) && n >= 0 && n <= 500) out[k] = Math.round(n);
     } else if (k === 'kids_ages') {
       if (typeof v === 'object' && !Array.isArray(v)) out[k] = v;
+    } else if (k === 'onboarding_completed') {
+      // Only ever flip true from the client; never write false here (the
+      // column defaults false and the authed /complete endpoint owns it too).
+      if (v === true) out[k] = true;
     } else if (Array.isArray(v)) {
       out[k] = v.filter((x) => typeof x === 'string').slice(0, 200);
     }

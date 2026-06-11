@@ -47,6 +47,12 @@ export const C = {
   divider:      '#EFE5E0',
   line:         '#EFE5E0',
 
+  // Skeleton loaders — a calm, neutral warm-gray placeholder (never coral; a
+  // loading state should rest the eye, not grab it). `skeletonSheen` is the
+  // light band that sweeps across it. See components/Skeleton.jsx.
+  skeleton:      '#ECE3DC',
+  skeletonSheen: '#F7F1EB',
+
   // Premium dark surface
   premium:      '#1B1517',
 };

@@ -72,11 +72,11 @@ money per message.
 
 **Authentication → URL Configuration**
 
-- **Site URL** → your production origin, e.g. `https://your-app.vercel.app`
+- **Site URL** → your production origin, e.g. `gomama.app`
 - **Redirect URLs** → add every origin the app runs on, so the magic link is
   allowed to bounce back:
-  - `https://your-app.vercel.app/**`
-  - `http://localhost:5173/**` (Vite dev)
+  - `https://gomama.app/**`
+  - `http://localhost:3000/**` (Vite dev)
   - any Vercel preview domains you use
 
 The app passes `emailRedirectTo: window.location.origin + '/'`, which must

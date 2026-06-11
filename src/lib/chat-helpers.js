@@ -11,10 +11,10 @@ export const dmPairKey = (a, b) => {
 // (see CLAUDE.md / premium-model.md — do not change without product sign-off).
 export const DM_FREE_LIMIT = 3;
 
-export const dmFreeState = (messages = [], myUserId, isPremium = false) => {
+export const dmFreeState = (messages = [], myUserId, isPremium = false, limit = DM_FREE_LIMIT) => {
   const used = messages.filter((m) => m.author_id === myUserId).length;
   if (isPremium) return { used, remaining: Infinity, limitReached: false };
-  const remaining = Math.max(0, DM_FREE_LIMIT - used);
+  const remaining = Math.max(0, limit - used);
   return { used, remaining, limitReached: remaining <= 0 };
 };
 

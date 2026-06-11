@@ -53,8 +53,14 @@ Defined as CSS keyframes in `src/index.css`:
 - `fadeIn`
 - `fadeInUp`
 - `popBadge`
+- `shimmer` — light-band sweep for skeleton loaders (see `components/Skeleton.jsx`)
 
 Used inline as `style={{ animation: '...' }}`.
+
+Skeleton loaders use the neutral tokens `C.skeleton` (base) and
+`C.skeletonSheen` (the sweeping highlight) — never coral. The `Skeleton`
+primitive (`src/components/Skeleton.jsx`) is composed into shape-matched
+placeholders inside each content tab so live data swaps in with no layout shift.
 
 ## Italic + color = emphasis
 

@@ -9,6 +9,7 @@ import {
   Search, Calendar, GraduationCap, Heart, Backpack,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Skeleton } from '../../components/Skeleton';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
@@ -529,6 +530,37 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
     >
       {link} <ChevronRight size={11}/>
     </button>
+  </div>
+);
+
+// Loading shell for one Explore section: a title bar + a horizontal row of card
+// placeholders sized like the real 45%-width cards (≈96px media + 2 text lines),
+// so live picks swap in without the layout jumping.
+const LpCardSkeleton = () => (
+  <div style={{
+    background: '#fff', borderRadius: 12, border: `1px solid ${C.line}`,
+    overflow: 'hidden', width: '100%',
+  }}>
+    <Skeleton w="100%" h={96} radius={0}/>
+    <div style={{ padding: '8px 10px 10px' }}>
+      <Skeleton w="90%" h={11} radius={5}/>
+      <Skeleton w="60%" h={10} radius={5} style={{ marginTop: 7 }}/>
+    </div>
+  </div>
+);
+
+const SectionSkeleton = () => (
+  <div className="px-5">
+    <div style={{ marginTop: 14, marginBottom: 10 }}>
+      <Skeleton w={150} h={15} radius={7}/>
+    </div>
+    <div className="flex" style={{ gap: 10, overflow: 'hidden', paddingBottom: 4 }}>
+      {[0, 1, 2].map(i => (
+        <div key={i} style={{ flex: '0 0 45%', display: 'flex' }}>
+          <LpCardSkeleton/>
+        </div>
+      ))}
+    </div>
   </div>
 );
 
@@ -1225,6 +1257,7 @@ const GroupChatCard = ({ item, onClick }) => {
 
 export const LocalPicksTab = ({
   places,
+  placesLoading = false, eventsLoading = false,
   location, locationGeo,
   placesRadius = 50,
   savedItems = [], setSavedItems, flash,
@@ -1484,8 +1517,13 @@ export const LocalPicksTab = ({
           </div>
         </div>
 
+        {/* Loading skeletons — placeholder rows while live data resolves. */}
+        {(placesLoading || eventsLoading) && (
+          [0, 1, 2].map(i => <SectionSkeleton key={`sk-${i}`}/>)
+        )}
+
         {/* Popular right now — events feed */}
-        {eventsItems.length > 0 && (
+        {!(placesLoading || eventsLoading) && eventsItems.length > 0 && (
           <div className="px-5" id="explore-section-events">
             <SectionHead title="Popular right now" onLink={() => setSeeAll('events')}/>
             <div
@@ -1509,7 +1547,7 @@ export const LocalPicksTab = ({
             Tap → opens the same GroupDiscussionSheet used elsewhere; "See
             all" routes to Connect's groups SeeAll so we don't fork the
             discovery experience. */}
-        {trendingGroups.length > 0 && (
+        {!(placesLoading || eventsLoading) && trendingGroups.length > 0 && (
           <div className="px-5">
             <SectionHead title="Trending group chats" onLink={goToConnectGroups}/>
             <div
@@ -1528,7 +1566,7 @@ export const LocalPicksTab = ({
         )}
 
         {/* Top local picks — places feed */}
-        {placesItems.length > 0 && (
+        {!(placesLoading || eventsLoading) && placesItems.length > 0 && (
           <div className="px-5" id="explore-section-places">
             <SectionHead title="Top local picks" onLink={() => setSeeAll('places')}/>
             <div
@@ -1548,7 +1586,7 @@ export const LocalPicksTab = ({
           </div>
         )}
 
-        {eventsItems.length === 0 && placesItems.length === 0 && trendingGroups.length === 0 && (
+        {!(placesLoading || eventsLoading) && eventsItems.length === 0 && placesItems.length === 0 && trendingGroups.length === 0 && (
           <div className="px-5" style={{
             marginTop: 40, textAlign: 'center',
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
