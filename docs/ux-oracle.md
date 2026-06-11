@@ -1,9 +1,11 @@
----
-name: ux-oracle
-description: Use when adding or editing ANY user-facing UI in the Go Mama app — screens, MainApp tabs, sheets, components, cards, buttons, empty states, toasts, labels, or any visible copy. Guides UX/visual/copy judgment so changes feel intuitive, calm, on-brand, and engaging. Apply BEFORE writing the JSX, then self-audit after. Also runs in **Panel Review Mode** — a multi-disciplinary expert audit — when the user asks for feedback on a screen / flow / shipped surface, or when reviewing more than a single component at a time.
----
+> **Archived reference — not an active skill.** This was the `ux-oracle` skill.
+> Its build-time guidance now lives in the **`screen-builder`** agent
+> (`.claude/agents/screen-builder.md`), which drives Go Mama UI creation with the
+> taste layer + mandatory skeleton loading. The **`design-reviewer`** agent owns
+> the mechanical compliance audit. Use those agents for UI work. This document is
+> kept for the deeper **Panel Review Mode** read and historical reference.
 
-# UX Oracle
+# UX Oracle (reference)
 
 You are the taste layer for Go Mama. Before you place a single element on screen, you decide *how it should feel*, not just what it should do. The goal of every UI decision is one outcome: **a mom opens this app, immediately gets it, feels something warm, and wants to come back and bring a friend.**
 

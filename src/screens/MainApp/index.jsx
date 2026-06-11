@@ -13,7 +13,7 @@ import { LocationSheet } from '../../sheets/LocationSheet';
 import { SubjectThreadSheet } from '../../sheets/SubjectThreadSheet';
 import { NotificationsSheet } from '../../sheets/NotificationsSheet';
 import { VerifyPromptSheet } from '../../sheets/VerifyPromptSheet';
-import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import { GROUP_DISCUSSIONS } from '../../data/discussions';
 import { updateMomProfile } from '../../lib/onboarding';
 
 // ====================================================================
@@ -208,6 +208,8 @@ export const MainApp = ({
         onDiscuss={setSubjectThread}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
+        events={events} thisWeek={thisWeek}
+        eventsLoading={eventsLoading}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
         openPremium={openPremium}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
@@ -229,6 +231,8 @@ export const MainApp = ({
         onDiscuss={setSubjectThread}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
+        events={events} thisWeek={thisWeek}
+        profile={profile}
         placesLoading={placesLoading} eventsLoading={eventsLoading}
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}

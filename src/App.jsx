@@ -49,7 +49,6 @@ import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-mom
 import { fetchNearbyMoms } from './lib/nearby-moms';
 import { fetchLocalFavorite } from './lib/local-favorite-api';
 import { decorateMom } from './lib/mom-card';
-import { SUGGESTED_EVENTS as FALLBACK_EVENTS } from './data/events';
 
 // ====================================================================
 // ROOT
@@ -111,15 +110,15 @@ function PrototypeApp({ bare = false }) {
   const [myUserId, setMyUserId] = useState(null);
 
   // Live places loaded from /api/places (approved + visible rows, grouped by
-  // category). Null until the first load resolves; screens fall back to their
-  // own hardcoded data so the app never renders blank or stale.
+  // category). Null until the first load resolves; screens render skeletons
+  // while loading and an empty state if the API has nothing — never static data.
   const [livePlaces, setLivePlaces] = useState(null); // { places, topPicks, flat } | null
   const [placesLoading, setPlacesLoading] = useState(true); // false once the first fetch settles (ok or error)
   useEffect(() => {
     let alive = true;
     fetchPlaces()
       .then(data => { if (alive) setLivePlaces(data); })
-      .catch(() => { /* keep hardcoded fallback in screens */ })
+      .catch(() => { /* leave null → empty state, never a static fallback */ })
       .finally(() => { if (alive) setPlacesLoading(false); });
     return () => { alive = false; };
   }, []);
@@ -168,8 +167,9 @@ function PrototypeApp({ bare = false }) {
     return () => { alive = false; };
   }, []);
 
-  // Live recurring events when present; hardcoded fallback so the app never blanks.
-  const eventsData = liveEvents?.recurring?.length ? liveEvents.recurring : FALLBACK_EVENTS;
+  // Live events only — empty arrays until the fetch resolves (screens show
+  // skeletons, then an empty state if there's nothing). No static fallback.
+  const eventsData = liveEvents?.recurring || [];
   const thisWeekData = liveEvents?.thisWeek || [];
 
   const flash = (m) => { setToast(m); setTimeout(()=>setToast(null), 1900); };

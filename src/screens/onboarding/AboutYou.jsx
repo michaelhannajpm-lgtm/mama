@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Check, Sparkles, LocateFixed, Lock } from 'lucide-react';
+import { ChevronLeft, Check, LocateFixed, Lock } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { MOM_DESCRIBES } from '../../data/taxonomy';
@@ -228,74 +228,6 @@ const QuestionHeader = ({ children, why }) => (
 
 const Emph = ({ children }) => (
   <span style={{ color: C.coral, fontStyle: 'italic', fontWeight: 500 }}>{children}</span>
-);
-
-// Dynamic preview banner — mirrors the Landing stat-pill promise (events ·
-// places · moms) but recomputes live from the user's selections so they can
-// watch the curation tighten as they tap.
-const PreviewBanner = ({ title, items, snippet, hint }) => (
-  <div
-    className="rounded-2xl"
-    style={{
-      marginTop: 10,
-      padding: '9px 12px',
-      background: `linear-gradient(135deg, #FFF7F0 0%, ${C.coralSoft} 100%)`,
-      border: `1px solid ${C.coralSoft}`,
-      boxShadow: '0 2px 8px -4px rgba(214,68,106,.14)',
-    }}
-  >
-    <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-      <Sparkles size={12} color={C.coralDeep} fill={C.coralDeep} strokeWidth={1.5}/>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
-        color: C.coralDeep, textTransform: 'uppercase', letterSpacing: '.08em',
-      }}>
-        {title}
-      </div>
-    </div>
-    <div
-      className="grid grid-cols-2"
-      style={{ gap: '5px 14px', marginBottom: snippet || hint ? 6 : 0 }}
-    >
-      {items.map(it => (
-        <div key={it.label} className="flex items-baseline" style={{ gap: 5 }}>
-          <span
-            key={it.count}
-            style={{
-              fontFamily: 'Fraunces', fontSize: 18, fontWeight: 700,
-              color: C.navy, lineHeight: 1, letterSpacing: '-.01em',
-              display: 'inline-block',
-              animation: 'popBadge 220ms cubic-bezier(.4,1.5,.5,1)',
-            }}
-          >
-            {it.count}
-          </span>
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 600,
-            color: C.inkSoft, lineHeight: 1.15,
-          }}>
-            {it.label}
-          </span>
-        </div>
-      ))}
-    </div>
-    {snippet && (
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 600,
-        color: C.navy, lineHeight: 1.35, opacity: .82,
-      }}>
-        {snippet}
-      </div>
-    )}
-    {hint && (
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 10, fontStyle: 'italic',
-        color: C.muted, lineHeight: 1.35,
-      }}>
-        {hint}
-      </div>
-    )}
-  </div>
 );
 
 export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance, locationGeo, setLocationGeo, places = {}, events = [], thisWeek = [] }) => {

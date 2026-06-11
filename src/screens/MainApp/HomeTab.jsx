@@ -8,6 +8,7 @@ import { C } from '../../theme';
 import { Skeleton } from '../../components/Skeleton';
 import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
+import { rankEvents, sourceOf, EVENT_FALLBACK_PHOTO } from '../../lib/event-cards';
 import { buildAgeRail, childList } from '../../lib/age-rail';
 import { profileCompletion } from '../../lib/profile-completion';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
@@ -30,16 +31,6 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-// Label a single activity — dated events show their day, recurring ones
-// show their cadence.
-const whenLabel = (item) => {
-  if (item.startsAt) {
-    const d = new Date(item.startsAt);
-    return `${DOW[d.getDay()]} ${d.getDate()}${item.time ? ` · ${item.time}` : ''}`;
-  }
-  return item.recurring || item.time || 'Ongoing';
-};
 
 const longDateLabel = (item) => {
   if (item.startsAt) {
@@ -81,6 +72,20 @@ const MomMeetCardSkeleton = () => (
     <Skeleton w={72} h={72} radius={36}/>
     <Skeleton w="62%" h={12} radius={6} style={{ marginTop: 8 }}/>
     <Skeleton w="84%" h={9} radius={5} style={{ marginTop: 7 }}/>
+  </div>
+);
+
+// Empty state for a horizontal rail — shown when the live API returns no rows
+// for that section (mirrors the Moms section's bordered empty card so every
+// section reads as live-and-loading, never blank or hidden).
+const RailEmpty = ({ text }) => (
+  <div style={{
+    flex: 1, background: '#fff', border: `1px solid ${C.line}`,
+    borderRadius: 14, padding: '16px 14px', textAlign: 'center',
+  }}>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, lineHeight: 1.4 }}>
+      {text}
+    </div>
   </div>
 );
 
@@ -420,69 +425,39 @@ export const HomeTab = ({
     return true;
   });
 
-  // "3 fun things happening near you" — exactly 3 horizontally-scrolling
-  // cards, same MeetupCard shape as the Upcoming Meetups row below. Live
-  // activities when available, else synthetic fallbacks so the surface
-  // always reads complete.
-  const FUN_THINGS_FALLBACK = [
-    {
-      id: 'ft-1', title: 'Saturday Splash Pad Meetup',
-      when: 'Sat, May 27 · 9:30 AM', going: 12, mi: 0.5,
-      photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ft-2', title: 'Music Together Class',
-      when: 'Tue, May 30 · 10:00 AM', going: 8, mi: 1.2,
-      photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ft-3', title: 'Zoo Tampa Family Day',
-      when: 'Sun, May 25 · 11:00 AM', going: 22, mi: 2.0,
-      photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
-    },
-  ];
-  const funThings = activities.length >= 3
-    ? activities.slice(0, 3).map((a, i) => ({
-        id: a.id,
-        title: a.name,
-        when: longDateLabel(a),
-        going: a.going ?? FUN_THINGS_FALLBACK[i].going,
-        mi: a.mi,
-        photo: a.photo || FUN_THINGS_FALLBACK[i].photo,
-        place: a.place,
-      }))
-    : FUN_THINGS_FALLBACK;
+  // "Local Events Nearby" — up to 3 horizontally-scrolling cards from LIVE
+  // activities only (no synthetic padding). Renders a skeleton while loading
+  // and hides when there's genuinely nothing.
+  const funThings = activities.slice(0, 3).map((a) => ({
+    id: a.id,
+    title: a.name,
+    when: longDateLabel(a),
+    going: a.going ?? 0,
+    mi: a.mi,
+    photo: a.photo || EVENT_FALLBACK_PHOTO,
+    place: a.place,
+  }));
 
   // Moms You May Want To Meet — already match-ranked by the API
   // (/api/mom-profiles/nearby → scoreMom). Render in that order; do NOT re-sort
   // by distance (that discarded the match ranking).
   const moms = [...nearbyMoms];
 
-  // Upcoming meetups — synthesized for the home preview. Real list lives in
-  // Explore → Meetups; "See all" routes there.
-  const UPCOMING_MEETUPS = [
-    {
-      id: 'um-1', title: 'Coffee Walk',
-      when: 'Sat, May 25 · 9:30 AM', going: 5, mi: 0.4,
-      photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
-      hostPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop',
-      place: 'Buddy Brew · Hyde Park',
-    },
-    {
-      id: 'um-2', title: 'Stroller Walk',
-      when: 'Wed, May 28 · 10:00 AM', going: 8, mi: 1.2,
-      photo: 'https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=400&auto=format&fit=crop',
-      hostPhoto: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop',
-      place: 'Bayshore Boulevard',
-    },
-    {
-      id: 'um-3', title: 'Splash Pad Meetup',
-      when: 'Sat, May 31 · 11:00 AM', going: 12, mi: 0.5,
-      photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-      hostPhoto: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=120&auto=format&fit=crop',
-      place: 'Curtis Hixon Park',
-    },
-  ];
+  // Upcoming Meetups — LIVE mom-led meetups (eventType==='meetup') from
+  // /api/events, ranked by relevance then soonest. "See all" routes to
+  // Explore → Meetups. No synthetic fallback.
+  const UPCOMING_MEETUPS = rankEvents([...thisWeek, ...events], profile)
+    .filter(ev => sourceOf(ev) === 'meetup')
+    .slice(0, 3)
+    .map(a => ({
+      id: a.id,
+      title: a.name,
+      when: longDateLabel(a),
+      going: a.going ?? 0,
+      mi: a.mi,
+      photo: a.photo || EVENT_FALLBACK_PHOTO,
+      place: a.place,
+    }));
 
   // Based On Your Child's Age — real, kid-age-ranked places + events.
   const ageKids = childList(profile);
@@ -491,27 +466,34 @@ export const HomeTab = ({
     ? ageRailAll
     : ageRailAll.filter((it) => it.forChild.includes(ageChild));
 
-  // Continue Planning — 4 slots: meetup, place, mom, program. Real saved
-  // items from the App would populate this; we synthesize for the home preview.
-  const CONTINUE = [
-    { id: 'cp-1', type: 'meetup',  title: 'Coffee Walk' },
-    { id: 'cp-2', type: 'place',   title: "Glazer Children's Museum" },
-    { id: 'cp-3', type: 'mom',     title: 'Sarah' },
-    { id: 'cp-4', type: 'program', title: 'Music Together' },
-  ];
+  // Continue Planning — up to 4 of the user's REAL saved items, resolved to a
+  // {type,title} tile against the live moms/events/places pools. Saved ids:
+  // `mom-<id>`, `int-<eventId>`, a bare event id, or a place id/slug. Hidden
+  // when nothing is saved. No synthetic items.
+  const continuePool = {
+    moms: nearbyMoms,
+    events: [...events, ...thisWeek],
+    places: Object.values(places || {}).flat(),
+  };
+  const resolveContinue = (id) => {
+    if (typeof id === 'string' && id.startsWith('mom-')) {
+      const m = continuePool.moms.find(x => String(x.id) === id.slice(4));
+      return m ? { id, type: 'mom', title: m.name } : null;
+    }
+    const evId = typeof id === 'string' && id.startsWith('int-') ? id.slice(4) : id;
+    const ev = continuePool.events.find(e => String(e.id) === String(evId));
+    if (ev) return { id, type: ev.eventType === 'meetup' ? 'meetup' : 'program', title: ev.name };
+    const p = continuePool.places.find(x => String(x.id) === String(id) || x.slug === id);
+    if (p) return { id, type: 'place', title: p.name };
+    return null;
+  };
+  const CONTINUE = savedItems.map(resolveContinue).filter(Boolean).slice(0, 4);
 
   // Feature this week — admin-curated for the week (via /api/local-favorite).
   // The favorite can be either a place OR an event — `localFavorite.kind` tells
   // us which, and we shape the rendered card + click handler accordingly.
   // Falls back to the top trending place when no admin pick exists.
   const liveTrending = pickTrendingPlaces(places, 8, profile);
-  const LOCAL_FAVORITE_FALLBACK = {
-    id: 'lf-1', name: "Glazer Children's Museum",
-    rating: 4.8, review_count: 450, distance: '1.4 miles',
-    hero_photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=600&auto=format&fit=crop',
-    tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
-    kind: 'place',
-  };
   const favoriteCard = (() => {
     if (localFavorite?.kind === 'event') {
       return {
@@ -539,10 +521,10 @@ export const HomeTab = ({
       };
     }
     if (liveTrending[0]) {
-      return { ...liveTrending[0], kind: 'place', distance: liveTrending[0].distance || '1.4 miles',
+      return { ...liveTrending[0], kind: 'place', distance: liveTrending[0].distance || '',
         tagline: `Most loved place by ${city || 'Tampa'} moms this week` };
     }
-    return LOCAL_FAVORITE_FALLBACK;
+    return null; // no live favorite/trending place → hide the section
   })();
 
   const isSaved      = (id) => savedItems.includes(id);
@@ -646,15 +628,18 @@ export const HomeTab = ({
           </button>
         )}
 
-        {/* Local Events Nearby — live dated events (fallback only when empty);
-            same MeetupCard shape as the Upcoming Meetups row below. */}
+        {/* Local Events Nearby — live events from /api/events (ranked by
+            bucketActivities → rankActivitiesForUser). Always visible: skeleton
+            while loading → cards → empty state, mirroring the Moms section. */}
         <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
           {eventsLoading
             ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
-            : funThings.map(it => (
-                <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
-              ))}
+            : funThings.length > 0
+              ? funThings.map(it => (
+                  <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
+                ))
+              : <RailEmpty text="No events nearby yet — new ones show up here as they're added."/>}
         </div>
 
         {/* Moms You May Want To Meet — 3-up grid, match-ranked */}
@@ -690,12 +675,18 @@ export const HomeTab = ({
           </div>
         )}
 
-        {/* Upcoming Meetups */}
+        {/* Upcoming Meetups — live mom-led meetups (eventType==='meetup') from
+            /api/events, ranked via rankEvents. Always visible: skeleton →
+            cards → empty state, mirroring the Moms section. */}
         <SectionHead title="Upcoming Meetups" onLink={goToMeetups || goToActivities}/>
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
-          {UPCOMING_MEETUPS.map(m => (
-            <MeetupCard key={m.id} item={m} onClick={() => openMeetup(m)}/>
-          ))}
+          {eventsLoading
+            ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
+            : UPCOMING_MEETUPS.length > 0
+              ? UPCOMING_MEETUPS.map(m => (
+                  <MeetupCard key={m.id} item={m} onClick={() => openMeetup(m)}/>
+                ))
+              : <RailEmpty text="No meetups scheduled nearby yet — check back soon."/>}
         </div>
 
         {/* Based On Your Child's Age — per-child filterable, places + events */}
@@ -737,31 +728,39 @@ export const HomeTab = ({
           </>
         )}
 
-        {/* Continue Planning — 2x2 grid */}
-        <SectionHead title="Continue Planning"/>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {CONTINUE.map(it => (
-            <ContinuePlanTile key={it.id} item={it} onClick={() => continueRoute(it)}/>
-          ))}
-        </div>
+        {/* Continue Planning — the user's real saved items (hidden when none). */}
+        {CONTINUE.length > 0 && (
+          <>
+            <SectionHead title="Continue Planning"/>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {CONTINUE.map(it => (
+                <ContinuePlanTile key={it.id} item={it} onClick={() => continueRoute(it)}/>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Feature this week — smart: opens place or event detail depending
-            on what the admin pinned. */}
-        <SectionHead title="Feature this week"/>
-        <LocalFavoriteCard item={favoriteCard} onClick={() => {
-          if (favoriteCard.kind === 'event') {
-            openMeetup({
-              id: favoriteCard.event_id || favoriteCard.id,
-              title: favoriteCard.name,
-              photo: favoriteCard.hero_photo,
-              when: favoriteCard.when,
-              mi: null,
-              place: favoriteCard.distance,
-            });
-          } else {
-            openPlace(favoriteCard);
-          }
-        }}/>
+            on what the admin pinned. Hidden when there's no live feature. */}
+        {favoriteCard && (
+          <>
+            <SectionHead title="Feature this week"/>
+            <LocalFavoriteCard item={favoriteCard} onClick={() => {
+              if (favoriteCard.kind === 'event') {
+                openMeetup({
+                  id: favoriteCard.event_id || favoriteCard.id,
+                  title: favoriteCard.name,
+                  photo: favoriteCard.hero_photo,
+                  when: favoriteCard.when,
+                  mi: null,
+                  place: favoriteCard.distance,
+                });
+              } else {
+                openPlace(favoriteCard);
+              }
+            }}/>
+          </>
+        )}
 
         {/* Saved-spots summary — only when something is saved */}
         {savedItems.length > 0 && (
