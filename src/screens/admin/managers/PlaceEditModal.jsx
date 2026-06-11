@@ -245,7 +245,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...sectionHeader }}>
           Photos
-          <AiImageControl kind="place" record={form} onImage={(url) => set('hero_photo', url)} />
+          <AiImageControl kind="place" record={form} onImage={(url) => setHero(url)} />
         </div>
         {photos.length === 0 ? (
           <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No photos</div>
