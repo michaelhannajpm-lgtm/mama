@@ -27,7 +27,7 @@ export const SuggestionChips = ({ suggestions, onAccept, onDismiss }) => {
     }}>
       {suggestions.map((s, i) => (
         <div
-          key={`${s.field}-${i}`}
+          key={`${s.field}-${s.suggested}`}
           style={{
             display: 'flex', alignItems: 'flex-start', gap: 8,
             padding: '8px 12px',
