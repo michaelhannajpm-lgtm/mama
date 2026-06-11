@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
 import { loadGoogleMaps, mapsKeyPresent } from './googleMaps';
 
 // Renders all `places` with numeric lat/lng as clickable markers. Marker click
@@ -40,9 +40,9 @@ export const PlacesMap = ({ places, onSelect }) => {
   }, [places, onSelect]);
 
   const panel = (msg) => (
-    <div style={{ height: 560, borderRadius: 16, border: `1px solid ${C.divider}`, background: C.paper,
+    <div style={{ height: 560, borderRadius: 16, border: `1px solid ${AC.border}`, background: AC.surface,
       display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24,
-      fontFamily: 'Albert Sans', fontSize: 13.5, color: C.inkMuted }}>{msg}</div>
+      fontFamily: 'Albert Sans', fontSize: 13.5, color: AC.textMuted }}>{msg}</div>
   );
 
   if (!mapsKeyPresent()) return panel('Map view needs a browser Maps key. Set VITE_GOOGLE_MAPS_API_KEY (with the Maps JavaScript API enabled) in .env, then rebuild.');
@@ -50,8 +50,8 @@ export const PlacesMap = ({ places, onSelect }) => {
   const withGeo = (places || []).filter(p => isFinite(Number(p.lat)) && isFinite(Number(p.lng))).length;
   return (
     <div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted, marginBottom: 6 }}>{withGeo} of {(places || []).length} places have coordinates</div>
-      <div ref={ref} style={{ width: '100%', height: 560, borderRadius: 16, border: `1px solid ${C.divider}` }} />
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textMuted, marginBottom: 6 }}>{withGeo} of {(places || []).length} places have coordinates</div>
+      <div ref={ref} style={{ width: '100%', height: 560, borderRadius: 16, border: `1px solid ${AC.border}` }} />
     </div>
   );
 };

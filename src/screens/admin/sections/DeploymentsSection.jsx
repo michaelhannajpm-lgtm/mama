@@ -4,26 +4,73 @@
 // links to the build inspector. Degrades to a setup card until VERCEL_TOKEN is
 // configured. Console design system (`AC` + primitives).
 // ============================================================================
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Rocket, AlertTriangle, ExternalLink, GitBranch, Terminal } from 'lucide-react';
 import { AC } from '../admin-theme';
 import { fetchEndpoint } from '../lib/adminFetch';
-import { PageHeader, Card, Badge, Banner, Button, EmptyState, rel } from '../components/primitives';
+import { PageHeader, Card, Badge, Banner, Button, EmptyState, Toolbar, Select, rel } from '../components/primitives';
 
 const STATE_TONE = {
   READY: 'success', BUILDING: 'info', QUEUED: 'info', INITIALIZING: 'info',
   ERROR: 'danger', CANCELED: 'neutral', UNKNOWN: 'neutral',
 };
 
+// Time window → milliseconds back from now (null = all time).
+const WINDOWS = { '24h': 864e5, '7d': 6048e5, '30d': 2592e6, all: null };
+const WINDOW_OPTS = [
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: 'all', label: 'All time' },
+];
+
+// Status filter. `default` = smart hide of old failures; `all` = everything;
+// any concrete state = show only that state.
+const STATUS_OPTS = [
+  { value: 'default', label: 'Default (hide old failures)' },
+  { value: 'all', label: 'All deployments' },
+  { value: 'READY', label: 'Ready' },
+  { value: 'ERROR', label: 'Error' },
+  { value: 'BUILDING', label: 'Building' },
+  { value: 'CANCELED', label: 'Canceled' },
+  { value: 'QUEUED', label: 'Queued' },
+];
+
+const isError = (d) => (d.state || 'UNKNOWN') === 'ERROR';
+
+// Apply the status filter to the (newest-first) deployment list.
+// Default mode: keep the leading run of errors at the top until the first
+// successful (READY) deploy, then hide every ERROR after it — surfacing a live
+// breakage while suppressing stale failures. Other modes are literal filters.
+function applyStatus(list, status) {
+  if (status === 'all') return { visible: list, hiddenFailures: 0 };
+  if (status !== 'default') {
+    return { visible: list.filter((d) => (d.state || 'UNKNOWN') === status), hiddenFailures: 0 };
+  }
+  const firstSuccess = list.findIndex((d) => (d.state || 'UNKNOWN') === 'READY');
+  const cut = firstSuccess === -1 ? Infinity : firstSuccess;
+  let hiddenFailures = 0;
+  const visible = list.filter((d, i) => {
+    if (!isError(d) || i < cut) return true;
+    hiddenFailures += 1;
+    return false;
+  });
+  return { visible, hiddenFailures };
+}
+
 export const DeploymentsSection = () => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [windowSel, setWindowSel] = useState('7d');
+  const [status, setStatus] = useState('default');
 
-  const load = async () => {
+  const load = async (win = windowSel) => {
     setLoading(true); setError(null);
     try {
-      setData(await fetchEndpoint('/api/admin/deployments', 'Deployments'));
+      const ms = WINDOWS[win];
+      const qs = ms == null ? '' : `?since=${Date.now() - ms}`;
+      setData(await fetchEndpoint(`/api/admin/deployments${qs}`, 'Deployments'));
     } catch (e) {
       setError(e?.message || 'Could not load deployments');
     } finally {
@@ -31,17 +78,47 @@ export const DeploymentsSection = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // Refetch whenever the time window changes; status filtering is client-side.
+  useEffect(() => { load(windowSel); }, [windowSel]);
 
-  const deployments = data?.deployments || [];
+  const all = data?.deployments || [];
+  const { visible: deployments, hiddenFailures } = useMemo(
+    () => applyStatus(all, status),
+    [all, status],
+  );
+
+  const configured = data?.configured !== false;
 
   return (
     <div>
       <PageHeader
         title="Deployments"
         subtitle="Version history from Vercel. Click a version to open it; the commit opens the build inspector."
-        actions={<Button size="sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</Button>}
+        actions={<Button size="sm" onClick={() => load(windowSel)} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</Button>}
       />
+
+      {configured && (
+        <Toolbar>
+          <Select
+            options={STATUS_OPTS}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label="Filter by status"
+          />
+          <Select
+            options={WINDOW_OPTS}
+            value={windowSel}
+            onChange={(e) => setWindowSel(e.target.value)}
+            disabled={loading}
+            aria-label="Time range"
+          />
+          {data && (
+            <span style={{ fontFamily: AC.font, fontSize: 12, color: AC.textMuted }}>
+              {deployments.length} of {all.length}
+            </span>
+          )}
+        </Toolbar>
+      )}
 
       {error && <Banner tone="danger" icon={AlertTriangle}>{error}</Banner>}
 
@@ -66,7 +143,16 @@ export const DeploymentsSection = () => {
           )}
         />
       ) : deployments.length === 0 ? (
-        <EmptyState icon={Rocket} title="No deployments found" body="Nothing returned for this project scope yet." />
+        all.length > 0 ? (
+          <EmptyState
+            icon={Rocket}
+            title="No deployments match this filter"
+            body={`None of the ${all.length} deployment${all.length === 1 ? '' : 's'} in this range match the “${STATUS_OPTS.find((o) => o.value === status)?.label}” filter.`}
+            action={<Button onClick={() => setStatus('all')}>Show all deployments</Button>}
+          />
+        ) : (
+          <EmptyState icon={Rocket} title="No deployments found" body="Nothing returned for this project scope in this time range." />
+        )
       ) : (
         <Card padding={0}>
           {deployments.map((d, i) => (
@@ -120,7 +206,17 @@ export const DeploymentsSection = () => {
         </Card>
       )}
 
-      {data?.configured && !data?.scoped && deployments.length > 0 && (
+      {status === 'default' && hiddenFailures > 0 && (
+        <div className="mt-2" style={{ fontFamily: AC.font, fontSize: 11.5, color: AC.textMuted }}>
+          {hiddenFailures} older failed deployment{hiddenFailures === 1 ? '' : 's'} hidden ·{' '}
+          <button onClick={() => setStatus('all')}
+            style={{ background: 'transparent', color: AC.info, cursor: 'pointer', fontWeight: 600 }}>
+            Show all
+          </button>
+        </div>
+      )}
+
+      {data?.configured && !data?.scoped && all.length > 0 && (
         <div className="mt-2" style={{ fontFamily: AC.font, fontSize: 11.5, color: AC.textMuted }}>
           Showing all deployments visible to the token. Set <code style={{ fontFamily: AC.mono }}>VERCEL_PROJECT_ID</code> to scope to this project.
         </div>

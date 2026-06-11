@@ -46,7 +46,15 @@ export default async function handler(req, res) {
     });
   }
 
-  const params = new URLSearchParams({ limit: '30' });
+  // `since` (epoch ms) scopes the pull to a time window; the client computes it
+  // from the selected range (24h / 7d / 30d / all). Status filtering + the
+  // hide-old-failures rule happen client-side, so we pull every state here.
+  const url = new URL(req.url, 'http://localhost');
+  const sinceRaw = url.searchParams.get('since');
+  const since = sinceRaw && /^\d+$/.test(sinceRaw) ? sinceRaw : null;
+
+  const params = new URLSearchParams({ limit: '100' });
+  if (since) params.set('since', since);
   if (process.env.VERCEL_PROJECT_ID) params.set('projectId', process.env.VERCEL_PROJECT_ID);
   if (process.env.VERCEL_TEAM_ID) params.set('teamId', process.env.VERCEL_TEAM_ID);
 

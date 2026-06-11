@@ -1,6 +1,6 @@
 // Shared row helpers for the admin Places/Events managers: photo realness,
 // status colors, and which row actions are relevant for a given status.
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
 
 export const STATUSES = ['needs_review', 'approved', 'rejected', 'archived'];
 
@@ -18,11 +18,11 @@ export const hasRealPhoto = (row) => {
 
 // Status label color: needs_review pops in orange (not yet reviewed).
 export const statusColor = (s) => ({
-  needs_review: C.saffron,
-  approved: C.sageDark,
-  rejected: C.terracotta,
-  archived: C.inkMuted,
-}[s] || C.inkMuted);
+  needs_review: AC.warn,
+  approved: AC.success,
+  rejected: AC.accent,
+  archived: AC.textMuted,
+}[s] || AC.textMuted);
 
 // Which row/bulk actions are relevant for a row, keyed by review_status.
 // (Hide/Show is only meaningful for approved rows; its direction depends on

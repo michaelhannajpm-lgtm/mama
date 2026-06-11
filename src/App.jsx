@@ -146,7 +146,7 @@ function PrototypeApp({ bare = false }) {
   // User-driven verified-only toggle — marks the choice so config won't override it.
   const handleSetVerifiedOnly = (v) => { verifiedOnlyTouched.current = true; loadNearbyMoms(v); };
   // Set + persist the user's radius override to onboarding_profiles.
-  const changePlacesRadius = (r) => { setPlacesRadius(r); recordStep(3, { places_radius_miles: r }); };
+  const changePlacesRadius = (r) => { setPlacesRadius(r); recordStep(6, { places_radius_miles: r }); };
 
   const [liveEvents, setLiveEvents] = useState(null); // { recurring, thisWeek } | null
   const [eventsLoading, setEventsLoading] = useState(true); // false once the first fetch settles (ok or error)
@@ -590,31 +590,20 @@ function PrototypeApp({ bare = false }) {
               onDevLogin={openSeededLogin}/>
           ) : (<>
           {step===0 && <AboutYou
-            onNext={()=>{ recordStep(0, {
-              location,
-              distance_miles: distance,
-              location_place_id:     locationGeo?.id ?? null,
-              location_city:         locationGeo?.city ?? null,
-              location_neighborhood: locationGeo?.neighborhood ?? null,
-              location_county:       locationGeo?.county ?? null,
-              location_lat:          locationGeo?.lat ?? null,
-              location_lng:          locationGeo?.lng ?? null,
-              kids_ages: profile.kidsAges,
-              mom_types: profile.momTypes,
-              stage:       profile.stage,
-              looking_for: profile.lookingFor,
-              describes:   profile.describes,
-              // Finishing AboutYou is what "completed onboarding" means. Flag
-              // the session_id row so a later promote reads it back as done.
-              onboarding_completed: true,
-            });
+            onNext={()=>{
+              // AboutYou records each carousel step itself (steps 1–4, incl. the
+              // location patch + onboarding_completed flag) so mid-flow drop-off
+              // is captured. Here we only advance + mark the post-AboutYou
+              // milestone for the funnel.
               if (account) {
                 // Already signed in (returning user we routed here, or OAuth
                 // mid-onboarding) → skip the Account screen, flip the flag on
                 // the auth-linked row too, and enter the app.
+                recordStep(6, {}); // done
                 completeOnboarding();
                 setStep(3);
               } else {
+                recordStep(5, {}); // reached the Account screen
                 setStep(2); // new user → create account next
               }
             }}

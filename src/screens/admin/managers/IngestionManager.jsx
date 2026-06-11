@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
+import { BusyOverlay } from '../components/primitives';
 import { Play, RefreshCw, Server } from 'lucide-react';
 
 const STATUS_COLOR = (s) => ({
-  queued: C.inkMuted, running: C.saffron, succeeded: C.sageDark,
-  partial: C.saffron, failed: C.terracotta, canceled: C.inkMuted,
-}[s] || C.inkMuted);
+  queued: AC.textMuted, running: AC.warn, succeeded: AC.success,
+  partial: AC.warn, failed: AC.accent, canceled: AC.textMuted,
+}[s] || AC.textMuted);
 
 export const IngestionManager = ({ adminFetch }) => {
   const [kind, setKind] = useState('events');
@@ -73,64 +74,65 @@ export const IngestionManager = ({ adminFetch }) => {
   const fmt = (t) => t ? new Date(t).toLocaleString() : '—';
 
   return (
-    <div>
-      <div className="rounded-2xl p-4 mb-4" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
+    <div style={{ position: 'relative' }}>
+      <BusyOverlay show={busy} label="Working…" />
+      <div className="rounded-2xl p-4 mb-4" style={{ background: AC.surface, border: `1px solid ${AC.border}` }}>
         <div className="flex items-center gap-2 mb-3">
-          <Server size={16} style={{ color: C.sageDark }} />
-          <span style={{ fontFamily: 'Fraunces', fontSize: 16, color: C.ink }}>Run ingestion</span>
+          <Server size={16} style={{ color: AC.success }} />
+          <span style={{ fontFamily: 'Fraunces', fontSize: 16, color: AC.text }}>Run ingestion</span>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft }}>Type
+          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft }}>Type
             <select value={kind} onChange={e => onKind(e.target.value)}
-              style={{ display: 'block', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13 }}>
+              style={{ display: 'block', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 8px', fontSize: 13 }}>
               <option value="events">Events</option><option value="places">Places</option>
             </select>
           </label>
-          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft }}>Source
+          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft }}>Source
             <select value={sourceId} onChange={e => setSourceId(e.target.value)} disabled={!sourceList[kind].length}
-              style={{ display: 'block', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, minWidth: 240 }}>
+              style={{ display: 'block', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, minWidth: 240 }}>
               {sourceList[kind].length === 0
                 ? <option value="">no sources</option>
                 : sourceList[kind].map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>
-          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft }}>Limit
+          <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft }}>Limit
             <input type="number" value={limit} min={1} onChange={e => setLimit(e.target.value)}
-              style={{ display: 'block', width: 80, border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13 }} />
+              style={{ display: 'block', width: 80, border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 8px', fontSize: 13 }} />
           </label>
           <button disabled={busy || !sourceId} onClick={launch}
-            style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: (busy || !sourceId) ? 0.6 : 1 }}>
+            style={{ background: AC.success, color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: (busy || !sourceId) ? 0.6 : 1 }}>
             <Play size={14} /> {busy ? 'Launching…' : 'Launch'}
           </button>
         </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted, marginTop: 8 }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textMuted, marginTop: 8 }}>
           Runs in the background. Imported items stage as <strong>needs review</strong> (hidden) until approved. Large Google runs may need a few launches.
         </div>
       </div>
 
       <div className="flex items-center gap-2 mb-2">
-        <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted, marginLeft: 'auto' }}>auto-refreshing</span>
-        <button onClick={loadJobs} style={{ background: 'transparent', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: C.inkSoft }}><RefreshCw size={13} /></button>
+        <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textMuted, marginLeft: 'auto' }}>auto-refreshing</span>
+        <button onClick={loadJobs} style={{ background: 'transparent', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: AC.textSoft }}><RefreshCw size={13} /></button>
       </div>
-      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.divider}`, background: C.paper }}>
+      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${AC.border}`, background: AC.surface }}>
         {jobs.map(j => {
           const c = j.counts || {};
           return (
-            <div key={j.id} className="px-3 py-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
+            <div key={j.id} className="px-3 py-2" style={{ borderBottom: `1px solid ${AC.border}` }}>
               <div className="flex items-center gap-2">
                 <span style={{ fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: '#fff', background: STATUS_COLOR(j.status), borderRadius: 999, padding: '2px 8px' }}>{j.status}</span>
-                <span style={{ fontFamily: 'Fraunces', fontSize: 14, color: C.ink }}>{j.kind} · {j.source_id}</span>
-                {j.total ? <span style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted }}>{j.cursor || 0}/{j.total}</span> : null}
-                <span style={{ marginLeft: 'auto', fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted }}>{fmt(j.created_at)}</span>
+                <span style={{ fontFamily: 'Fraunces', fontSize: 14, color: AC.text }}>{j.kind} · {j.source_id}</span>
+                {j.total ? <span style={{ fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted }}>{j.cursor || 0}/{j.total}</span> : null}
+                <span style={{ marginLeft: 'auto', fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted }}>{fmt(j.created_at)}</span>
               </div>
-              <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft, marginTop: 2 }}>
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft, marginTop: 2 }}>
                 {('created' in c || 'updated' in c) ? `created ${c.created || 0} · updated ${c.updated || 0} · review ${c.review || 0} · errors ${c.errors || 0}` : '—'}
-                {j.error ? <span style={{ color: C.terracotta }}> · {j.error}</span> : null}
+                {j.error ? <span style={{ color: AC.accent }}> · {j.error}</span> : null}
               </div>
             </div>
           );
         })}
-        {jobs.length === 0 && <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.inkMuted }}>No ingestion jobs yet. Launch one above.</div>}
+        {jobs.length === 0 && <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: AC.textMuted }}>No ingestion jobs yet. Launch one above.</div>}
       </div>
     </div>
   );

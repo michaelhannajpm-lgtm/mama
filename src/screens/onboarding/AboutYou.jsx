@@ -6,6 +6,7 @@ import { MOM_DESCRIBES } from '../../data/taxonomy';
 import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
 import { nearestArea } from '../../lib/places.js';
 import { fetchNearbyMoms } from '../../lib/nearby-moms';
+import { recordStep } from '../../lib/onboarding';
 
 // ==========================================================================
 // AboutYou — onboarding screen 2, structured as a 4-step visual carousel:
@@ -502,9 +503,52 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     step === 4 ? hasLocation :
     false;
 
+  // Derive kid-age buckets from the chosen stages (honouring per-stage counts)
+  // so the persisted kids_ages column — which the admin Kid-ages breakdown and
+  // mom-profile matching both read — is populated, not just the stage tags.
+  const deriveKidsAges = () => {
+    const out = {};
+    (stage || []).forEach(s => {
+      const n = s === EXPECTING ? 1 : (stageCounts[s] || 1);
+      (STAGE_TO_BUCKETS[s] || []).forEach(b => { out[b] = (out[b] || 0) + n; });
+    });
+    return out;
+  };
+
+  const locationPatch = () => ({
+    location,
+    distance_miles: radius,
+    location_place_id:     locationGeo?.id ?? null,
+    location_city:         locationGeo?.city ?? null,
+    location_neighborhood: locationGeo?.neighborhood ?? null,
+    location_county:       locationGeo?.county ?? null,
+    location_lat:          locationGeo?.lat ?? null,
+    location_lng:          locationGeo?.lng ?? null,
+  });
+
+  // Persist progress at every carousel step (not just at the end), so a mom who
+  // drops off mid-flow still leaves a real onboarding row — that's what powers
+  // the admin funnel's per-step drop-off. recordStep is fire-and-forget; the
+  // session-keyed upsert merges each partial patch into the same row. Step
+  // numbers map 1:1 to the funnel labels in the admin Onboarding report.
   const handleNext = () => {
-    if (step < 4) setStep(step + 1);
-    else onNext();
+    if (step === 1) {
+      recordStep(1, { stage, kids_ages: deriveKidsAges() });
+      setStep(2);
+    } else if (step === 2) {
+      recordStep(2, { looking_for: lookingFor });
+      setStep(3);
+    } else if (step === 3) {
+      // `describes` is the mom-type taxonomy (MOM_DESCRIBES) — mirror it into
+      // mom_types too so promote() and the directory keep working.
+      recordStep(3, { describes, mom_types: describes });
+      setStep(4);
+    } else {
+      // Finishing AboutYou is what "completed onboarding" means; flag the row so
+      // a later promote reads it back as done.
+      recordStep(4, { ...locationPatch(), onboarding_completed: true });
+      onNext();
+    }
   };
 
   const handleBack = () => {

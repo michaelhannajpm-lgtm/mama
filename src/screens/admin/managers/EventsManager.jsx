@@ -1,10 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
+import { BusyOverlay } from '../components/primitives';
+import { useConfirm } from '../components/ConfirmDialog';
 import { Check, EyeOff, X, Pencil, Calendar, Eye, Archive, Trash2, Download, Plus } from 'lucide-react';
 import { EventEditModal } from './EventEditModal';
 import { EventsMap } from './EventsMap';
 import { MultiSelect, CollapsibleSearch, TypeaheadSelect, ViewMenu, StatusChips } from './AdminFilters';
 import { hasRealPhoto, statusColor, rowActionsFor } from './adminRows';
+import { DescriptionCell } from './DescriptionCell';
 
 const EVENT_TYPES = [
   'storytime', 'class', 'workshop', 'stem', 'art-class', 'music-class', 'dance-class',
@@ -45,6 +48,7 @@ const matchesNonStatus = (r, { types, kinds, cities, hasPlace, photo, q }) => {
 };
 
 export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
+  const confirm = useConfirm();
   const [view, setView] = useState('grid');
   const [status, setStatus] = useState('needs_review');
   const [types, setTypes] = useState([]);
@@ -132,7 +136,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const setRow = (id, patch) => post({ id, patch });
   const bulk = (patch) => post({ ids: [...selected], patch });
 
-  const selectStyle = { border: `1px solid ${C.divider}`, borderRadius: 8, padding: '5px 8px', fontFamily: 'Albert Sans', fontSize: 12.5, background: C.paper, color: C.ink };
+  const selectStyle = { border: `1px solid ${AC.border}`, borderRadius: 8, padding: '5px 8px', fontFamily: 'Albert Sans', fontSize: 12.5, background: AC.surface, color: AC.text };
   const bulkBtn = (bg, fg, border) => ({
     background: bg, color: fg, border: border || 'none', borderRadius: 8, padding: '5px 10px',
     fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
@@ -140,18 +144,18 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const iconBtn = { background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 };
 
   const selectAllHeader = (
-    <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${C.divider}`, background: C.creamSoft }}>
+    <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: `1px solid ${AC.border}`, background: AC.surfaceAlt }}>
       <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} title="Select all filtered" />
-      <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkSoft, fontWeight: 600 }}>
+      <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textSoft, fontWeight: 600 }}>
         {selected.size} selected of {filtered.length} filtered
       </span>
       {!allFilteredSelected && filtered.length > 0 && (
-        <button onClick={selectAll} style={{ background: 'transparent', border: 'none', color: C.sageDark, fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={selectAll} style={{ background: 'transparent', border: 'none', color: AC.success, fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
           Select all {filtered.length}
         </button>
       )}
       {selected.size > 0 && (
-        <button onClick={clearSel} style={{ background: 'transparent', border: 'none', color: C.inkMuted, fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={clearSel} style={{ background: 'transparent', border: 'none', color: AC.textMuted, fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
           Clear
         </button>
       )}
@@ -185,10 +189,11 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   };
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      <BusyOverlay show={busy} label="Working…" />
       {/* Filter bar — Row 1: status chips (left) + view / export / add event (right) */}
       <div className="flex flex-wrap items-center gap-2 mb-2">
-        <StatusChips status={status} setStatus={setStatus} counts={statusCounts} accent={C.sageDark} />
+        <StatusChips status={status} setStatus={setStatus} counts={statusCounts} accent={AC.success} />
         <div className="flex items-center gap-2" style={{ marginLeft: 'auto' }}>
           <button onClick={exportCsv} disabled={!filtered.length} style={{
             ...selectStyle, cursor: filtered.length ? 'pointer' : 'default',
@@ -198,7 +203,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
             <Download size={13} /> Export ({filtered.length})
           </button>
           <button onClick={() => setEditing({ __new: true })} style={{
-            background: C.sageDark, color: '#fff', border: 'none', borderRadius: 8,
+            background: AC.success, color: '#fff', border: 'none', borderRadius: 8,
             padding: '6px 11px', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
             cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
@@ -210,14 +215,14 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
 
       {/* Filter bar — Row 2: search FIRST, then multi-select filters */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <CollapsibleSearch value={q} onChange={setQ} accent={C.sageDark} />
-        <MultiSelect label="Type" options={EVENT_TYPES} selected={types} onChange={setTypes} accent={C.sageDark} />
-        <MultiSelect label="Kind" options={KINDS} selected={kinds} onChange={setKinds} accent={C.sageDark} />
-        <MultiSelect label="City" options={cityOptions} selected={citySel} onChange={setCitySel} accent={C.sageDark} />
-        <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <CollapsibleSearch value={q} onChange={setQ} accent={AC.success} />
+        <MultiSelect label="Type" options={EVENT_TYPES} selected={types} onChange={setTypes} accent={AC.success} />
+        <MultiSelect label="Kind" options={KINDS} selected={kinds} onChange={setKinds} accent={AC.success} />
+        <MultiSelect label="City" options={cityOptions} selected={citySel} onChange={setCitySel} accent={AC.success} />
+        <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <input type="checkbox" checked={hasPlace} onChange={e => setHasPlace(e.target.checked)} /> has place
         </label>
-        <TypeaheadSelect label="Photo" value={photo} onChange={setPhoto} accent={C.sageDark}
+        <TypeaheadSelect label="Photo" value={photo} onChange={setPhoto} accent={AC.success}
           options={[
             { value: 'any', label: 'Any photo' },
             { value: 'has', label: 'Has photo' },
@@ -227,26 +232,27 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-xl" style={{ background: C.sage, border: `1px solid ${C.sageDark}33` }}>
-          <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, color: C.ink }}>{selected.size} selected</span>
-          <button disabled={busy} onClick={() => bulk({ review_status: 'approved', visible: true })} style={bulkBtn(C.sageDark, '#fff')}>
+        <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-xl" style={{ background: AC.successSoft, border: `1px solid color-mix(in srgb, ${AC.success} 20%, transparent)` }}>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, color: AC.text }}>{selected.size} selected</span>
+          <button disabled={busy} onClick={() => bulk({ review_status: 'approved', visible: true })} style={bulkBtn(AC.success, '#fff')}>
             <Check size={12} className="inline mr-1" />Approve + Publish
           </button>
-          <button disabled={busy} onClick={() => bulk({ review_status: 'rejected', visible: false })} style={bulkBtn(C.paper, C.terracotta, `1px solid ${C.terracotta}`)}>
+          <button disabled={busy} onClick={() => bulk({ review_status: 'rejected', visible: false })} style={bulkBtn(AC.surface, AC.accent, `1px solid ${AC.accent}`)}>
             Reject
           </button>
-          <button disabled={busy} onClick={() => bulk({ visible: true })} style={bulkBtn(C.paper, C.sageDark, `1px solid ${C.divider}`)}>
+          <button disabled={busy} onClick={() => bulk({ visible: true })} style={bulkBtn(AC.surface, AC.success, `1px solid ${AC.border}`)}>
             <Eye size={12} className="inline mr-1" />Set visible
           </button>
-          <button disabled={busy} onClick={() => bulk({ visible: false })} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>
+          <button disabled={busy} onClick={() => bulk({ visible: false })} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>
             <EyeOff size={12} className="inline mr-1" />Set hidden
           </button>
-          <button disabled={busy} onClick={() => bulk({ review_status: 'archived' })} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>
+          <button disabled={busy} onClick={() => bulk({ review_status: 'archived' })} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>
             <Archive size={12} className="inline mr-1" />Archive
           </button>
           <button disabled={busy} onClick={() => {
-            if (confirm(`Delete ${selected.size} events? This cannot be undone.`)) post({ deleteIds: [...selected] });
-          }} style={bulkBtn(C.terracotta, '#fff')}>
+            confirm({ title: `Delete ${selected.size} event${selected.size === 1 ? '' : 's'}?`, message: 'This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' })
+              .then((ok) => ok && post({ deleteIds: [...selected] }));
+          }} style={bulkBtn(AC.accent, '#fff')}>
             <Trash2 size={12} className="inline mr-1" />Delete
           </button>
         </div>
@@ -255,67 +261,68 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
       {view === 'grid' ? (
         <>
           {/* Rows */}
-          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.divider}`, background: C.paper }}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${AC.border}`, background: AC.surface }}>
             {selectAllHeader}
             {pageRows.map(r => {
               const act = rowActionsFor(r);
               return (
-                <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
+                <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${AC.border}` }}>
                   <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-                  <div onClick={() => setEditing(r)} style={{ width: 36, height: 36, borderRadius: 8, background: r.hue || C.sage, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <div onClick={() => setEditing(r)} style={{ width: 36, height: 36, borderRadius: 8, background: r.hue || AC.successSoft, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <Calendar size={15} style={{ color: '#fff' }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div onClick={() => setEditing(r)} style={{ fontFamily: 'Fraunces', fontSize: 14, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{r.name}</div>
-                    <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted }}>
+                    <div onClick={() => setEditing(r)} style={{ fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 600, color: AC.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{r.name}</div>
+                    <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textMuted }}>
                       {r.event_type} · {r.kind} · {r.place_name || (r.place_id ? 'linked place' : 'no place')} · {r.day_of_week || ''} {r.time_label || ''} · <span style={{ color: statusColor(r.review_status), fontWeight: 600 }}>{r.review_status}</span>
-                      {r.review_status === 'approved' && !r.visible && <span style={{ color: C.inkMuted }}> · hidden</span>}
+                      {r.review_status === 'approved' && !r.visible && <span style={{ color: AC.textMuted }}> · hidden</span>}
                     </div>
                   </div>
+                  <DescriptionCell text={r.description} />
                   {act.approve && (
                     <button title={r.review_status === 'archived' ? 'Restore' : 'Approve'} disabled={busy} onClick={() => setRow(r.id, { review_status: 'approved', visible: true })}
-                      style={{ ...iconBtn, color: C.sageDark }}><Check size={16} /></button>
+                      style={{ ...iconBtn, color: AC.success }}><Check size={16} /></button>
                   )}
                   {act.toggleVisible && (r.visible
-                    ? <button title="Hide" disabled={busy} onClick={() => setRow(r.id, { visible: false })} style={{ ...iconBtn, color: C.inkMuted }}><EyeOff size={16} /></button>
-                    : <button title="Show" disabled={busy} onClick={() => setRow(r.id, { visible: true })} style={{ ...iconBtn, color: C.sageDark }}><Eye size={16} /></button>
+                    ? <button title="Hide" disabled={busy} onClick={() => setRow(r.id, { visible: false })} style={{ ...iconBtn, color: AC.textMuted }}><EyeOff size={16} /></button>
+                    : <button title="Show" disabled={busy} onClick={() => setRow(r.id, { visible: true })} style={{ ...iconBtn, color: AC.success }}><Eye size={16} /></button>
                   )}
                   {act.reject && (
                     <button title="Reject" disabled={busy} onClick={() => setRow(r.id, { review_status: 'rejected', visible: false })}
-                      style={{ ...iconBtn, color: C.terracotta }}><X size={16} /></button>
+                      style={{ ...iconBtn, color: AC.accent }}><X size={16} /></button>
                   )}
                   {act.archive && (
                     <button title="Archive" disabled={busy} onClick={() => setRow(r.id, { review_status: 'archived', visible: false })}
-                      style={{ ...iconBtn, color: C.inkMuted }}><Archive size={15} /></button>
+                      style={{ ...iconBtn, color: AC.textMuted }}><Archive size={15} /></button>
                   )}
                   {act.del && (
-                    <button title="Delete" disabled={busy} onClick={() => { if (confirm(`Delete "${r.name}"? This cannot be undone.`)) post({ deleteIds: [r.id] }); }}
-                      style={{ ...iconBtn, color: C.terracotta }}><Trash2 size={15} /></button>
+                    <button title="Delete" disabled={busy} onClick={() => { confirm({ title: 'Delete event?', message: `Delete "${r.name}"? This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' }).then((ok) => ok && post({ deleteIds: [r.id] })); }}
+                      style={{ ...iconBtn, color: AC.accent }}><Trash2 size={15} /></button>
                   )}
-                  <button title="Edit" onClick={() => setEditing(r)} style={{ ...iconBtn, color: C.ink }}><Pencil size={15} /></button>
+                  <button title="Edit" onClick={() => setEditing(r)} style={{ ...iconBtn, color: AC.text }}><Pencil size={15} /></button>
                 </div>
               );
             })}
             {filtered.length === 0 && (
-              <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.inkMuted }}>No events match these filters.</div>
+              <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: AC.textMuted }}>No events match these filters.</div>
             )}
           </div>
 
           {/* Pagination */}
           {filtered.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-3" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft }}>
+            <div className="flex flex-wrap items-center gap-2 mt-3" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textSoft }}>
               <label className="flex items-center gap-1">
                 Per page
                 <select value={pageSize} onChange={e => setPageSize(+e.target.value)} style={selectStyle}>
                   {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </label>
-              <span style={{ width: 1, height: 18, background: C.divider }} />
-              <button disabled={safePage <= 1} onClick={() => setPage(1)} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>First</button>
-              <button disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>Prev</button>
-              <span style={{ fontWeight: 600, color: C.ink }}>Page {safePage} of {totalPages} · {filtered.length} events</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>Next</button>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(totalPages)} style={bulkBtn(C.paper, C.inkSoft, `1px solid ${C.divider}`)}>Last</button>
+              <span style={{ width: 1, height: 18, background: AC.border }} />
+              <button disabled={safePage <= 1} onClick={() => setPage(1)} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>First</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>Prev</button>
+              <span style={{ fontWeight: 600, color: AC.text }}>Page {safePage} of {totalPages} · {filtered.length} events</span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>Next</button>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(totalPages)} style={bulkBtn(AC.surface, AC.textSoft, `1px solid ${AC.border}`)}>Last</button>
               <label className="flex items-center gap-1">
                 Go to
                 <input type="number" min={1} max={totalPages} value={safePage}

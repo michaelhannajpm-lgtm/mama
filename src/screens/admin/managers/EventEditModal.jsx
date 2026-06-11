@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
 import { X, ExternalLink } from 'lucide-react';
+import { BusyOverlay } from '../components/primitives';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
 import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
 import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
@@ -8,7 +9,7 @@ import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
 // Same chip multi-select used in PlaceEditModal — kept inline so the two
 // modals stay independently editable. If a third surface needs it, lift to
 // AdminFilters.
-const ChipPicker = ({ options, selected, onChange, accent = C.sageDark }) => {
+const ChipPicker = ({ options, selected, onChange, accent = AC.success }) => {
   const set = new Set(selected || []);
   const toggle = (v) => { const n = new Set(set); n.has(v) ? n.delete(v) : n.add(v); onChange([...n]); };
   return (
@@ -21,9 +22,9 @@ const ChipPicker = ({ options, selected, onChange, accent = C.sageDark }) => {
           <button key={id} type="button" onClick={() => toggle(id)}
             style={{
               padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
-              background: on ? accent : C.paper,
-              color: on ? '#fff' : C.ink,
-              border: `1px solid ${on ? accent : C.divider}`,
+              background: on ? accent : AC.surface,
+              color: on ? '#fff' : AC.text,
+              border: `1px solid ${on ? accent : AC.border}`,
               fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600,
             }}>{label}</button>
         );
@@ -48,11 +49,11 @@ const BUCKETS = ['morning', 'noon', 'afternoon', 'night-owl'];
 const INDOOR_OPTS = [['', '—'], ['true', 'Indoor'], ['false', 'Outdoor']];
 
 // ── style helpers (mirrors PlaceEditModal) ───────────────────────────────────
-const sectionHeader = { fontFamily: 'Fraunces', fontSize: 14, color: C.ink, margin: '18px 0 8px' };
-const labelStyle = { fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft };
-const inputStyle = { width: '100%', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, fontFamily: 'Albert Sans', boxSizing: 'border-box' };
-const roLabel = { fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted };
-const roValue = { fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft, wordBreak: 'break-word' };
+const sectionHeader = { fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: AC.text, margin: '18px 0 8px' };
+const labelStyle = { fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft };
+const inputStyle = { width: '100%', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, fontFamily: 'Albert Sans', boxSizing: 'border-box' };
+const roLabel = { fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted };
+const roValue = { fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textSoft, wordBreak: 'break-word' };
 
 const fmtDate = (v) => { if (!v) return '—'; try { return new Date(v).toLocaleString(); } catch { return String(v); } };
 const dtLocal = (v) => { if (!v) return ''; try { const d = new Date(v); if (Number.isNaN(d.getTime())) return ''; const off = d.getTimezoneOffset(); return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16); } catch { return ''; } };
@@ -177,17 +178,18 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0008', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.paper, borderRadius: 16, width: 780, maxWidth: '100%', maxHeight: '92vh', overflow: 'auto', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: AC.surface, borderRadius: 16, width: 780, maxWidth: '100%', maxHeight: '92vh', overflow: 'auto', padding: 24 }}>
+        <BusyOverlay show={busy} label="Saving…" radius={16} />
 
         {/* 1. Header */}
         <div className="flex items-center mb-1" style={{ gap: 10 }}>
-          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>
+          <h3 style={{ fontFamily: 'Albert Sans', fontSize: 18, fontWeight: 700, color: AC.text, flex: 1, margin: 0, letterSpacing: '-.01em' }}>
             {isNew ? 'New event' : (event.name || 'Event')}
           </h3>
-          <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>{form.kind}</span>
-          <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.inkSoft, background: C.lilac, borderRadius: 999, padding: '3px 10px' }}>{form.event_type}</span>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.success, background: AC.successSoft, borderRadius: 999, padding: '3px 10px' }}>{form.kind}</span>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.textSoft, background: AC.neutralSoft, borderRadius: 999, padding: '3px 10px' }}>{form.event_type}</span>
           {isNew && (
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.terracotta, background: `${C.terracotta}15`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.accent, background: `color-mix(in srgb, ${AC.accent} 8%, transparent)`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
           )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
         </div>
@@ -205,16 +207,16 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
             <div
               onClick={() => setLightbox(event.hero_photo)}
               title="Click to enlarge"
-              style={{ width: 220, height: 150, borderRadius: 8, overflow: 'hidden', border: `2px solid ${C.divider}`, background: `center/cover url(${event.hero_photo})`, cursor: 'zoom-in' }}
+              style={{ width: 220, height: 150, borderRadius: 8, overflow: 'hidden', border: `2px solid ${AC.border}`, background: `center/cover url(${event.hero_photo})`, cursor: 'zoom-in' }}
             />
             {event.image_source_url && (
-              <a href={event.image_source_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted, textDecoration: 'none' }}>
+              <a href={event.image_source_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted, textDecoration: 'none' }}>
                 source <ExternalLink size={11} />
               </a>
             )}
           </div>
         ) : (
-          <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>No image</div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No image</div>
         )}
 
         {/* 3. Basics */}
@@ -271,23 +273,23 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
 
         {/* 5. Place */}
         <div style={sectionHeader}>Place</div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkSoft }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textSoft }}>
           Linked place: <strong>{form.place_name || '—'}</strong> {form.place_id ? `(${form.place_id.slice(0, 8)})` : '(unlinked)'}
           {place && (
-            <span style={{ color: C.inkMuted }}> · {place.area || '—'} · {place.visible ? 'visible' : 'hidden'}</span>
+            <span style={{ color: AC.textMuted }}> · {place.area || '—'} · {place.visible ? 'visible' : 'hidden'}</span>
           )}
         </div>
         <input value={placeQuery} onChange={e => setPlaceQuery(e.target.value)} placeholder="search places to link…"
           style={{ ...inputStyle, marginTop: 4 }} />
         {placeMatches.map(p => (
           <button key={p.id} onClick={() => { set('place_id', p.id); set('place_name', p.name); setPlaceQuery(''); }}
-            style={{ display: 'block', width: '100%', textAlign: 'left', background: C.cream, border: `1px solid ${C.divider}`, borderRadius: 8, padding: '5px 8px', fontFamily: 'Albert Sans', fontSize: 12.5, marginTop: 4, cursor: 'pointer' }}>
+            style={{ display: 'block', width: '100%', textAlign: 'left', background: AC.bg, border: `1px solid ${AC.border}`, borderRadius: 8, padding: '5px 8px', fontFamily: 'Albert Sans', fontSize: 12.5, marginTop: 4, cursor: 'pointer' }}>
             {p.name} · {p.area || '—'}
           </button>
         ))}
         {form.place_id && (
           <button onClick={() => { set('place_id', ''); set('place_name', ''); }}
-            style={{ marginTop: 6, background: 'transparent', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft, cursor: 'pointer' }}>
+            style={{ marginTop: 6, background: 'transparent', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft, cursor: 'pointer' }}>
             Unlink place
           </button>
         )}
@@ -297,7 +299,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           {Text('city', 'City')}
         </div>
         {mapsUrl && (
-          <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontFamily: 'Albert Sans', fontSize: 12.5, color: C.terracotta, textDecoration: 'none' }}>
+          <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.accent, textDecoration: 'none' }}>
             View on Google Maps <ExternalLink size={12} />
           </a>
         )}
@@ -372,7 +374,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           {event.image_source_url && (
             <div>
               <div style={roLabel}>Image source url</div>
-              <a href={event.image_source_url} target="_blank" rel="noreferrer" style={{ ...roValue, color: C.terracotta, textDecoration: 'underline' }}>link</a>
+              <a href={event.image_source_url} target="_blank" rel="noreferrer" style={{ ...roValue, color: AC.accent, textDecoration: 'underline' }}>link</a>
             </div>
           )}
         </div>
@@ -382,7 +384,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
         {/* 9. Save (sage) */}
         <div className="flex mt-4">
           <button disabled={busy} onClick={save}
-            style={{ marginLeft: 'auto', background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+            style={{ marginLeft: 'auto', background: AC.success, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
             {busy ? (isNew ? 'Creating…' : 'Saving…') : (isNew ? 'Create event' : 'Save')}
           </button>
         </div>

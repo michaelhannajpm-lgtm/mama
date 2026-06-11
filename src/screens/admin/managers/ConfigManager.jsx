@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Save, RefreshCw } from 'lucide-react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
+import { BusyOverlay } from '../components/primitives';
 
 // Admin editor for app_config values, grouped into categories across two
 // columns. Reads/writes via /api/admin/config (admin-gated); the public
@@ -140,14 +141,15 @@ export const ConfigManager = ({ adminFetch }) => {
   const plusDirty = price !== savedPrice || trialDays !== savedTrialDays;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1000 }}>
+    <div style={{ position: 'relative', padding: 24, maxWidth: 1000 }}>
+      <BusyOverlay show={busy} label="Saving…" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <h2 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700, color: C.ink, margin: 0 }}>
+        <h2 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700, color: AC.text, margin: 0 }}>
           App configuration
         </h2>
         <button onClick={load} title="Reload" style={iconBtn}><RefreshCw size={14} /></button>
       </div>
-      <p style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.inkMuted, marginTop: 4 }}>
+      <p style={{ fontFamily: 'Albert Sans', fontSize: 13, color: AC.textMuted, marginTop: 4 }}>
         Application-wide settings. Changes take effect on the next app load (no deploy needed).
       </p>
 
@@ -183,16 +185,16 @@ export const ConfigManager = ({ adminFetch }) => {
 
         <Card title="Free DM message limit" category="Monetization"
           desc={<>Messages a free mom can send each match before Plus is required.
-            <span style={{ color: C.terracotta, fontWeight: 700 }}> Protected lever — default 3.</span> Raising it weakens Plus conversion.</>}>
+            <span style={{ color: AC.accent, fontWeight: 700 }}> Protected lever — default 3.</span> Raising it weakens Plus conversion.</>}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
             {[3, 5, 10, 25].map(n => {
               const active = dmLimit === n;
               return (
                 <button key={n} onClick={() => setDmLimit(n)} disabled={loading} style={{
                   padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
-                  background: active ? C.terracotta : C.paper,
-                  color: active ? '#fff' : C.ink,
-                  border: `1px solid ${active ? C.terracotta : C.divider}`,
+                  background: active ? AC.accent : AC.surface,
+                  color: active ? '#fff' : AC.text,
+                  border: `1px solid ${active ? AC.accent : AC.border}`,
                   fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
                 }}>{n}</button>
               );
@@ -212,14 +214,14 @@ export const ConfigManager = ({ adminFetch }) => {
               <input type="number" min={30} max={3600} value={onlineS ?? ''} disabled={loading}
                 onChange={e => setOnlineS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
                 style={{ ...field, width: 120 }}/>
-              <div style={{ color: C.inkMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
+              <div style={{ color: AC.textMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
             </label>
             <label style={lbl}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>Away within (seconds)</div>
               <input type="number" min={60} max={86400} value={awayS ?? ''} disabled={loading}
                 onChange={e => setAwayS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
                 style={{ ...field, width: 120 }}/>
-              <div style={{ color: C.inkMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
+              <div style={{ color: AC.textMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
             </label>
           </div>
           <SaveRow onSave={savePresence} dirty={presenceDirty} disabled={busy || loading || onlineS == null || awayS == null} busy={busy} msg={presenceMsg} />
@@ -231,7 +233,7 @@ export const ConfigManager = ({ adminFetch }) => {
             <label style={lbl}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly price (USD)</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: C.inkMuted }}>$</span>
+                <span style={{ color: AC.textMuted }}>$</span>
                 <input type="number" min={0} max={999} step="0.01" value={price ?? ''} disabled={loading}
                   onChange={e => setPrice(e.target.value === '' ? null : Number(e.target.value))}
                   style={{ ...field, width: 100 }}/>
@@ -257,12 +259,12 @@ const Card = ({ title, category, desc, children }) => (
   <div style={card}>
     {category && (
       <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800, letterSpacing: '.10em',
-        textTransform: 'uppercase', color: C.inkMuted, marginBottom: 6 }}>
+        textTransform: 'uppercase', color: AC.textMuted, marginBottom: 6 }}>
         {category}
       </div>
     )}
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>{title}</div>
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>{desc}</div>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: AC.text }}>{title}</div>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted, marginTop: 2, lineHeight: 1.45 }}>{desc}</div>
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
       {children}
     </div>
@@ -277,11 +279,11 @@ const RadiusSlider = ({ value, onChange, disabled }) => {
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontFamily: 'Fraunces', fontSize: 28, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1 }}>
+        <div style={{ fontFamily: 'Fraunces', fontSize: 28, fontWeight: 500, color: AC.text, letterSpacing: '-.02em', lineHeight: 1 }}>
           {value ?? '—'}
-          <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 600, color: C.inkMuted, marginLeft: 6 }}>mi</span>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 600, color: AC.textMuted, marginLeft: 6 }}>mi</span>
         </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted, letterSpacing: '.04em' }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textMuted, letterSpacing: '.04em' }}>
           {RADIUS_MIN}–{RADIUS_MAX} mi
         </div>
       </div>
@@ -298,7 +300,7 @@ const RadiusSlider = ({ value, onChange, disabled }) => {
           appearance: 'none',
           height: 6,
           borderRadius: 999,
-          background: `linear-gradient(to right, ${C.terracotta} 0%, ${C.terracotta} ${fillPct}%, ${C.divider} ${fillPct}%, ${C.divider} 100%)`,
+          background: `linear-gradient(to right, ${AC.accent} 0%, ${AC.accent} ${fillPct}%, ${AC.border} ${fillPct}%, ${AC.border} 100%)`,
           outline: 'none',
           cursor: disabled ? 'default' : 'pointer',
         }}
@@ -313,7 +315,7 @@ const RadiusSlider = ({ value, onChange, disabled }) => {
             style={{
               background: 'transparent', border: 'none', padding: '2px 6px',
               fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600,
-              color: value === p ? C.terracotta : C.inkMuted, cursor: disabled ? 'default' : 'pointer',
+              color: value === p ? AC.accent : AC.textMuted, cursor: disabled ? 'default' : 'pointer',
               letterSpacing: '.02em',
             }}
           >
@@ -329,13 +331,13 @@ const SaveRow = ({ onSave, dirty, disabled, busy, msg }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
     <button onClick={onSave} disabled={disabled || !dirty} style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: dirty ? C.terracotta : C.divider, color: '#fff', border: 'none',
+      background: dirty ? AC.accent : AC.border, color: '#fff', border: 'none',
       borderRadius: 10, padding: '9px 16px', fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
       cursor: dirty && !disabled ? 'pointer' : 'default',
     }}>
       <Save size={14} /> {busy ? 'Saving…' : 'Save'}
     </button>
-    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{msg}</span>}
+    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>{msg}</span>}
   </div>
 );
 
@@ -344,18 +346,18 @@ const Toggle = ({ on, disabled, onToggle, label, msg }) => (
     <button onClick={onToggle} disabled={disabled} aria-pressed={on} style={{
       width: 52, height: 30, borderRadius: 999, border: 'none', padding: 3,
       cursor: disabled ? 'default' : 'pointer',
-      background: on ? C.terracotta : C.divider,
+      background: on ? AC.accent : AC.border,
       display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start', transition: 'background .2s', flexShrink: 0,
     }}>
       <span style={{ width: 24, height: 24, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }}/>
     </button>
-    <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.ink }}>{label}</span>
-    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{msg}</span>}
+    <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: AC.text }}>{label}</span>
+    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>{msg}</span>}
   </div>
 );
 
-const card = { background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 14, padding: 18,
+const card = { background: AC.surface, border: `1px solid ${AC.border}`, borderRadius: 14, padding: 18,
   display: 'flex', flexDirection: 'column', height: '100%' };
-const iconBtn = { background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 8, padding: 5, cursor: 'pointer', color: C.inkSoft, display: 'inline-flex' };
-const field = { border: `1px solid ${C.divider}`, borderRadius: 8, padding: '7px 9px', fontFamily: 'Albert Sans', fontSize: 13, background: C.paper, color: C.ink };
-const lbl = { fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink };
+const iconBtn = { background: AC.surface, border: `1px solid ${AC.border}`, borderRadius: 8, padding: 5, cursor: 'pointer', color: AC.textSoft, display: 'inline-flex' };
+const field = { border: `1px solid ${AC.border}`, borderRadius: 8, padding: '7px 9px', fontFamily: 'Albert Sans', fontSize: 13, background: AC.surface, color: AC.text };
+const lbl = { fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.text };

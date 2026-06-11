@@ -3,7 +3,49 @@
 // All styling pulls from `AC` (admin-theme.js). Keep app-facing tokens (`C`)
 // out of this file. See `.claude/skills/admin-design/SKILL.md`.
 // ============================================================================
+import { useState, useMemo } from 'react';
+import { RefreshCw, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { AC, AC_TONES } from '../admin-theme';
+
+// ---- BusyOverlay / Busy ---------------------------------------------------
+// Content-area blocker for in-flight async work. Drop <BusyOverlay show label/>
+// inside any position:relative container (a Card, a modal panel, a grid) to
+// dim it, intercept clicks, and float a spinner pill — WITHOUT blocking the
+// rest of the page. Use <Busy busy label> when the content isn't already in a
+// positioned box; it supplies the relative wrapper for you.
+// Relies on the global `spin` keyframe injected by the admin shell (index.jsx).
+export const BusyOverlay = ({ show = true, label = 'Working…', radius }) => {
+  if (!show) return null;
+  return (
+    <div
+      aria-busy="true"
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 40, borderRadius: radius,
+        background: 'rgba(245,246,248,0.62)',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        cursor: 'progress',
+      }}
+    >
+      <div style={{
+        position: 'sticky', top: 48, marginTop: 48,
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        background: AC.surface, border: `1px solid ${AC.border}`, borderRadius: AC.radiusSm,
+        padding: '8px 14px', boxShadow: AC.shadowLg,
+      }}>
+        <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite', color: AC.accent }} />
+        <span style={{ fontFamily: AC.font, fontSize: 12.5, fontWeight: 600, color: AC.textSoft }}>{label}</span>
+      </div>
+    </div>
+  );
+};
+
+export const Busy = ({ busy, label = 'Working…', radius, children, style }) => (
+  <div style={{ position: 'relative', ...style }}>
+    {children}
+    <BusyOverlay show={busy} label={label} radius={radius} />
+  </div>
+);
 
 // ---- Card -----------------------------------------------------------------
 export const Card = ({ children, padding = 18, style, className = '' }) => (
@@ -110,7 +152,33 @@ export const StatCard = ({ label, value, hint, tone, icon: Icon }) => (
 // ---- DataTable ------------------------------------------------------------
 // columns: [{ key, header, width?, align?, mono?, render?(row) }]
 // A dense, console-standard table with a sticky-styled head and zebra hover.
-export const DataTable = ({ columns, rows, rowKey = (r, i) => r.id ?? i, empty = 'No rows.', onRowClick }) => {
+// Sorting is built in: click a column header to sort asc → desc. By default
+// every column sorts on `row[c.key]`; pass `sort: (row) => value` for a custom
+// accessor (computed/rendered columns) or `sortable: false` to disable (e.g. a
+// checkbox or action column). Empty/null values always sort last.
+export const DataTable = ({ columns, rows, rowKey = (r, i) => r.id ?? i, empty = 'No rows.', onRowClick, defaultSort }) => {
+  const [sort, setSort] = useState(defaultSort || { key: null, dir: 'asc' });
+
+  const sorted = useMemo(() => {
+    const list = rows || [];
+    if (!sort.key) return list;
+    const col = columns.find((c) => c.key === sort.key);
+    if (!col) return list;
+    const acc = col.sort || ((r) => r[col.key]);
+    const dir = sort.dir === 'desc' ? -1 : 1;
+    const base = (a, b) => (typeof a === 'number' && typeof b === 'number')
+      ? a - b
+      : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+    return [...list].sort((ra, rb) => {
+      const a = acc(ra), b = acc(rb);
+      const ae = a == null || a === '', be = b == null || b === '';
+      if (ae && be) return 0;
+      if (ae) return 1;   // empties last, regardless of direction
+      if (be) return -1;
+      return base(a, b) * dir;
+    });
+  }, [rows, columns, sort]);
+
   if (!rows || rows.length === 0) {
     return (
       <div className="text-center" style={{ padding: '28px 16px', fontFamily: AC.font, fontSize: 13, color: AC.textMuted }}>
@@ -118,25 +186,46 @@ export const DataTable = ({ columns, rows, rowKey = (r, i) => r.id ?? i, empty =
       </div>
     );
   }
+
+  const toggleSort = (c) => {
+    if (c.sortable === false) return;
+    setSort((s) => (s.key === c.key
+      ? { key: c.key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key: c.key, dir: 'asc' }));
+  };
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontFamily: AC.font }}>
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c.key} style={{
-                textAlign: c.align || 'left', padding: '9px 12px', width: c.width,
-                background: AC.surfaceAlt, borderBottom: `1px solid ${AC.border}`,
-                position: 'sticky', top: 0,
-                fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: AC.textMuted, whiteSpace: 'nowrap',
-              }}>
-                {c.header}
-              </th>
-            ))}
+            {columns.map((c) => {
+              const sortable = c.sortable !== false;
+              const active = sort.key === c.key;
+              return (
+                <th key={c.key}
+                  onClick={sortable ? () => toggleSort(c) : undefined}
+                  style={{
+                    textAlign: c.align || 'left', padding: '9px 12px', width: c.width,
+                    background: AC.surfaceAlt, borderBottom: `1px solid ${AC.border}`,
+                    position: 'sticky', top: 0,
+                    fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+                    color: active ? AC.text : AC.textMuted, whiteSpace: 'nowrap',
+                    cursor: sortable ? 'pointer' : 'default', userSelect: 'none',
+                  }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: c.align === 'right' ? 'flex-end' : 'flex-start' }}>
+                    {c.header}
+                    {sortable && (active
+                      ? (sort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
+                      : <ChevronsUpDown size={12} style={{ opacity: 0.3 }} />)}
+                  </span>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
+          {sorted.map((r, i) => (
             <tr
               key={rowKey(r, i)}
               onClick={onRowClick ? () => onRowClick(r) : undefined}
@@ -182,6 +271,27 @@ export const Input = ({ style, ...rest }) => (
       ...style,
     }}
   />
+);
+
+// ---- Select ---------------------------------------------------------------
+// Console-styled native dropdown. options: [{ value, label }] or pass children.
+export const Select = ({ options, style, children, ...rest }) => (
+  <select
+    {...rest}
+    style={{
+      background: AC.surface, border: `1px solid ${AC.borderStrong}`, borderRadius: AC.radiusSm,
+      padding: '8px 28px 8px 11px', fontFamily: AC.font, fontSize: 13, fontWeight: 600,
+      color: AC.text, outline: 'none', cursor: 'pointer', appearance: 'none',
+      backgroundImage:
+        `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a828f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`,
+      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 9px center',
+      ...style,
+    }}
+  >
+    {options
+      ? options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)
+      : children}
+  </select>
 );
 
 // ---- EmptyState -----------------------------------------------------------

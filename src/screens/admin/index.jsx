@@ -20,9 +20,12 @@ import { AC } from './admin-theme';
 import { NAV_INDEX } from './nav';
 import { useAdminRoute } from './lib/adminRouter';
 import { getAdminToken, clearAdminToken, fetchEndpoint, adminFetch } from './lib/adminFetch';
+import { useAdminTheme } from './lib/useAdminTheme';
 import { Sidebar } from './components/Sidebar';
 import { AdminLogin } from './components/AdminLogin';
+import { ThemeToggle } from './components/ThemeToggle';
 import { Button, Banner } from './components/primitives';
+import { ConfirmProvider } from './components/ConfirmDialog';
 
 // Sections
 import { Overview, MomsReport, QuickActions } from './sections/legacy';
@@ -43,6 +46,7 @@ const NEEDS_SHARED = new Set(['overview', 'onboarding', 'mom-profiles', 'places'
 const COLLAPSE_KEY = 'gm_admin_rail_collapsed';
 
 export const AdminApp = () => {
+  const { theme, setTheme } = useAdminTheme();
   const [section, navigate] = useAdminRoute();
   const [authed, setAuthed] = useState(() => !!getAdminToken());
   const [collapsed, setCollapsed] = useState(() => {
@@ -109,10 +113,11 @@ export const AdminApp = () => {
   const summary = loading
     ? 'loading…'
     : sharedReady
-      ? `${moms.length} onboardings · ${momProfiles.length} profiles · ${places.length} places · ${events.length} events`
+      ? sectionSummary(section, { moms, momProfiles, places, events, sources })
       : '';
 
   return (
+    <ConfirmProvider>
     <div style={{ display: 'flex', minHeight: '100vh', background: AC.bg, color: AC.text }}>
       <Sidebar current={section} onNavigate={navigate} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
 
@@ -123,7 +128,16 @@ export const AdminApp = () => {
           borderBottom: `1px solid ${AC.border}`,
         }}>
           <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-center gap-2">
+              {meta.icon && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                  background: AC.accentSoft, color: AC.accent,
+                }}>
+                  <meta.icon size={15} />
+                </span>
+              )}
               <h1 style={{ fontFamily: AC.font, fontSize: 15, fontWeight: 700, color: AC.text, letterSpacing: '-.01em' }}>
                 {meta.label}
               </h1>
@@ -133,6 +147,7 @@ export const AdminApp = () => {
               <div className="truncate" style={{ fontFamily: AC.font, fontSize: 11.5, color: AC.textMuted }}>{summary}</div>
             )}
           </div>
+          <ThemeToggle theme={theme} setTheme={setTheme} />
           <Button variant="secondary" size="sm" onClick={load} disabled={loading}
             icon={(p) => <RefreshCw {...p} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />}>
             Refresh
@@ -140,8 +155,9 @@ export const AdminApp = () => {
           <Button variant="ghost" size="sm" icon={ShieldOff} onClick={signOut}>Sign out</Button>
         </header>
 
-        {/* Section body */}
-        <div style={{ flex: 1, padding: 20, maxWidth: AC.maxContent, width: '100%', margin: '0 auto' }}>
+        {/* Section body — full page width (no max-width cap) so dense tables
+            use the entire real estate. */}
+        <div style={{ flex: 1, padding: 20, width: '100%' }}>
           {error && (
             <Banner tone="danger" icon={AlertTriangle}>
               <strong>Could not load.</strong> {error}<br />
@@ -156,12 +172,12 @@ export const AdminApp = () => {
             <div className="rounded-2xl text-center" style={{ background: AC.surface, border: `1px solid ${AC.border}`, borderRadius: AC.radius, padding: 40 }}>
               <RefreshCw size={20} className="mx-auto mb-2" style={{ color: AC.textMuted, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
               <div style={{ fontFamily: AC.font, fontSize: 13, color: AC.textMuted }}>
-                {loading ? 'Loading data from Supabase…' : 'No data loaded'}
+                {loading ? `Loading ${sectionNoun(section)}…` : `No ${sectionNoun(section)} loaded`}
               </div>
             </div>
           ) : (
             renderSection(section, {
-              moms, momProfiles, places, events, sources, load, setMomProfiles,
+              moms, momProfiles, places, events, sources, load, setMomProfiles, loading,
             })
           )}
         </div>
@@ -169,29 +185,73 @@ export const AdminApp = () => {
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
+    </ConfirmProvider>
   );
 };
 
+// The header subtitle reflects the section you're on — its own data, not a
+// global roll-up. Overview and Quick actions stay as the full cross-section
+// roll-up since they act on everything.
+function sectionSummary(section, { moms, momProfiles, places, events, sources }) {
+  const count = (n, singular) => `${n} ${n === 1 ? singular : `${singular}s`}`;
+  const all = `${count(moms.length, 'onboarding')} · ${count(momProfiles.length, 'profile')} · ${count(places.length, 'place')} · ${count(events.length, 'event')}`;
+  switch (section) {
+    case 'onboarding':
+      return count(moms.length, 'onboarding');
+    case 'mom-profiles':
+      return count(momProfiles.length, 'profile');
+    case 'places':
+      return count(places.length, 'place');
+    case 'events':
+      return count(events.length, 'event');
+    case 'featured':
+      return `${count(places.length, 'place')} · ${count(events.length, 'event')}`;
+    case 'sources':
+      return sources ? count(sources.length, 'source') : '';
+    case 'overview':
+    case 'actions':
+    default:
+      return all;
+  }
+}
+
+// What the current section is loading — drives the loading / empty copy so it
+// reads "Loading mom profiles…" rather than a generic "Loading data…".
+function sectionNoun(section) {
+  switch (section) {
+    case 'overview': return 'overview';
+    case 'onboarding': return 'onboarding info';
+    case 'mom-profiles': return 'mom profiles';
+    case 'places': return 'places';
+    case 'events': return 'events';
+    case 'featured': return 'featured content';
+    case 'sources': return 'sources';
+    case 'actions': return 'data';
+    default: return 'data';
+  }
+}
+
 function renderSection(section, ctx) {
-  const { moms, momProfiles, places, events, sources, load, setMomProfiles } = ctx;
+  const { moms, momProfiles, places, events, sources, load, setMomProfiles, loading } = ctx;
   switch (section) {
     case 'overview':
       return <Overview moms={moms} momProfiles={momProfiles} places={places} events={events} />;
     case 'onboarding':
-      return <MomsReport rows={moms} momProfiles={momProfiles} />;
+      return <MomsReport rows={moms} momProfiles={momProfiles} onReload={load} />;
     case 'mom-profiles':
       return <MomProfilesSection
         rows={momProfiles}
         places={places || []}
         onPatch={(u) => setMomProfiles((prev) => prev.map((r) => (r.id === u.id ? u : r)))}
         onReload={load}
+        reloading={loading}
       />;
     case 'places':
       return <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load} />;
     case 'events':
       return <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load} />;
     case 'featured':
-      return <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} events={events || []} />;
+      return <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} events={events || []} onReload={load} />;
     case 'ingestion':
       return <IngestionManager adminFetch={adminFetch} />;
     case 'sources':

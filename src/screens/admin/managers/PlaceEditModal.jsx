@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
 import { X, Star, ExternalLink } from 'lucide-react';
+import { BusyOverlay } from '../components/primitives';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
 import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
 import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
@@ -32,9 +33,9 @@ const ChipPicker = ({ options, selected, onChange }) => {
           <button key={id} type="button" onClick={() => toggle(id)}
             style={{
               padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
-              background: on ? C.terracotta : C.paper,
-              color: on ? '#fff' : C.ink,
-              border: `1px solid ${on ? C.terracotta : C.divider}`,
+              background: on ? AC.accent : AC.surface,
+              color: on ? '#fff' : AC.text,
+              border: `1px solid ${on ? AC.accent : AC.border}`,
               fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600,
             }}>{label}</button>
         );
@@ -44,11 +45,11 @@ const ChipPicker = ({ options, selected, onChange }) => {
 };
 
 // ── style helpers ──────────────────────────────────────────────────────────
-const sectionHeader = { fontFamily: 'Fraunces', fontSize: 14, color: C.ink, margin: '18px 0 8px' };
-const labelStyle = { fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkSoft };
-const inputStyle = { width: '100%', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, fontFamily: 'Albert Sans', boxSizing: 'border-box' };
-const roLabel = { fontFamily: 'Albert Sans', fontSize: 11, color: C.inkMuted };
-const roValue = { fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft, wordBreak: 'break-word' };
+const sectionHeader = { fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: AC.text, margin: '18px 0 8px' };
+const labelStyle = { fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft };
+const inputStyle = { width: '100%', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 8px', fontSize: 13, fontFamily: 'Albert Sans', boxSizing: 'border-box' };
+const roLabel = { fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted };
+const roValue = { fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textSoft, wordBreak: 'break-word' };
 
 const fmtDate = (v) => { if (!v) return '—'; try { return new Date(v).toLocaleString(); } catch { return String(v); } };
 const pretty = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
@@ -213,18 +214,19 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0008', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.paper, borderRadius: 16, width: 780, maxWidth: '100%', maxHeight: '92vh', overflow: 'auto', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: AC.surface, borderRadius: 16, width: 780, maxWidth: '100%', maxHeight: '92vh', overflow: 'auto', padding: 24 }}>
+        <BusyOverlay show={busy} label="Saving…" radius={16} />
 
         {/* 1. Header */}
         <div className="flex items-center mb-1" style={{ gap: 10 }}>
-          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>
+          <h3 style={{ fontFamily: 'Albert Sans', fontSize: 18, fontWeight: 700, color: AC.text, flex: 1, margin: 0, letterSpacing: '-.01em' }}>
             {isNew ? 'New place' : (place.name || 'Place')}
           </h3>
           {isFromEvent && (
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>From event</span>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.success, background: AC.successSoft, borderRadius: 999, padding: '3px 10px' }}>From event</span>
           )}
           {isNew && (
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.terracotta, background: `${C.terracotta}15`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.accent, background: `color-mix(in srgb, ${AC.accent} 8%, transparent)`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
           )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
         </div>
@@ -240,7 +242,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         <>
         <div style={sectionHeader}>Photos</div>
         {photos.length === 0 ? (
-          <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>No photos</div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No photos</div>
         ) : (
           <div className="flex gap-2 flex-wrap">
             {photos.map(p => {
@@ -255,17 +257,17 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
                   <div
                     onClick={() => full && setLightbox(full)}
                     title="Click to enlarge"
-                    style={{ position: 'relative', width: 130, height: 96, borderRadius: 8, overflow: 'hidden', border: `2px solid ${isHero ? C.saffron : C.divider}`, background: thumb ? `center/cover url(${thumb})` : C.lilac, cursor: full ? 'zoom-in' : 'default' }}>
-                    {isHero && <Star size={14} fill={C.saffron} color={C.saffron} style={{ position: 'absolute', top: 4, right: 4 }} />}
+                    style={{ position: 'relative', width: 130, height: 96, borderRadius: 8, overflow: 'hidden', border: `2px solid ${isHero ? AC.warn : AC.border}`, background: thumb ? `center/cover url(${thumb})` : AC.neutralSoft, cursor: full ? 'zoom-in' : 'default' }}>
+                    {isHero && <Star size={14} style={{ fill: AC.warn, color: AC.warn, position: 'absolute', top: 4, right: 4 }} />}
                   </div>
                   <button
                     onClick={() => heroRef && setHero(heroRef)}
                     disabled={!heroRef || isHero}
-                    style={{ marginTop: 4, width: '100%', background: isHero ? C.saffron : 'transparent', color: isHero ? C.ink : C.inkSoft, border: `1px solid ${isHero ? C.saffron : C.divider}`, borderRadius: 6, padding: '3px 6px', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, cursor: heroRef && !isHero ? 'pointer' : 'default' }}>
+                    style={{ marginTop: 4, width: '100%', background: isHero ? AC.warn : 'transparent', color: isHero ? AC.text : AC.textSoft, border: `1px solid ${isHero ? AC.warn : AC.border}`, borderRadius: 6, padding: '3px 6px', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, cursor: heroRef && !isHero ? 'pointer' : 'default' }}>
                     {isHero ? '★ Hero' : '★ Set hero'}
                   </button>
                   {attribution && (
-                    <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, color: C.inkMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(attribution)}>{attribution}</div>
+                    <div style={{ fontFamily: 'Albert Sans', fontSize: 9.5, color: AC.textMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(attribution)}>{attribution}</div>
                   )}
                 </div>
               );
@@ -329,7 +331,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           {Text('lng', 'Longitude', 'number', { step: 'any' })}
         </div>
         {mapsUrl && (
-          <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontFamily: 'Albert Sans', fontSize: 12.5, color: C.terracotta, textDecoration: 'none' }}>
+          <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.accent, textDecoration: 'none' }}>
             View on Google Maps <ExternalLink size={12} />
           </a>
         )}
@@ -344,7 +346,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {place.social_links != null && (
           <div style={{ marginTop: 8 }}>
             <div style={roLabel}>social_links</div>
-            <pre style={{ ...roValue, background: C.cream, border: `1px solid ${C.divider}`, borderRadius: 8, padding: 8, margin: '2px 0 0', whiteSpace: 'pre-wrap', maxHeight: 140, overflow: 'auto' }}>{pretty(place.social_links)}</pre>
+            <pre style={{ ...roValue, background: AC.bg, border: `1px solid ${AC.border}`, borderRadius: 8, padding: 8, margin: '2px 0 0', whiteSpace: 'pre-wrap', maxHeight: 140, overflow: 'auto' }}>{pretty(place.social_links)}</pre>
           </div>
         )}
 
@@ -384,7 +386,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         <div style={sectionHeader}>Amenities</div>
         <div className="grid grid-cols-4 gap-2">
           {AMENITY_KEYS.map(k => (
-            <label key={k} style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label key={k} style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.text, display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={!!form.amenities[k]} onChange={e => setAmenity(k, e.target.checked)} /> {AMENITY_LABELS[k]}
             </label>
           ))}
@@ -394,7 +396,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {place.hours != null && (
           <>
             <div style={sectionHeader}>Hours</div>
-            <pre style={{ ...roValue, background: C.cream, border: `1px solid ${C.divider}`, borderRadius: 8, padding: 8, margin: 0, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{pretty(place.hours)}</pre>
+            <pre style={{ ...roValue, background: AC.bg, border: `1px solid ${AC.border}`, borderRadius: 8, padding: 8, margin: 0, whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{pretty(place.hours)}</pre>
           </>
         )}
 
@@ -421,7 +423,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           {place.google_maps_url && (
             <div>
               <div style={roLabel}>Google maps url</div>
-              <a href={place.google_maps_url} target="_blank" rel="noreferrer" style={{ ...roValue, color: C.terracotta, textDecoration: 'underline' }}>link</a>
+              <a href={place.google_maps_url} target="_blank" rel="noreferrer" style={{ ...roValue, color: AC.accent, textDecoration: 'underline' }}>link</a>
             </div>
           )}
         </div>
@@ -431,32 +433,32 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {/* 10. Save */}
         <div className="flex mt-4">
           <button disabled={busy} onClick={save}
-            style={{ marginLeft: 'auto', background: C.terracotta, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+            style={{ marginLeft: 'auto', background: AC.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
             {busy ? (isNew ? 'Creating…' : 'Saving…') : (isNew ? 'Create place' : 'Save')}
           </button>
         </div>
 
         {/* 11. Events at this place (preserved, hidden in create mode) */}
         {!isNew && (
-        <div style={{ marginTop: 20, borderTop: `1px solid ${C.divider}`, paddingTop: 14 }}>
+        <div style={{ marginTop: 20, borderTop: `1px solid ${AC.border}`, paddingTop: 14 }}>
           <div className="flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: 'Fraunces', fontSize: 15, color: C.ink, flex: 1 }}>Events at this place</span>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: AC.text, flex: 1 }}>Events at this place</span>
             {placeEvents === null
-              ? <button onClick={loadPlaceEvents} style={{ background: 'transparent', border: `1px solid ${C.divider}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 12, cursor: 'pointer', color: C.inkSoft }}>Load events</button>
-              : <button onClick={publishPlaceEvents} style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Publish all approved</button>}
+              ? <button onClick={loadPlaceEvents} style={{ background: 'transparent', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 12, cursor: 'pointer', color: AC.textSoft }}>Load events</button>
+              : <button onClick={publishPlaceEvents} style={{ background: AC.success, color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Publish all approved</button>}
             <button disabled={scraping || !place.website} title={place.website ? 'Scrape this place\'s website for events' : 'No website set'}
               onClick={scrapeEvents}
-              style={{ background: place.website ? C.saffron : C.divider, color: C.ink, border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: place.website ? 'pointer' : 'not-allowed' }}>
+              style={{ background: place.website ? AC.warn : AC.border, color: AC.text, border: 'none', borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, cursor: place.website ? 'pointer' : 'not-allowed' }}>
               {scraping ? 'Scraping…' : 'Scrape events'}
             </button>
           </div>
           {placeEvents && placeEvents.length === 0 && (
-            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>No events linked to this place yet.</div>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No events linked to this place yet.</div>
           )}
           {placeEvents && placeEvents.map(e => (
-            <div key={e.id} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px solid ${C.divider}` }}>
-              <div className="flex-1 min-w-0" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {e.name} <span style={{ color: C.inkMuted }}>· {e.event_type} · {e.day_of_week || ''} {e.time_label || ''} · {e.review_status}</span>
+            <div key={e.id} className="flex items-center gap-2 py-1" style={{ borderBottom: `1px solid ${AC.border}` }}>
+              <div className="flex-1 min-w-0" style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {e.name} <span style={{ color: AC.textMuted }}>· {e.event_type} · {e.day_of_week || ''} {e.time_label || ''} · {e.review_status}</span>
               </div>
             </div>
           ))}

@@ -12,14 +12,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Users, Search, X, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle,
-  ShieldCheck, ShieldOff, Eye, EyeOff, Star, RotateCcw, Save, AlertCircle,
+  ShieldCheck, ShieldOff, Eye, EyeOff, Star, RotateCcw, Save, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { AC, AC_TONES } from '../admin-theme';
 import { adminFetch } from '../lib/adminFetch';
 import {
   PageHeader, StatCard, Card, DataTable, Toolbar, Input, Badge, Banner, Button,
-  EmptyState, fmt, pct, rel,
+  EmptyState, BusyOverlay, fmt, pct, rel,
 } from '../components/primitives';
+import { useConfirm } from '../components/ConfirmDialog';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES, DAYS, TIME_WINDOWS } from '../../../data/taxonomy';
 
 // Stable chip palettes for read-only displays.
@@ -36,7 +37,8 @@ const ALL_SLOTS = DAYS.flatMap((d) => TIME_WINDOWS.map((w) => `${d}-${w.id}`));
 // ============================================================================
 // Section root
 // ============================================================================
-export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
+export const MomProfilesSection = ({ rows, places, onPatch, onReload, reloading = false }) => {
+  const confirm = useConfirm();
   const placesById = useMemo(
     () => new Map((places || []).map((p) => [p.id, p])),
     [places]
@@ -121,7 +123,7 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
 
   const bulkPatch = async (patch, confirmMsg) => {
     if (selectedIds.size === 0) return;
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !(await confirm({ title: 'Please confirm', message: confirmMsg, confirmLabel: 'Confirm', tone: 'default' }))) return;
     setBusy(true); setActionMsg(null);
     try {
       const r = await adminFetch('/api/admin/mom-profiles/update', {
@@ -142,7 +144,13 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
 
   const bulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Permanently delete ${selectedIds.size} mom profile${selectedIds.size === 1 ? '' : 's'}? This cannot be undone. Auth users in Supabase Auth are not affected.`)) return;
+    const ok = await confirm({
+      title: `Delete ${selectedIds.size} mom profile${selectedIds.size === 1 ? '' : 's'}?`,
+      message: 'This cannot be undone. Auth users in Supabase Auth are not affected.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setBusy(true); setActionMsg(null);
     try {
       const r = await adminFetch('/api/admin/mom-profiles/update', {
@@ -216,6 +224,7 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
         />
       ),
       width: 28,
+      sortable: false,
       render: (r) => (
         <input
           type="checkbox"
@@ -228,7 +237,9 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
       ),
     },
     {
-      key: 'name', header: 'Name', render: (r) => (
+      key: 'name', header: 'Name',
+      sort: (r) => (r.display_name || r.username || '').toLowerCase(),
+      render: (r) => (
         <div className="flex items-center gap-2">
           {Array.isArray(r.photos) && r.photos[0] ? (
             <img src={r.photos[0]} alt="" style={{ width: 30, height: 30, borderRadius: AC.radiusPill, objectFit: 'cover', border: `1px solid ${AC.border}` }} />
@@ -248,7 +259,9 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
       ),
     },
     {
-      key: 'location', header: 'Location', render: (r) => (
+      key: 'location', header: 'Location',
+      sort: (r) => (r.city || r.neighborhood || '').toLowerCase(),
+      render: (r) => (
         <div>
           <div style={{ color: AC.text }}>{r.city || '—'}</div>
           {r.neighborhood && <div style={{ fontSize: 11, color: AC.textMuted }}>{r.neighborhood}</div>}
@@ -256,7 +269,10 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
       ),
     },
     {
-      key: 'kids', header: 'Kids', render: (r) => {
+      key: 'kids', header: 'Kids',
+      sort: (r) => (r.kids_ages && typeof r.kids_ages === 'object'
+        ? Object.values(r.kids_ages).filter(Boolean).length : 0),
+      render: (r) => {
         const ja = r.kids_ages;
         if (!ja || typeof ja !== 'object') return '—';
         const parts = Object.entries(ja).filter(([, v]) => v).map(([k]) => k);
@@ -264,7 +280,7 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
       },
     },
     {
-      key: 'flags', header: 'Status', render: (r) => (
+      key: 'flags', header: 'Status', sortable: false, render: (r) => (
         <div className="flex gap-1 flex-wrap">
           {r.verified ? <Badge tone="success" dot>verified</Badge> : <Badge tone="neutral">unverified</Badge>}
           {!r.visible && <Badge tone="warn">hidden</Badge>}
@@ -280,6 +296,7 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
     },
     {
       key: 'last_active_at', header: 'Last active', align: 'right', mono: true,
+      sort: (r) => Date.parse(r.last_active_at || r.updated_at) || 0,
       render: (r) => rel(r.last_active_at || r.updated_at),
     },
   ];
@@ -287,14 +304,8 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
   return (
     <div>
       <PageHeader
-        title="Mom profiles"
-        subtitle="Every promoted mom in the discoverable directory. Edit any field, mirror end-user actions (block, verify, hide, deactivate), or run bulk moderation."
-        actions={(
-          <>
-            <Button size="sm" onClick={downloadCsv} disabled={!filtered.length}>Export CSV ({filtered.length})</Button>
-            <Button size="sm" variant="primary" onClick={onReload}>Refresh</Button>
-          </>
-        )}
+        title=""
+        subtitle=""
       />
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5">
@@ -312,6 +323,21 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
         </Banner>
       )}
 
+      {/* Action bar — directly above the grid */}
+      <div className="flex items-center justify-end gap-2" style={{ marginBottom: 12 }}>
+        <Button size="sm" onClick={downloadCsv} disabled={!filtered.length}>Export CSV ({filtered.length})</Button>
+        <Button
+          size="sm" variant="primary" onClick={onReload} disabled={reloading}
+          icon={(p) => <RefreshCw {...p} style={{ animation: reloading ? 'spin 1s linear infinite' : 'none' }} />}
+        >
+          {reloading ? 'Refreshing…' : 'Refresh'}
+        </Button>
+      </div>
+
+      {/* Content blocker: while a bulk action is in flight (busy) or the
+          directory is re-fetching (reloading), block + spinner over the grid
+          only — never the whole page. */}
+      <div style={{ position: 'relative' }}>
       <Card padding={0}>
         {/* Row 1: search + counts */}
         <Toolbar style={{ margin: 0, padding: '12px 14px', borderBottom: `1px solid ${AC.divider}` }}>
@@ -377,6 +403,12 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload }) => {
           onRowClick={(r) => setSelectedMom(r)}
         />
       </Card>
+      <BusyOverlay
+        show={busy || reloading}
+        label={busy ? 'Updating…' : 'Refreshing directory…'}
+        radius={AC.radius}
+      />
+      </div>
 
       {selectedMom && (
         <MomProfileDetailModal
@@ -411,11 +443,13 @@ const FilterGroup = ({ label, children }) => (
 // Detail modal — view + edit all mom_profile fields, plus admin actions.
 // ============================================================================
 const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted }) => {
+  const confirm = useConfirm();
   const [tab, setTab] = useState('overview'); // overview | identity | family | preferences | location | social | settings | audit
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(mom);
   const [pendingFlag, setPendingFlag] = useState(null);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
@@ -455,7 +489,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
 
   // Patch a single arbitrary field (used by lifecycle buttons, source change).
   const patchField = async (patch, confirmMsg) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !(await confirm({ title: 'Please confirm', message: confirmMsg, confirmLabel: 'Confirm', tone: 'default' }))) return;
     setSaveBusy(true); setActionError(null);
     try {
       const r = await adminFetch('/api/admin/mom-profiles/update', {
@@ -509,8 +543,14 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
   const cancelEdit = () => { setDraft(mom); setEditing(false); setActionError(null); };
 
   const deleteProfile = async () => {
-    if (!window.confirm(`Permanently delete @${mom.username || mom.id}? This cannot be undone. The Supabase auth user is not affected.`)) return;
-    setSaveBusy(true); setActionError(null);
+    const ok = await confirm({
+      title: `Delete @${mom.username || 'this profile'}?`,
+      message: 'This permanently deletes the mom profile. It cannot be undone. The Supabase auth user is not affected.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setSaveBusy(true); setDeleting(true); setActionError(null);
     try {
       const r = await adminFetch('/api/admin/mom-profiles/update', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -522,7 +562,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
     } catch (e) {
       setActionError(e?.message || 'Delete failed');
     } finally {
-      setSaveBusy(false);
+      setSaveBusy(false); setDeleting(false);
     }
   };
 
@@ -541,11 +581,14 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
         aria-modal="true"
         aria-label={`Mom profile · ${mom.display_name || mom.username || 'detail'}`}
         style={{
+          position: 'relative',
           background: AC.surface, border: `1px solid ${AC.border}`, borderRadius: AC.radius,
           width: '100%', maxWidth: 720, maxHeight: '92vh', display: 'flex', flexDirection: 'column',
           boxShadow: AC.shadowLg, overflow: 'hidden', animation: 'slideUp 0.2s ease-out',
         }}
       >
+        {/* Blocks the whole popup while a save / delete / lifecycle action runs */}
+        <BusyOverlay show={saveBusy} label={deleting ? 'Deleting…' : 'Saving…'} radius={AC.radius} />
         {/* Sticky header */}
         <div style={{
           padding: '14px 18px', borderBottom: `1px solid ${AC.divider}`, background: AC.surfaceAlt,
@@ -683,8 +726,11 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
                 disabled={saveBusy}>Deactivate</Button>
             )}
             <div style={{ flex: 1 }} />
-            <Button size="sm" variant="danger" icon={Trash2} onClick={deleteProfile} disabled={saveBusy}>
-              Delete profile
+            <Button
+              size="sm" variant="danger" onClick={deleteProfile} disabled={saveBusy}
+              icon={deleting ? (p) => <RefreshCw {...p} style={{ animation: 'spin 1s linear infinite' }} /> : Trash2}
+            >
+              {deleting ? 'Deleting…' : 'Delete profile'}
             </Button>
           </div>
           {actionError && (

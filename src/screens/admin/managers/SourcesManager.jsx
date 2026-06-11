@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { C } from '../../../theme';
+import { AC } from '../admin-theme';
+import { BusyOverlay } from '../components/primitives';
+import { useConfirm } from '../components/ConfirmDialog';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import { SourceEditModal } from './SourceEditModal';
 
@@ -11,6 +13,7 @@ const summary = (r) => {
 };
 
 export const SourcesManager = ({ rows, adminFetch, onReload }) => {
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(null); // { source, isNew }
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +30,7 @@ export const SourcesManager = ({ rows, adminFetch, onReload }) => {
   };
 
   const toggle = (r) => post({ id: r.id, toggle: !r.enabled });
-  const remove = (r) => { if (confirm(`Delete source "${r.name}"?`)) post({ delete: r.id }); };
+  const remove = (r) => { confirm({ title: 'Delete source?', message: `Delete source "${r.name}"? This cannot be undone.`, confirmLabel: 'Delete', tone: 'danger' }).then((ok) => ok && post({ delete: r.id })); };
 
   const groups = [
     { key: 'places', label: 'Places' },
@@ -35,28 +38,29 @@ export const SourcesManager = ({ rows, adminFetch, onReload }) => {
   ];
 
   const Row = (r) => (
-    <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${C.divider}` }}>
+    <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${AC.border}` }}>
       <label style={{ cursor: 'pointer' }}>
         <input type="checkbox" checked={!!r.enabled} disabled={busy} onChange={() => toggle(r)} />
       </label>
       <div className="flex-1 min-w-0">
-        <div style={{ fontFamily: 'Fraunces', fontSize: 14, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted }}>
-          <span style={{ color: r.enabled ? C.sageDark : C.inkMuted }}>{r.type}</span>
+        <div style={{ fontFamily: 'Fraunces', fontSize: 14, color: AC.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textMuted }}>
+          <span style={{ color: r.enabled ? AC.success : AC.textMuted }}>{r.type}</span>
           {summary(r) ? <> · {summary(r)}</> : null}
         </div>
       </div>
-      <button title="Edit" onClick={() => setEditing({ source: r, isNew: false })} style={{ color: C.ink, background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><Pencil size={15} /></button>
-      <button title="Delete" disabled={busy} onClick={() => remove(r)} style={{ color: C.terracotta, background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
+      <button title="Edit" onClick={() => setEditing({ source: r, isNew: false })} style={{ color: AC.text, background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><Pencil size={15} /></button>
+      <button title="Delete" disabled={busy} onClick={() => remove(r)} style={{ color: AC.accent, background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><Trash2 size={15} /></button>
     </div>
   );
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      <BusyOverlay show={busy} label="Working…" />
       <div className="flex items-center mb-3">
-        <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted, flex: 1 }}>{rows.length} sources</span>
+        <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textMuted, flex: 1 }}>{rows.length} sources</span>
         <button onClick={() => setEditing({ source: null, isNew: true })}
-          style={{ background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ background: AC.success, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={14} /> New source
         </button>
       </div>
@@ -65,11 +69,11 @@ export const SourcesManager = ({ rows, adminFetch, onReload }) => {
         const list = rows.filter(r => r.kind === g.key);
         return (
           <div key={g.key} className="mb-4">
-            <div style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: C.inkMuted, marginBottom: 6 }}>{g.label}</div>
-            <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.divider}`, background: C.paper }}>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: AC.textMuted, marginBottom: 6 }}>{g.label}</div>
+            <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${AC.border}`, background: AC.surface }}>
               {list.map(Row)}
               {list.length === 0 && (
-                <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.inkMuted }}>No {g.label.toLowerCase()} sources yet.</div>
+                <div className="p-6 text-center" style={{ fontFamily: 'Albert Sans', fontSize: 13, color: AC.textMuted }}>No {g.label.toLowerCase()} sources yet.</div>
               )}
             </div>
           </div>

@@ -69,7 +69,9 @@ export const UsersSection = () => {
 
   const columns = [
     {
-      key: 'user', header: 'User', render: (u) => (
+      key: 'user', header: 'User',
+      sort: (u) => (u.email || u.phone || u.displayName || '').toLowerCase(),
+      render: (u) => (
         <div>
           <div className="flex items-center gap-1.5" style={{ fontWeight: 600, color: AC.text }}>
             {u.email ? <Mail size={12} style={{ color: AC.textMuted }} /> : u.phone ? <Phone size={12} style={{ color: AC.textMuted }} /> : null}
@@ -80,7 +82,9 @@ export const UsersSection = () => {
       ),
     },
     {
-      key: 'provider', header: 'Provider', render: (u) => (
+      key: 'provider', header: 'Provider',
+      sort: (u) => (u.providers && u.providers[0]) || u.provider || '',
+      render: (u) => (
         <div className="flex gap-1 flex-wrap">
           {(u.providers.length ? u.providers : [u.provider || 'unknown']).map((p) => (
             <Badge key={p} tone={PROVIDER_TONE[p] || 'neutral'}>{p}</Badge>
@@ -89,7 +93,9 @@ export const UsersSection = () => {
       ),
     },
     {
-      key: 'mom', header: 'Mom profile', render: (u) => (
+      key: 'mom', header: 'Mom profile',
+      sort: (u) => (u.mom ? (u.mom.displayName || u.mom.username || '') : '').toLowerCase(),
+      render: (u) => (
         u.mom ? (
           <button
             onClick={(e) => { e.stopPropagation(); openMomProfile(u.mom.id); }}
@@ -110,15 +116,17 @@ export const UsersSection = () => {
       ),
     },
     {
-      key: 'status', header: 'Status', render: (u) => (
+      key: 'status', header: 'Status',
+      sort: (u) => (u.banned ? 'banned' : u.isAnonymous ? 'anonymous' : u.confirmed ? 'confirmed' : 'unconfirmed'),
+      render: (u) => (
         u.banned ? <Badge tone="danger" dot>banned</Badge>
           : u.isAnonymous ? <Badge tone="warn" dot>anonymous</Badge>
             : u.confirmed ? <Badge tone="success" dot>confirmed</Badge>
               : <Badge tone="neutral" dot>unconfirmed</Badge>
       ),
     },
-    { key: 'lastSignInAt', header: 'Last sign-in', align: 'right', mono: true, render: (u) => rel(u.lastSignInAt) },
-    { key: 'createdAt', header: 'Joined', align: 'right', mono: true, render: (u) => rel(u.createdAt) },
+    { key: 'lastSignInAt', header: 'Last sign-in', align: 'right', mono: true, sort: (u) => Date.parse(u.lastSignInAt) || 0, render: (u) => rel(u.lastSignInAt) },
+    { key: 'createdAt', header: 'Joined', align: 'right', mono: true, sort: (u) => Date.parse(u.createdAt) || 0, render: (u) => rel(u.createdAt) },
     { key: 'id', header: 'User ID', mono: true, render: (u) => (u.id ? u.id.slice(0, 8) : '—') },
   ];
 
@@ -148,17 +156,22 @@ export const UsersSection = () => {
       <PageHeader
         title="Users"
         subtitle="Every Supabase Auth identity — OAuth sign-ins, phone/email, and the anonymous sessions that power chat."
-        actions={<Button size="sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</Button>}
       />
 
-      {error && <Banner tone="danger" icon={AlertTriangle}>{error}</Banner>}
-
+      {/* Stats — directly under the page header */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         <StatCard label="Total users" value={stats.total} icon={UserCog} />
         <StatCard label="Confirmed" value={stats.confirmed} tone={AC.success} />
         <StatCard label="Anonymous" value={stats.anonymous} tone={AC.warn} hint="chat sessions" />
         <StatCard label="Mom profiles" value={stats.momLinked || 0} tone={AC.accent} hint="linked to a profile" />
         <StatCard label="Top provider" value={topProvider} />
+      </div>
+
+      {error && <Banner tone="danger" icon={AlertTriangle}>{error}</Banner>}
+
+      {/* Action bar — directly above the grid */}
+      <div className="flex items-center justify-end gap-2" style={{ marginBottom: 12 }}>
+        <Button size="sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</Button>
       </div>
 
       <Card padding={0}>

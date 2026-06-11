@@ -72,6 +72,12 @@ Use `fetchEndpoint(path, label)` / `adminFetch` from `lib/adminFetch.js`. They a
 - **Fraunces** (`AC.brandFont`) ONLY for the "Go Mama Console" wordmark and the login mark. Never for section content.
 - **Monospace** (`AC.mono`) for IDs, SHAs, counts, timestamps — anything tabular/technical.
 
-## Legacy debt (known, intentional)
+## Theming (light / dark / system)
 
-`sections/legacy.jsx` (Overview, Onboarding, Mom profiles, Quick actions) was relocated **verbatim** from the old single-file AdminPage and still imports `C`. It renders fine inside the console because both share the coral accent, but it's the exception, not the model. When you touch one of those tabs, migrate it to `AC` + primitives. New work always uses the console system from the start.
+The whole console themes via a 3-way toggle in the header (`components/ThemeToggle.jsx`, driven by `lib/useAdminTheme.js`). Every **color** token on `AC` is a CSS variable (`var(--ac-x, <lightfallback>)`); the active values come from the `LIGHT` / `DARK` maps in `admin-theme.js`, emitted as `AC_THEME_CSS` and flipped by `data-ac-theme="light|dark"` on `<html>`. Non-color tokens (radius, widths, fonts) are plain literals and never theme.
+
+**Rule for consumers:** a color token is a CSS *value* — never string-concatenate an alpha suffix (`${AC.accent}33` → `var(...)33` is invalid). Use the `*Soft` / `*Border` tokens, or `color-mix(in srgb, ${AC.x} N%, transparent)`. Likewise, give lucide icons their color via `style={{ color: AC.x }}`, not the `color={AC.x}` attribute (`var()` doesn't resolve in SVG presentation attributes).
+
+## Legacy debt
+
+`sections/legacy.jsx` (Overview, Onboarding, Mom profiles, Quick actions) and the `managers/*` files were relocated verbatim from the old single-file AdminPage. As of the 2026-06-11 theming work they were fully migrated off the phone-app `C` palette onto `AC` (so they participate in dark mode) — but they still carry their own private helpers/layout rather than the shared primitives. When you touch one, prefer migrating it to `PageHeader` / `Card` / `DataTable` etc. New work always uses the console primitives from the start.
