@@ -23,6 +23,9 @@ import {
 import { useConfirm } from '../components/ConfirmDialog';
 import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES, DAYS, TIME_WINDOWS } from '../../../data/taxonomy';
+import { AiWriteButton } from '../components/AiWriteButton.jsx';
+import { AiImageControl } from '../components/AiImageControl.jsx';
+import { AiReviewButton } from '../components/AiReviewButton.jsx';
 
 // Stable chip palettes for read-only displays.
 const CHIP_TONES = {
@@ -870,6 +873,15 @@ const OverviewTab = ({ mom, placesById, onOpenPhoto }) => {
 
 const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
   <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+    {editing && (
+      <div style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+        <AiReviewButton
+          kind="mom"
+          record={draft}
+          onApply={(field, value) => setDraft((d) => ({ ...d, [field]: value }))}
+        />
+      </div>
+    )}
     <Field label="Display name">
       {editing
         ? <Input value={draft.display_name ?? ''} onChange={(e) => setDraft({ ...draft, display_name: e.target.value })} style={{ width: '100%' }} />
@@ -887,7 +899,19 @@ const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
     </Field>
     <Field label="Profile id"><ReadValue value={mom.id} mono /></Field>
     <Field label="Auth user id" full><ReadValue value={mom.auth_user_id} mono /></Field>
-    <Field label="Bio" full>
+    <div style={{ minWidth: 0, gridColumn: '1 / -1' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontFamily: AC.font, fontSize: 10.5, fontWeight: 700, letterSpacing: '.10em', color: AC.textMuted, textTransform: 'uppercase' }}>
+          Bio
+        </span>
+        {editing && (
+          <AiWriteButton
+            kind="mom"
+            record={draft}
+            onWrite={(text) => setDraft((d) => ({ ...d, bio: text }))}
+          />
+        )}
+      </div>
       {editing
         ? <textarea value={draft.bio ?? ''} onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
             rows={4}
@@ -896,7 +920,7 @@ const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
               padding: '8px 11px', fontFamily: AC.font, fontSize: 13, color: AC.text, outline: 'none', resize: 'vertical',
             }} />
         : <ReadValue value={mom.bio} />}
-    </Field>
+    </div>
     <Field label="Photos" full>
       <div className="flex flex-wrap gap-1.5">
         {(editing ? (draft.photos || []) : (mom.photos || [])).map((url, i) => (
@@ -933,7 +957,7 @@ const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
           </div>
         ))}
       </div>
-      {editing && (mom.photos || []).length < 5 && (
+      {editing && (draft.photos || []).length < 5 && (
         <div style={{ marginTop: 10, fontFamily: AC.font, fontSize: 12, color: AC.textMuted, fontStyle: 'italic' }}>
           Tip: paste an image URL below to add up to 5 photos (uses Vercel Blob for app uploads).
         </div>
@@ -943,6 +967,15 @@ const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
           disabled={(draft.photos || []).length >= 5}
           onAdd={(url) => setDraft({ ...draft, photos: [...(draft.photos || []), url] })}
         />
+      )}
+      {editing && (draft.photos || []).length < 5 && (
+        <div style={{ marginTop: 8 }}>
+          <AiImageControl
+            kind="mom"
+            record={draft}
+            onImage={(url) => setDraft((d) => ({ ...d, photos: [...(d.photos || []), url].slice(0, 5) }))}
+          />
+        </div>
       )}
     </Field>
   </div>
