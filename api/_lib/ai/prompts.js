@@ -47,9 +47,13 @@ export const toDescribePatch = (out) => ({ description: String(out?.description 
 
 // ------------------------------------------------------------------- review
 
+// Review only suggests free-text/numeric fields that round-trip on save
+// (strings, CSV via csv(), numbers via num()). Controlled-vocab <select>/chip
+// fields (category, event_type, mom taxonomy) are excluded — they must be set
+// via their pickers, not free-text suggestions, to avoid non-canonical values.
 export const REVIEW_FIELDS = {
-  place: ['name', 'description', 'category', 'tags', 'good_for', 'age_min', 'age_max'],
-  event: ['name', 'description', 'event_type', 'tags', 'kid_ages', 'age_min', 'age_max', 'price_summary'],
+  place: ['name', 'description', 'tags', 'good_for', 'age_min', 'age_max'],
+  event: ['name', 'description', 'tags', 'kid_ages', 'age_min', 'age_max', 'price_summary'],
   // bio only: mom_types/values/interests are controlled-vocab string[] chips —
   // unsafe to set from the AI's free-text string suggestions (use chip pickers instead).
   mom: ['bio'],

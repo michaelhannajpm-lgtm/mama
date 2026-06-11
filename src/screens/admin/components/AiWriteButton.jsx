@@ -2,7 +2,7 @@
 // AiWriteButton — inline "✨ Write with AI" pill next to a textarea label.
 //
 // Props:
-//   kind     — string, e.g. 'place' | 'event' | 'mom_profile'
+//   kind     — string, e.g. 'place' | 'event' | 'mom'
 //   record   — plain object, the current form state passed to the AI endpoint
 //   onWrite  — (description: string) => void — parent patches the form field
 //

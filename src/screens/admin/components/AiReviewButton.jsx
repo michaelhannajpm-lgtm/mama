@@ -2,7 +2,7 @@
 // AiReviewButton — "🔎 Review record" AI suggestions action.
 //
 // Props:
-//   kind      — string, e.g. 'place' | 'event' | 'mom_profile'
+//   kind      — string, e.g. 'place' | 'event' | 'mom'
 //   record    — plain object, the current form state to review
 //   onApply   — (field: string, value: string) => void — parent patches the form
 //
