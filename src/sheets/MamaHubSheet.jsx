@@ -5,9 +5,6 @@ import {
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
-import { SUGGESTED_EVENTS } from '../data/events';
-import { findPlace } from '../data/places';
-import { SAMPLE_MOMS } from '../data/moms';
 
 // ==========================================================================
 // MamaHubSheet — the catch-all "what's happening in my orbit" surface.
@@ -44,7 +41,10 @@ const SEED_CHATS = [
 ];
 
 // Resolve a saved/interested id into a display shape (event, place, or mom).
-const resolveSaved = (id, moms = []) => {
+// Pools are live, supplied by the parent: `moms` (match-ranked nearby),
+// `events` (recurring + dated, combined), `places` (flattened). Saved ids:
+// `mom-<id>`, `int-<eventId>`, a bare place id/slug, or a bare event id.
+const resolveSaved = (id, { moms = [], events = [], places = [] } = {}) => {
   if (typeof id === 'string' && id.startsWith('mom-')) {
     const m = moms.find(x => String(x.id) === id.slice(4));
     if (!m) return null;
@@ -54,22 +54,16 @@ const resolveSaved = (id, moms = []) => {
       meta: m.distance ? `${m.distance} · ${m.overlap}% match` : `${m.overlap}% match`,
     };
   }
-  const ev = SUGGESTED_EVENTS.find(e => e.id === id);
+  const evId = typeof id === 'string' && id.startsWith('int-') ? id.slice(4) : id;
+  const ev = events.find(e => String(e.id) === String(evId));
   if (ev) return {
     kind: 'event', photo: ev.photo, title: ev.name,
     sub: `${ev.day} · ${ev.time}`, meta: ev.place,
   };
-  const place = findPlace(id);
+  const place = places.find(p => String(p.id) === String(id) || p.slug === id);
   if (place) return {
-    kind: 'place', photo: null, title: place.name,
-    sub: place.area, meta: `${place.dist} mi`,
-  };
-  const numericId = typeof id === 'string' && id.startsWith('s') ? Number(id.slice(1)) : Number(id);
-  const mom = SAMPLE_MOMS.find(m => m.id === numericId);
-  if (mom) return {
-    kind: 'mom', photo: mom.photo, title: mom.name,
-    sub: `${mom.type} · ${mom.kids}`,
-    meta: `${mom.distance} · ${mom.overlap}% match`,
+    kind: 'place', photo: place.hero_photo || null, title: place.name,
+    sub: place.area, meta: place.city || '',
   };
   return null;
 };
@@ -81,6 +75,7 @@ export const MamaHubSheet = ({
   savedItems = [], setSavedItems,
   goingItems = [], setGoingItems,
   moms = [],
+  events = [], thisWeek = [], places = {},
   onOpenMessage,
   onOpenDiscussion,
   flash,
@@ -89,6 +84,12 @@ export const MamaHubSheet = ({
 }) => {
   const [tab, setTab] = useState('plans');
 
+  // Live lookup pools: events (recurring + dated) and places (flattened from
+  // the category-grouped object the parent passes).
+  const allEvents = [...events, ...thisWeek];
+  const allPlaces = Object.values(places || {}).flat();
+  const pools = { moms, events: allEvents, places: allPlaces };
+
   // Surface joined groups + a few popular ones as a single feed.
   const groupItems = groupDiscussions.slice(0, 6).map(d => ({
     ...d,
@@ -96,22 +97,22 @@ export const MamaHubSheet = ({
   }));
 
   // Joined activities — resolve event ids to full event shapes (with photo).
-  // Fall back to the first few SUGGESTED_EVENTS so the prototype feels
-  // populated before the user RSVPs to anything.
+  // Fall back to the first few live events so the surface feels populated
+  // before the user RSVPs to anything.
   const joinedActivities = joinedEvents
-    .map(id => SUGGESTED_EVENTS.find(e => e.id === id))
+    .map(id => allEvents.find(e => String(e.id) === String(id)))
     .filter(Boolean);
   const planActivities = joinedActivities.length > 0
     ? joinedActivities
-    : SUGGESTED_EVENTS.slice(0, 3);
+    : allEvents.slice(0, 3);
   const upNext = planActivities[0];
 
   // Resolve saved + interested ids.
   const savedResolved = savedItems
-    .map(id => ({ id, item: resolveSaved(id, moms) }))
+    .map(id => ({ id, item: resolveSaved(id, pools) }))
     .filter(x => x.item);
   const interestedResolved = goingItems
-    .map(id => ({ id, item: resolveSaved(id, moms) }))
+    .map(id => ({ id, item: resolveSaved(id, pools) }))
     .filter(x => x.item);
 
   const unsave     = (id) => setSavedItems?.(prev => prev.filter(x => x !== id));

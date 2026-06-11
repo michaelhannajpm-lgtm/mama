@@ -2,7 +2,7 @@ import { Crown, Check } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 
-export const PremiumSheet = ({ onClose, onActivate }) => (
+export const PremiumSheet = ({ onClose, onActivate, plusPrice = 7.99, plusTrialDays = 7, freeLimit = 3 }) => (
   <Sheet onClose={onClose} dark>
     <div className="px-6 pt-2 pb-7" style={{ color: C.cream }}>
       <div className="flex justify-center mb-3">
@@ -20,7 +20,7 @@ export const PremiumSheet = ({ onClose, onActivate }) => (
       <div className="mt-5 space-y-2.5">
         {[
           ['Advanced filters', 'Tune Explore + Connect by stage, distance, amenities, and more'],
-          ['Unlimited messages', 'Beyond the first 3 — ongoing chat with every match'],
+          ['Unlimited messages', `Beyond the first ${freeLimit} — ongoing chat with every match`],
           ['Full profiles', 'Bio, all values & interests, every free time slot'],
           ['Full group attendees', "See exactly who's going · DM them ahead"],
           ['Met-up history', "Social proof — how active each mom is"],
@@ -37,10 +37,10 @@ export const PremiumSheet = ({ onClose, onActivate }) => (
 
       <button onClick={()=>{ onActivate && onActivate(); onClose(); }} className="mt-5 w-full rounded-2xl"
         style={{ height: 54, background: C.saffron, color: C.ink, fontFamily:'Albert Sans', fontWeight:600, fontSize: 15 }}>
-        Try free for 7 days
+        Try free for {plusTrialDays} days
       </button>
       <div className="mt-2 text-center text-[11.5px]" style={{ fontFamily:'Albert Sans', opacity:.55 }}>
-        Then $7.99/mo · cancel anytime
+        Then ${plusPrice.toFixed(2)}/mo · cancel anytime
       </div>
     </div>
   </Sheet>

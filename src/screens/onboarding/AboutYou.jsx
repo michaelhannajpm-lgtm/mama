@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Check, Sparkles, LocateFixed, Lock } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
-import { SUGGESTED_EVENTS } from '../../data/events';
-import { PLACES } from '../../data/places';
-import { SAMPLE_MOMS } from '../../data/moms';
+import { MOM_DESCRIBES } from '../../data/taxonomy';
 import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
 import { nearestArea } from '../../lib/places.js';
+import { fetchNearbyMoms } from '../../lib/nearby-moms';
 
 // ==========================================================================
 // AboutYou — onboarding screen 2, structured as a 4-step visual carousel:
@@ -38,14 +37,9 @@ const LOOKING_FOR_OPTS = [
 
 const DESCRIBES_PREFER_NOT_TO_SAY = 'Prefer not to say';
 
-const DESCRIBES_OPTS = [
-  { emoji: '🧭', label: 'New to area',                       sub: 'Recently moved here' },
-  { emoji: '💼', label: 'Working Mom',                       sub: 'Balancing career'    },
-  { emoji: '🏠', label: 'Stay at home',                      sub: 'Home with kids'      },
-  { emoji: '💪', label: 'Solo Mom',                          sub: 'Single parent'       },
-  { emoji: '🌎', label: 'Multicultural',                     sub: 'Diverse background'  },
-  { emoji: '🤐', label: DESCRIBES_PREFER_NOT_TO_SAY,         sub: null                  },
-];
+// Shared with the profile's Interests & Preferences → Mom type (MOM_DESCRIBES
+// in data/taxonomy) so the two surfaces always offer the exact same options.
+const DESCRIBES_OPTS = MOM_DESCRIBES;
 
 // Stage → kid-age bucket used by events + mom-year matching.
 const STAGE_TO_BUCKETS = {
@@ -67,24 +61,12 @@ const BUCKET_TO_YEARS = {
   '13+':   [13, 14, 15, 16, 17, 18],
 };
 
-// PLACES are split into "things to do" (active programs you sign kids up for)
-// and "local spots" (browse-and-go destinations + grown-up resources). Group
-// meetups + moms come from SUGGESTED_EVENTS and SAMPLE_MOMS respectively.
+// Live places (grouped by category) are split into "things to do" (active
+// programs you sign kids up for) and "local spots" (browse-and-go destinations
+// + grown-up resources). Group meetups come from live events; the moms count
+// comes from the match-ranked /api/mom-profiles/nearby endpoint.
 const ACTIVITY_CATS = ['extracurricular', 'camps', 'sports'];
 const SPOT_CATS     = ['fun', 'wellness', 'health', 'childcare', 'schools'];
-
-const ALL_ACTIVITIES = ACTIVITY_CATS.flatMap(c => PLACES[c] || []);
-const ALL_SPOTS      = SPOT_CATS.flatMap(c => PLACES[c] || []);
-
-const momYearsFromKidsStr = (s = '') => {
-  const out = [];
-  (s.match(/(\d+)\s*y/g) || []).forEach(m => out.push(Number(/(\d+)/.exec(m)[1])));
-  (s.match(/(\d+)\s*m/g) || []).forEach(m => {
-    const months = Number(/(\d+)/.exec(m)[1]);
-    out.push(months >= 12 ? 1 : 0);
-  });
-  return out;
-};
 
 // Carousel progress banner — back button + full-width 3-segment bar.
 const ProgressBanner = ({ step, total, onBack }) => (
@@ -313,7 +295,7 @@ const PreviewBanner = ({ title, items, snippet, hint }) => (
   </div>
 );
 
-export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance, locationGeo, setLocationGeo }) => {
+export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLocation, distance, setDistance, locationGeo, setLocationGeo, places = {}, events = [], thisWeek = [] }) => {
   const inputRef = useRef(null);
   const [geoStatus, setGeoStatus] = useState('idle'); // idle | detecting | ok | denied | unsupported
   const [step, setStep] = useState(1); // carousel: 1..3
@@ -429,43 +411,67 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
     const stageYears = new Set(stageBuckets.flatMap(b => BUCKET_TO_YEARS[b] || []));
     const hasStage = stage.length > 0;
 
-    const filterByLocation = (places) => {
-      if (!hasLocation) return places;
-      let result = places;
-      const local = result.filter(p => p.area === location);
-      if (local.length) result = local;
-      return result.filter(p => (p.dist || 0) <= radius);
+    // Live places carry `area` but no per-user `dist`; narrow by exact-area
+    // match when a neighborhood is set, otherwise show the full pool.
+    const allActivities = ACTIVITY_CATS.flatMap(c => places?.[c] || []);
+    const allSpots      = SPOT_CATS.flatMap(c => places?.[c] || []);
+    const filterByLocation = (list) => {
+      if (!hasLocation) return list;
+      const local = list.filter(p => p.area === location);
+      return local.length ? local : list;
     };
 
-    let meetups = SUGGESTED_EVENTS;
+    let meetups = [...events, ...thisWeek];
     if (hasStage) {
       meetups = meetups.filter(e => {
-        if (!e.kidAges) return true;
+        if (!e.kidAges || !e.kidAges.length) return true;
         return e.kidAges.some(b => (BUCKET_TO_YEARS[b] || []).some(y => stageYears.has(y)));
       });
     }
     if (hasLocation) meetups = meetups.filter(e => (e.mi || 0) <= radius);
 
-    const thingsToDo = filterByLocation(ALL_ACTIVITIES);
-    const spots = filterByLocation(ALL_SPOTS);
+    const thingsToDo = filterByLocation(allActivities);
+    const spots = filterByLocation(allSpots);
 
-    let moms = SAMPLE_MOMS;
-    if (hasStage) {
-      moms = moms.filter(m => {
-        const ys = momYearsFromKidsStr(m.kids);
-        return ys.some(y => stageYears.has(y));
-      });
-    }
-    if (hasLocation) moms = moms.filter(m => parseFloat(m.distance) <= radius);
+    return { thingsToDo, meetups, spots };
+  }, [stage, location, hasLocation, radius, places, events, thisWeek]);
 
-    return { thingsToDo, meetups, moms, spots };
-  }, [stage, location, hasLocation, radius]);
+  // Moms count is real, from the match-ranked nearby endpoint keyed on the
+  // partial onboarding profile (kid stage + chosen location). Debounced so we
+  // don't refetch on every keystroke; a request id guards against races.
+  const [momsCount, setMomsCount] = useState(0);
+  const momsReqId = useRef(0);
+  useEffect(() => {
+    const reqId = ++momsReqId.current;
+    const stageBuckets = stage.flatMap(s => STAGE_TO_BUCKETS[s] || []);
+    const kids_ages = {};
+    stageBuckets.forEach(b => { kids_ages[b] = 1; });
+    const user = {
+      kids_ages,
+      interests: [], values: [], mom_types: describes || [], familyTags: [],
+      places: [], free_slots: [],
+      lat: locationGeo?.lat ?? null,
+      lng: locationGeo?.lng ?? null,
+      city: locationGeo?.city ?? null,
+      neighborhood: locationGeo?.neighborhood ?? null,
+      county: locationGeo?.county ?? null,
+    };
+    const t = setTimeout(() => {
+      fetchNearbyMoms(user, { limit: 100, verifiedOnly: true })
+        .then(({ total, moms }) => {
+          if (reqId !== momsReqId.current) return;
+          setMomsCount(Number.isFinite(total) && total > 0 ? total : (moms?.length || 0));
+        })
+        .catch(() => { if (reqId === momsReqId.current) setMomsCount(0); });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [stage, describes, locationGeo]);
 
   // Shared 4-bucket items array — order matches Landing promise.
   const previewItems = [
     { count: preview.thingsToDo.length, label: 'Things to do'  },
     { count: preview.meetups.length,    label: 'Group Meetups' },
-    { count: preview.moms.length,       label: 'Moms'          },
+    { count: momsCount,                 label: 'Moms'          },
     { count: preview.spots.length,      label: 'Local Spots'   },
   ];
 

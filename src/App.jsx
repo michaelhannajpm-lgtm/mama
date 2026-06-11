@@ -32,6 +32,7 @@ import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat } from './lib/onboarding';
+import { captureIncomingRef } from './lib/referral';
 import { derivePresence } from './lib/presence';
 import { computeVerified } from './lib/social-verify';
 import { ensureSession } from './lib/supabase';
@@ -281,6 +282,10 @@ function PrototypeApp({ bare = false }) {
     return nearbyMomsLive.filter((m) => !isSelf(m));
   }, [nearbyMomsLive, selfUid, selfSeedId, selfHandle]);
 
+  // Capture an incoming `?ref=` invite code as early as possible — before the
+  // promote effect below reads it for attribution — and clean it out of the URL.
+  useEffect(() => { captureIncomingRef(); }, []);
+
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
   useEffect(() => {
@@ -443,6 +448,7 @@ function PrototypeApp({ bare = false }) {
             location={location} setLocation={setLocation}
             distance={distance} setDistance={setDistance}
             locationGeo={locationGeo} setLocationGeo={setLocationGeo}
+            places={placesData} events={eventsData} thisWeek={thisWeekData}
           />}
           {step===2 && <Account
             onBack={()=>setStep(0)}

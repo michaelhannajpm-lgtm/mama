@@ -2,7 +2,37 @@ import {
   json, isUuid, readJsonBody, supabaseCreds, sbHeaders,
   usernameBase, randomHex, cleanText,
 } from '../_lib/supabase.js';
-import { ensureMomProfile } from '../_lib/mom-profile-helpers.js';
+import { ensureMomProfile, normalizeUsername } from '../_lib/mom-profile-helpers.js';
+
+// Referral attribution — best-effort, runs only when a referral code rode in
+// with a signup (the inviter's username, captured from `?ref=` at link-open).
+// Resolves the referrer by username and records who-invited-whom. The table's
+// unique(referred_mom_id) constraint makes this idempotent, so re-mounts and
+// returning users never double-count; we ask PostgREST to ignore duplicates so
+// a re-attempt is a silent no-op rather than an error.
+const attributeReferral = async (creds, refCode, referredMomId) => {
+  if (!refCode || !referredMomId) return;
+  const r = await fetch(
+    `${creds.supabaseUrl}/rest/v1/mom_profiles?username=eq.${encodeURIComponent(refCode)}&select=id,username`,
+    { headers: sbHeaders(creds.serviceRoleKey) },
+  );
+  if (!r.ok) return;
+  const rows = await r.json().catch(() => []);
+  const referrer = rows[0];
+  if (!referrer || referrer.id === referredMomId) return; // unknown code or self-referral
+  await fetch(`${creds.supabaseUrl}/rest/v1/referrals?on_conflict=referred_mom_id`, {
+    method: 'POST',
+    headers: sbHeaders(creds.serviceRoleKey, {
+      Prefer: 'resolution=ignore-duplicates,return=minimal',
+    }),
+    body: JSON.stringify({
+      referrer_mom_id: referrer.id,
+      referred_mom_id: referredMomId,
+      referrer_username: referrer.username || refCode,
+      status: 'joined',
+    }),
+  });
+};
 
 const ALLOWED_PROVIDERS = new Set(['email', 'phone', 'google', 'facebook', 'apple']);
 
@@ -120,15 +150,17 @@ const hydratedShape = (row, momProfile) => {
     contact_method: row.contact_method,
     phone: row.phone,
     email: row.email,
-    location: row.location,
-    locationGeo: row.location_place_id ? {
-      id:           row.location_place_id,
-      label:        row.location || null,
-      city:         row.location_city || null,
-      neighborhood: row.location_neighborhood || null,
-      county:       row.location_county || null,
-      lat:          row.location_lat ?? null,
-      lng:          row.location_lng ?? null,
+    // Prefer the mom_profiles row (post-onboarding edits via LocationSheet land
+    // there) and fall back to the onboarding row for first-time hydration.
+    location: mp.neighborhood || mp.city || row.location || null,
+    locationGeo: (mp.place_id || row.location_place_id) ? {
+      id:           mp.place_id      || row.location_place_id,
+      label:        mp.neighborhood  || row.location              || null,
+      city:         mp.city          || row.location_city         || null,
+      neighborhood: mp.neighborhood  || row.location_neighborhood || null,
+      county:       mp.county        || row.location_county       || null,
+      lat:          mp.home_lat      ?? row.location_lat          ?? null,
+      lng:          mp.home_lng      ?? row.location_lng          ?? null,
     } : null,
     distance: mp.distance_miles ?? row.distance_miles ?? null,
     places_radius_miles: row.places_radius_miles ?? null,
@@ -146,7 +178,7 @@ const hydratedShape = (row, momProfile) => {
       // Onboarding stores text slot strings ('Tue-morning') and place slugs.
       // mom_profiles stores free_slots (same shape) but places as uuid[] —
       // we keep the prototype's text-slot pipeline for now.
-      slots:  row.slots  || [],
+      slots:  mp.free_slots || row.slots  || [],
       places: row.places || [],
     },
     social_links: mp.social_links || row.social_links || {},
@@ -238,6 +270,14 @@ export default async function handler(req, res) {
   // the latest user-edited fields (bio, photos, etc.) — not just the
   // onboarding snapshot.
   const momProfile = await fetchMomProfileByAuthUser(creds, user.id);
+
+  // Referral attribution (best-effort, never blocks signup). Only fires when a
+  // `?ref=` code was captured for this signup; idempotent at the DB level.
+  const refCode = normalizeUsername(body.ref);
+  if (refCode && momProfile?.id) {
+    try { await attributeReferral(creds, refCode, momProfile.id); }
+    catch (e) { console.error('referral attribution failed', e); }
+  }
 
   return json(res, 200, { ok: true, ...hydratedShape({ ...row, username }, momProfile) });
 }

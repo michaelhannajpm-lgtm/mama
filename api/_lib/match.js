@@ -50,7 +50,7 @@ const kidAgeSimilarity = (a, b) => {
   return (avgBest(a, b) + avgBest(b, a)) / 2;
 };
 
-export const WEIGHTS = { kids: 30, interests: 25, values: 15, places: 15, slots: 10, momTypes: 5 };
+export const WEIGHTS = { kids: 30, interests: 20, values: 10, places: 15, slots: 10, momTypes: 5, familyTags: 10 };
 
 export const scoreMom = (user = {}, mom = {}) => {
   const uKids = truthyKeys(user.kids_ages);
@@ -62,16 +62,46 @@ export const scoreMom = (user = {}, mom = {}) => {
     jaccard(asArray(user.values), asArray(mom.values)) * WEIGHTS.values +
     jaccard(asArray(user.places), asArray(mom.places)) * WEIGHTS.places +
     jaccard(asArray(user.free_slots), asArray(mom.free_slots)) * WEIGHTS.slots +
-    jaccard(asArray(user.mom_types), asArray(mom.mom_types)) * WEIGHTS.momTypes;
+    jaccard(asArray(user.mom_types), asArray(mom.mom_types)) * WEIGHTS.momTypes +
+    jaccard(asArray(user.familyTags), asArray(mom.familyTags)) * WEIGHTS.familyTags;
 
   const sharedTags = [];
   if (sharedItems(uKids, mKids).length) sharedTags.push('Same kid ages');
   else if (kidAgeSimilarity(uKids, mKids) > 0) sharedTags.push('Similar-age kids');
+  sharedTags.push(...sharedItems(user.familyTags, mom.familyTags));
   sharedTags.push(...sharedItems(user.interests, mom.interests));
   sharedTags.push(...sharedItems(user.values, mom.values));
 
   return {
     score: Math.round(Math.max(0, Math.min(100, score))),
     sharedTags: sharedTags.slice(0, 3),
+    explanation: explainMatch(user, mom, { uKids, mKids }),
   };
+};
+
+// Join clauses naturally: ["a"] → "a"; ["a","b"] → "a and b";
+// ["a","b","c"] → "a, b, and c".
+const joinNatural = (parts) =>
+  parts.length <= 1 ? (parts[0] || '')
+    : parts.length === 2 ? `${parts[0]} and ${parts[1]}`
+    : `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
+
+// A human "why you match" sentence built from the strongest shared signals.
+// Pure; safe to call standalone. `kids` lets scoreMom pass its already-derived
+// bucket lists, but they're recomputed if omitted.
+export const explainMatch = (user = {}, mom = {}, kids) => {
+  const uKids = kids?.uKids || truthyKeys(user.kids_ages);
+  const mKids = kids?.mKids || truthyKeys(mom.kids_ages);
+  const sv = sharedItems(user.values, mom.values);
+  const si = sharedItems(user.interests, mom.interests);
+
+  const bits = [];
+  if (sharedItems(uKids, mKids).length) bits.push('have kids the same age');
+  else if (kidAgeSimilarity(uKids, mKids) > 0) bits.push('have children of similar ages');
+  if (sv.length) bits.push(`value ${String(sv[0]).toLowerCase()}`);
+  if (si.length) bits.push(`enjoy ${String(si[0]).toLowerCase()}`);
+
+  return bits.length
+    ? `You both ${joinNatural(bits)}.`
+    : 'You’re both nearby and open to meeting new parents.';
 };

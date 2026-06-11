@@ -8,6 +8,11 @@ const KEYS = {
   default_places_radius_miles: { out: 'defaultPlacesRadiusMiles', num: true },
   presence_online_max_seconds: { out: 'presenceOnlineMaxSeconds', num: true },
   presence_away_max_seconds:   { out: 'presenceAwayMaxSeconds',   num: true },
+  verified_requires_social:    { out: 'verifiedRequiresSocial',   bool: true },
+  dm_free_message_limit:       { out: 'dmFreeMessageLimit',       num: true },
+  plus_price_monthly:          { out: 'plusPriceMonthly',         num: true },
+  plus_trial_days:             { out: 'plusTrialDays',            num: true },
+  default_verified_only_discovery: { out: 'defaultVerifiedOnlyDiscovery', bool: true },
 };
 
 export default async function handler(req, res) {
@@ -30,7 +35,9 @@ export default async function handler(req, res) {
     for (const row of rows) {
       const meta = KEYS[row.key];
       if (!meta) continue;
-      config[meta.out] = meta.num ? Number(row.value) : row.value;
+      config[meta.out] = meta.num ? Number(row.value)
+        : meta.bool ? (row.value === true || row.value === 'true')
+        : row.value;
     }
     return json(res, 200, { ok: true, config });
   } catch (e) {

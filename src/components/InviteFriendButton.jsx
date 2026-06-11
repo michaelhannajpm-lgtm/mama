@@ -1,28 +1,33 @@
 import { UserPlus } from 'lucide-react';
 import { C } from '../theme';
+import { inviteUrl, myCode } from '../lib/referral';
 
 // ==========================================================================
 // InviteFriendButton — coral pill CTA rendered at the bottom of Home,
 // Connect, and Explore tabs. Uses the Web Share API when available, otherwise
 // falls back to copying the app URL and flashing a confirmation toast.
 //
+// The shared link carries the current mom's `?ref=` invite code (her username)
+// so referrals are attributed when a friend signs up. Falls back to the bare
+// origin for anonymous / seeded sessions that don't have a code yet.
+//
 // Renders only the button (no horizontal padding wrapper) so callers control
 // the surrounding gutter — HomeTab/ConnectTab scrollers are already px-5,
 // LocalPicksTab's scroller is bare and wraps in `<div className="px-5">`.
 // ==========================================================================
 
-const INVITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://gomama.app';
 const INVITE_TEXT = 'Found my mom-village on Go Mama — come join 💛';
 
 export const InviteFriendButton = ({ flash }) => {
   const onClick = async () => {
-    const payload = { title: 'Go Mama', text: INVITE_TEXT, url: INVITE_URL };
+    const url = inviteUrl(myCode());
+    const payload = { title: 'Go Mama', text: INVITE_TEXT, url };
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try { await navigator.share(payload); return; }
       catch { /* user cancelled or share failed — fall through to copy */ }
     }
     try {
-      await navigator.clipboard?.writeText(`${INVITE_TEXT} ${INVITE_URL}`);
+      await navigator.clipboard?.writeText(`${INVITE_TEXT} ${url}`);
       flash?.('✦ Invite link copied');
     } catch {
       flash?.('Share unsupported on this device');

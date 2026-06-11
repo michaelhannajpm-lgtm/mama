@@ -2,21 +2,41 @@ import { useEffect, useState } from 'react';
 import { Save, RefreshCw } from 'lucide-react';
 import { C } from '../theme';
 
-// Admin editor for app_config values. Currently the top-places default radius.
-// Reads/writes via /api/admin/config (admin-gated).
+// Admin editor for app_config values, grouped into categories across two
+// columns. Reads/writes via /api/admin/config (admin-gated); the public
+// /api/config mirror exposes the same keys (camelCased) to the app.
 const RADIUS_OPTS = [10, 20, 30, 50, 100, 150];
 
 export const ConfigManager = ({ adminFetch }) => {
+  // Discovery & matching
   const [radius, setRadius] = useState(null);
-  const [saved, setSaved] = useState(null);
+  const [savedRadius, setSavedRadius] = useState(null);
+  const [vod, setVod] = useState(true);           // default verified-only discovery
+  const [savedVod, setSavedVod] = useState(true);
+  // Presence
   const [onlineS, setOnlineS] = useState(null);
   const [awayS, setAwayS] = useState(null);
   const [savedOnlineS, setSavedOnlineS] = useState(null);
   const [savedAwayS, setSavedAwayS] = useState(null);
+  // Trust & safety
+  const [reqSocial, setReqSocial] = useState(true);
+  const [savedReqSocial, setSavedReqSocial] = useState(true);
+  // Monetization
+  const [dmLimit, setDmLimit] = useState(null);
+  const [savedDmLimit, setSavedDmLimit] = useState(null);
+  const [price, setPrice] = useState(null);
+  const [savedPrice, setSavedPrice] = useState(null);
+  const [trialDays, setTrialDays] = useState(null);
+  const [savedTrialDays, setSavedTrialDays] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [presenceMsg, setPresenceMsg] = useState(null);
+  const [verifyMsg, setVerifyMsg] = useState(null);
+  const [vodMsg, setVodMsg] = useState(null);
+  const [dmMsg, setDmMsg] = useState(null);
+  const [plusMsg, setPlusMsg] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -25,17 +45,29 @@ export const ConfigManager = ({ adminFetch }) => {
       const body = await res.json();
       const rows = body.rows || [];
       const num = (key, dflt) => { const r = rows.find(x => x.key === key); return r ? Number(r.value) : dflt; };
+      const bool = (key, dflt) => { const r = rows.find(x => x.key === key); return r ? (r.value === true || r.value === 'true') : dflt; };
       const rad = num('default_places_radius_miles', 50);
-      setRadius(rad); setSaved(rad);
+      setRadius(rad); setSavedRadius(rad);
+      const v = bool('default_verified_only_discovery', true);
+      setVod(v); setSavedVod(v);
       const on = num('presence_online_max_seconds', 300);
       const aw = num('presence_away_max_seconds', 1800);
       setOnlineS(on); setSavedOnlineS(on);
       setAwayS(aw);  setSavedAwayS(aw);
+      const rs = bool('verified_requires_social', true);
+      setReqSocial(rs); setSavedReqSocial(rs);
+      const dl = num('dm_free_message_limit', 3);
+      setDmLimit(dl); setSavedDmLimit(dl);
+      const pr = num('plus_price_monthly', 7.99);
+      setPrice(pr); setSavedPrice(pr);
+      const td = num('plus_trial_days', 7);
+      setTrialDays(td); setSavedTrialDays(td);
     } catch { setMsg('Could not load config'); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Returns the saved value coerced (Number for numeric keys, raw otherwise).
   const saveKey = async (key, value) => {
     const res = await adminFetch('/api/admin/config', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -43,13 +75,23 @@ export const ConfigManager = ({ adminFetch }) => {
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || 'Save failed');
-    return Number(body.row?.value ?? value);
+    return body.row?.value ?? value;
   };
 
-  const save = async () => {
+  const saveRadius = async () => {
     setBusy(true); setMsg(null);
-    try { setSaved(await saveKey('default_places_radius_miles', radius)); setMsg('Saved ✓'); }
+    try { setSavedRadius(Number(await saveKey('default_places_radius_miles', radius))); setMsg('Saved ✓'); }
     catch (e) { setMsg(e.message || 'Save failed'); }
+    finally { setBusy(false); }
+  };
+
+  const saveVod = async (val) => {
+    setBusy(true); setVodMsg(null);
+    try {
+      const saved = await saveKey('default_verified_only_discovery', val);
+      const b = saved === true || saved === 'true';
+      setVod(b); setSavedVod(b); setVodMsg('Saved ✓');
+    } catch (e) { setVod(savedVod); setVodMsg(e.message || 'Save failed'); }
     finally { setBusy(false); }
   };
 
@@ -57,18 +99,47 @@ export const ConfigManager = ({ adminFetch }) => {
     if (!(onlineS < awayS)) { setPresenceMsg('Online window must be shorter than Away'); return; }
     setBusy(true); setPresenceMsg(null);
     try {
-      setSavedOnlineS(await saveKey('presence_online_max_seconds', onlineS));
-      setSavedAwayS(await saveKey('presence_away_max_seconds', awayS));
+      setSavedOnlineS(Number(await saveKey('presence_online_max_seconds', onlineS)));
+      setSavedAwayS(Number(await saveKey('presence_away_max_seconds', awayS)));
       setPresenceMsg('Saved ✓');
     } catch (e) { setPresenceMsg(e.message || 'Save failed'); }
     finally { setBusy(false); }
   };
 
-  const dirty = radius !== saved;
+  const saveReqSocial = async (val) => {
+    setBusy(true); setVerifyMsg(null);
+    try {
+      const saved = await saveKey('verified_requires_social', val);
+      const b = saved === true || saved === 'true';
+      setReqSocial(b); setSavedReqSocial(b); setVerifyMsg('Saved ✓');
+    } catch (e) { setReqSocial(savedReqSocial); setVerifyMsg(e.message || 'Save failed'); }
+    finally { setBusy(false); }
+  };
+
+  const saveDmLimit = async () => {
+    setBusy(true); setDmMsg(null);
+    try { setSavedDmLimit(Number(await saveKey('dm_free_message_limit', dmLimit))); setDmMsg('Saved ✓'); }
+    catch (e) { setDmMsg(e.message || 'Save failed'); }
+    finally { setBusy(false); }
+  };
+
+  const savePlus = async () => {
+    setBusy(true); setPlusMsg(null);
+    try {
+      setSavedPrice(Number(await saveKey('plus_price_monthly', price)));
+      setSavedTrialDays(Number(await saveKey('plus_trial_days', trialDays)));
+      setPlusMsg('Saved ✓');
+    } catch (e) { setPlusMsg(e.message || 'Save failed'); }
+    finally { setBusy(false); }
+  };
+
+  const radiusDirty = radius !== savedRadius;
   const presenceDirty = onlineS !== savedOnlineS || awayS !== savedAwayS;
+  const dmDirty = dmLimit !== savedDmLimit;
+  const plusDirty = price !== savedPrice || trialDays !== savedTrialDays;
 
   return (
-    <div style={{ padding: 24, maxWidth: 560 }}>
+    <div style={{ padding: 24, maxWidth: 1000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <h2 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 700, color: C.ink, margin: 0 }}>
           App configuration
@@ -79,90 +150,179 @@ export const ConfigManager = ({ adminFetch }) => {
         Application-wide settings. Changes take effect on the next app load (no deploy needed).
       </p>
 
-      <div style={card}>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>
-          Default Top Spots radius
-        </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2 }}>
-          The fallback radius for the “Top Spots” section when a user hasn’t set their own.
+      {/* Two-column layout — collapses to one column when narrow. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginTop: 8, alignItems: 'flex-start' }}>
+
+        {/* ───────── Column A ───────── */}
+        <div style={col}>
+          <Category title="Discovery & matching" />
+
+          <Card title="Default Top Spots radius"
+            desc="The fallback radius for the “Top Spots” section when a user hasn’t set their own.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {RADIUS_OPTS.map(r => {
+                const active = radius === r;
+                return (
+                  <button key={r} onClick={() => setRadius(r)} disabled={loading} style={{
+                    padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
+                    background: active ? C.terracotta : C.paper,
+                    color: active ? '#fff' : C.ink,
+                    border: `1px solid ${active ? C.terracotta : C.divider}`,
+                    fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+                  }}>{r} mi</button>
+                );
+              })}
+              <input
+                type="number" min={1} max={500} value={radius ?? ''} disabled={loading}
+                onChange={e => setRadius(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                style={{ ...field, width: 90 }} placeholder="custom"
+              />
+            </div>
+            <SaveRow onSave={saveRadius} dirty={radiusDirty} disabled={busy || loading || radius == null} busy={busy} msg={msg} />
+          </Card>
+
+          <Card title="Default verified-only discovery"
+            desc="When on, new users see only verified moms in the nearby discovery feed until they change the filter themselves.">
+            <Toggle on={vod} disabled={busy || loading} onToggle={() => saveVod(!vod)}
+              label={vod ? 'Show verified moms only by default' : 'Show all moms by default'} msg={vodMsg} />
+          </Card>
+
+          <Category title="Presence" style={{ marginTop: 22 }} />
+
+          <Card title="Presence thresholds"
+            desc="How recent a mom’s last activity must be to show as online vs. away. Older than the away window shows as offline.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
+              <label style={lbl}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Online within (seconds)</div>
+                <input type="number" min={30} max={3600} value={onlineS ?? ''} disabled={loading}
+                  onChange={e => setOnlineS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                  style={{ ...field, width: 120 }}/>
+                <div style={{ color: C.inkMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
+              </label>
+              <label style={lbl}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Away within (seconds)</div>
+                <input type="number" min={60} max={86400} value={awayS ?? ''} disabled={loading}
+                  onChange={e => setAwayS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                  style={{ ...field, width: 120 }}/>
+                <div style={{ color: C.inkMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
+              </label>
+            </div>
+            <SaveRow onSave={savePresence} dirty={presenceDirty} disabled={busy || loading || onlineS == null || awayS == null} busy={busy} msg={presenceMsg} />
+          </Card>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-          {RADIUS_OPTS.map(r => {
-            const active = radius === r;
-            return (
-              <button key={r} onClick={() => setRadius(r)} disabled={loading} style={{
-                padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
-                background: active ? C.terracotta : C.paper,
-                color: active ? '#fff' : C.ink,
-                border: `1px solid ${active ? C.terracotta : C.divider}`,
-                fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-              }}>{r} mi</button>
-            );
-          })}
-          <input
-            type="number" min={1} max={500} value={radius ?? ''} disabled={loading}
-            onChange={e => setRadius(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-            style={{ ...field, width: 90 }} placeholder="custom"
-          />
-        </div>
+        {/* ───────── Column B ───────── */}
+        <div style={col}>
+          <Category title="Trust & safety" />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-          <button onClick={save} disabled={busy || loading || !dirty || radius == null} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: dirty ? C.terracotta : C.divider, color: '#fff', border: 'none',
-            borderRadius: 10, padding: '9px 16px', fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-            cursor: dirty && !busy ? 'pointer' : 'default',
-          }}>
-            <Save size={14} /> {busy ? 'Saving…' : 'Save'}
-          </button>
-          {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{msg}</span>}
-        </div>
-      </div>
+          <Card title="Verified badge policy"
+            desc={<>When <strong>on</strong>, a mom must link a social account (Instagram or Facebook) <em>and</em> complete
+              her profile to earn the Verified badge — the verified-only moat. When <strong>off</strong>, completing
+              every profile step alone verifies her.</>}>
+            <Toggle on={reqSocial} disabled={busy || loading} onToggle={() => saveReqSocial(!reqSocial)}
+              label={reqSocial ? 'Require a linked social account' : 'Social account not required'} msg={verifyMsg} />
+          </Card>
 
-      {/* Presence (online / away / offline) thresholds */}
-      <div style={card}>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>
-          Presence thresholds
-        </div>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2 }}>
-          How recent a mom’s last activity must be to show as online vs. away. Older than the away
-          window shows as offline.
-        </div>
+          <Category title="Monetization" style={{ marginTop: 22 }} />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
-          <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Online within (seconds)</div>
-            <input type="number" min={30} max={3600} value={onlineS ?? ''} disabled={loading}
-              onChange={e => setOnlineS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-              style={{ ...field, width: 120 }}/>
-            <div style={{ color: C.inkMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
-          </label>
-          <label style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Away within (seconds)</div>
-            <input type="number" min={60} max={86400} value={awayS ?? ''} disabled={loading}
-              onChange={e => setAwayS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-              style={{ ...field, width: 120 }}/>
-            <div style={{ color: C.inkMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
-          </label>
-        </div>
+          <Card title="Free DM message limit"
+            desc={<>Messages a free mom can send each match before Plus is required.
+              <span style={{ color: C.terracotta, fontWeight: 700 }}> Protected lever — default 3.</span> Raising it weakens Plus conversion.</>}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {[3, 5, 10, 25].map(n => {
+                const active = dmLimit === n;
+                return (
+                  <button key={n} onClick={() => setDmLimit(n)} disabled={loading} style={{
+                    padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
+                    background: active ? C.terracotta : C.paper,
+                    color: active ? '#fff' : C.ink,
+                    border: `1px solid ${active ? C.terracotta : C.divider}`,
+                    fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+                  }}>{n}</button>
+                );
+              })}
+              <input type="number" min={1} max={50} value={dmLimit ?? ''} disabled={loading}
+                onChange={e => setDmLimit(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                style={{ ...field, width: 90 }} placeholder="custom"/>
+            </div>
+            <SaveRow onSave={saveDmLimit} dirty={dmDirty} disabled={busy || loading || dmLimit == null} busy={busy} msg={dmMsg} />
+          </Card>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-          <button onClick={savePresence} disabled={busy || loading || !presenceDirty || onlineS == null || awayS == null} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: presenceDirty ? C.terracotta : C.divider, color: '#fff', border: 'none',
-            borderRadius: 10, padding: '9px 16px', fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-            cursor: presenceDirty && !busy ? 'pointer' : 'default',
-          }}>
-            <Save size={14} /> {busy ? 'Saving…' : 'Save'}
-          </button>
-          {presenceMsg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{presenceMsg}</span>}
+          <Card title="Plus pricing"
+            desc="The monthly price and free-trial length shown on the Plus upsell screens. Display only — no real billing yet.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
+              <label style={lbl}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly price (USD)</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: C.inkMuted }}>$</span>
+                  <input type="number" min={0} max={999} step="0.01" value={price ?? ''} disabled={loading}
+                    onChange={e => setPrice(e.target.value === '' ? null : Number(e.target.value))}
+                    style={{ ...field, width: 100 }}/>
+                </div>
+              </label>
+              <label style={lbl}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Free trial (days)</div>
+                <input type="number" min={0} max={90} value={trialDays ?? ''} disabled={loading}
+                  onChange={e => setTrialDays(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                  style={{ ...field, width: 100 }}/>
+              </label>
+            </div>
+            <SaveRow onSave={savePlus} dirty={plusDirty} disabled={busy || loading || price == null || trialDays == null} busy={busy} msg={plusMsg} />
+          </Card>
         </div>
       </div>
     </div>
   );
 };
 
-const card = { marginTop: 18, background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 14, padding: 18 };
+// ── Small building blocks ──────────────────────────────────────────────────
+
+const Category = ({ title, style }) => (
+  <div style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, letterSpacing: '.08em',
+    textTransform: 'uppercase', color: C.inkMuted, margin: '0 2px 2px', ...style }}>
+    {title}
+  </div>
+);
+
+const Card = ({ title, desc, children }) => (
+  <div style={card}>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>{title}</div>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>{desc}</div>
+    {children}
+  </div>
+);
+
+const SaveRow = ({ onSave, dirty, disabled, busy, msg }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+    <button onClick={onSave} disabled={disabled || !dirty} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      background: dirty ? C.terracotta : C.divider, color: '#fff', border: 'none',
+      borderRadius: 10, padding: '9px 16px', fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+      cursor: dirty && !disabled ? 'pointer' : 'default',
+    }}>
+      <Save size={14} /> {busy ? 'Saving…' : 'Save'}
+    </button>
+    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{msg}</span>}
+  </div>
+);
+
+const Toggle = ({ on, disabled, onToggle, label, msg }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+    <button onClick={onToggle} disabled={disabled} aria-pressed={on} style={{
+      width: 52, height: 30, borderRadius: 999, border: 'none', padding: 3,
+      cursor: disabled ? 'default' : 'pointer',
+      background: on ? C.terracotta : C.divider,
+      display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start', transition: 'background .2s', flexShrink: 0,
+    }}>
+      <span style={{ width: 24, height: 24, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }}/>
+    </button>
+    <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.ink }}>{label}</span>
+    {msg && <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>{msg}</span>}
+  </div>
+);
+
+const col = { flex: 1, minWidth: 330, display: 'flex', flexDirection: 'column' };
+const card = { marginTop: 12, background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 14, padding: 18 };
 const iconBtn = { background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 8, padding: 5, cursor: 'pointer', color: C.inkSoft, display: 'inline-flex' };
 const field = { border: `1px solid ${C.divider}`, borderRadius: 8, padding: '7px 9px', fontFamily: 'Albert Sans', fontSize: 13, background: C.paper, color: C.ink };
+const lbl = { fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink };

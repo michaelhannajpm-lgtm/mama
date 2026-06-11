@@ -9,7 +9,8 @@ import { dmFreeState, DM_FREE_LIMIT } from '../lib/chat-helpers';
 // Plus conversion harder. Premium still unlocks unlimited.
 // DM_FREE_LIMIT = 3 is the protected lever — do not raise without product sign-off.
 
-export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified = false, onClose, openPremium, flash }) => {
+export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified = false, onClose, openPremium, flash,
+  freeLimit = DM_FREE_LIMIT, plusPrice = 7.99, plusTrialDays = 7 }) => {
   const [messages, setMessages] = useState([]);
   const [convId, setConvId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
     }
   })();
 
-  const free = dmFreeState(messages, myUserId, isPremium);
+  const free = dmFreeState(messages, myUserId, isPremium, freeLimit);
   const { used, remaining, limitReached } = free;
 
   const [text, setText] = useState('');
@@ -127,7 +128,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
           <h3 className="mt-1.5" style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em' }}>
             {isPremium
               ? <>Chat <span style={{ fontStyle: 'italic', color: C.terracotta }}>unlimited</span>.</>
-              : <>Your first <span style={{ fontStyle: 'italic', color: C.terracotta }}>{DM_FREE_LIMIT} messages</span> are free.</>}
+              : <>Your first <span style={{ fontStyle: 'italic', color: C.terracotta }}>{freeLimit} messages</span> are free.</>}
           </h3>
         </div>
 
@@ -135,7 +136,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
         {!isPremium && (
           <div className="mt-3 flex items-center gap-2">
             <div className="flex items-center gap-1">
-              {Array.from({ length: DM_FREE_LIMIT }, (_, i) => i).map(i => (
+              {Array.from({ length: freeLimit }, (_, i) => i).map(i => (
                 <div key={i} className="rounded-full" style={{
                   width: 10, height: 6,
                   background: i < used ? C.terracotta : C.divider,
@@ -213,17 +214,17 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
               </div>
             </div>
             <div className="text-[12px] mb-3" style={{ fontFamily: 'Albert Sans', opacity: .8, lineHeight: 1.4 }}>
-              You've used your {DM_FREE_LIMIT} free messages with {firstName}. Plus unlocks unlimited chat with every match.
+              You've used your {freeLimit} free messages with {firstName}. Plus unlocks unlimited chat with every match.
             </div>
             <button onClick={openPremium} className="w-full rounded-xl flex items-center justify-center gap-2"
               style={{
                 height: 44, background: C.saffron, color: C.ink,
                 fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13.5,
               }}>
-              <Crown size={14}/> Try Plus · 7 days free
+              <Crown size={14}/> Try Plus · {plusTrialDays} days free
             </button>
             <div className="mt-1.5 text-center text-[10.5px]" style={{ fontFamily: 'Albert Sans', opacity: .55 }}>
-              Then $7.99/mo · cancel anytime
+              Then ${plusPrice.toFixed(2)}/mo · cancel anytime
             </div>
           </div>
         ) : (
@@ -242,7 +243,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
               />
               <div className="mt-1 flex items-center justify-between text-[10.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
                 <span>{text.length} / 180 chars</span>
-                {!isPremium && <span>· message {used + 1} of {DM_FREE_LIMIT}</span>}
+                {!isPremium && <span>· message {used + 1} of {freeLimit}</span>}
               </div>
             </div>
 

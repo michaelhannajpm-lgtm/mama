@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreMom, WEIGHTS } from './match.js';
+import { scoreMom, WEIGHTS, explainMatch } from './match.js';
+
+test('explainMatch builds a natural "why you match" sentence', () => {
+  const a = { kids_ages: { '3–5': 1 }, values: ['Faith-based'], interests: ['Stroller walks'] };
+  const b = { kids_ages: { '3–5': 1 }, values: ['Faith-based'], interests: ['Stroller walks'] };
+  const s = scoreMom(a, b);
+  assert.equal(s.explanation, 'You both have kids the same age, value faith-based, and enjoy stroller walks.');
+});
+
+test('explainMatch falls back gracefully with nothing in common', () => {
+  assert.equal(explainMatch({}, {}), 'You’re both nearby and open to meeting new parents.');
+});
 
 test('WEIGHTS sum to 100 so max score is 100', () => {
   const total = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
@@ -9,13 +20,14 @@ test('WEIGHTS sum to 100 so max score is 100', () => {
 
 test('identical profile scores 100 and surfaces shared tags', () => {
   const u = {
-    kids_ages: { '1–3': true }, interests: ['Coffee dates', 'Park hangs'],
-    values: ['Slow living'], places: ['p1'], free_slots: ['Tue-morning'], mom_types: ['working'],
+    kids_ages: { '1–3': true }, interests: ['Coffee meetups', 'Park hangs'],
+    values: ['Outdoors'], places: ['p1'], free_slots: ['Tue-morning'], mom_types: ['working'],
+    familyTags: ['Outdoors', 'Coffee people'],
   };
   const { score, sharedTags } = scoreMom(u, u);
   assert.equal(score, 100);
   assert.equal(sharedTags[0], 'Same kid ages');
-  assert.ok(sharedTags.includes('Coffee dates'));
+  assert.ok(sharedTags.includes('Outdoors')); // shared familyTag, surfaced ahead of interests
   assert.ok(sharedTags.length <= 3);
 });
 

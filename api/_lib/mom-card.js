@@ -65,9 +65,10 @@ const hueFor = (id) => {
 const milesLabel = (mi) => (mi == null ? null : `${mi.toFixed(1)} mi away`);
 
 export const momCardFromRow = (row, user = {}, distanceMi = null) => {
-  const { score, sharedTags } = scoreMom(user, {
+  const { score, sharedTags, explanation } = scoreMom(user, {
     kids_ages: row.kids_ages, interests: row.interests, values: row.values,
     places: row.places, free_slots: row.free_slots, mom_types: row.mom_types,
+    familyTags: (row.settings && row.settings.familyTags) || [],
   });
   const primaryType = asArray(row.mom_types).find((t) => MOM_TYPE_PRESENTATION[t]);
   const pres = MOM_TYPE_PRESENTATION[primaryType] || DEFAULT_PRESENTATION;
@@ -97,6 +98,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     overlap: score,
     tags: sharedTags,
     sharedTags,
+    matchExplanation: explanation,
     nextSlot,
     nextPlace: null,          // mom_profiles has no named next-place; sheets supply a fallback
     hue: hueFor(row.id),

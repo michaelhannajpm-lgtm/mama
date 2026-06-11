@@ -258,6 +258,7 @@ export const MainApp = ({
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
         moms={nearbyMoms}
+        events={events} thisWeek={thisWeek} places={places}
         onOpenMessage={openMessage}
         onOpenDiscussion={(d) => setHubDiscussion(d)}
         flash={flash}/>}
@@ -332,6 +333,7 @@ export const MainApp = ({
           openMessage={openMessage}
           flash={flash}
           moms={nearbyMoms}
+          events={events} thisWeek={thisWeek} places={places}
           onClose={() => setVillageOpen(false)}
         />
       )}

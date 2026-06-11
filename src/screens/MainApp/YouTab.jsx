@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, Check, X,
-  User as UserIcon, LogOut, BadgeCheck, Camera,
+  MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, CalendarClock, Check, X,
+  User as UserIcon, LogOut, BadgeCheck, Camera, Share2, Mail, Phone,
   Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
@@ -11,8 +11,12 @@ import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesShee
 import { ToggleSettingsSheet } from '../../sheets/ToggleSettingsSheet';
 import { LocationSheet } from '../../sheets/LocationSheet';
 import { KidsSheet } from '../../sheets/KidsSheet';
-import { signOut as signOutSession, updateMomProfile } from '../../lib/onboarding';
-import { linkFacebook, linkInstagram, getLinkedProviders, computeVerified } from '../../lib/social-verify';
+import { AvailabilitySheet } from '../../sheets/AvailabilitySheet';
+import { ContactVerifySheet } from '../../sheets/ContactVerifySheet';
+import { signOut as signOutSession, updateMomProfile, fetchReferrals } from '../../lib/onboarding';
+import { inviteUrl, myCode } from '../../lib/referral';
+import { linkFacebook, linkInstagram, getLinkedProviders } from '../../lib/social-verify';
+import { profileCompletion } from '../../lib/profile-completion';
 
 // ==========================================================================
 // YouTab — "My Profile". User card (+ verified badge at top) · bio · connect
@@ -29,7 +33,7 @@ const NOTIFICATION_ITEMS = [
 ];
 
 const PRIVACY_ITEMS = [
-  { key: 'discoverable',     label: 'Discoverable',          sub: 'Appear in nearby-mom matching',     default: true },
+  { key: 'discoverable',     label: 'Discoverable',          sub: 'Appear in nearby-mom matching',     default: false },
   { key: 'show_last_active', label: 'Show last active',      sub: 'Let others see when you were on',    default: true },
   { key: 'verified_only_dms',label: 'Verified-only messages',sub: 'Only verified moms can DM you',      default: true },
 ];
@@ -47,6 +51,29 @@ const StatPill = ({ Icon, children, tone = C.coralDeep, bg = C.coralSoft }) => (
 // `incomplete` flags a section the mom hasn't filled in yet: an alert dot on
 // the icon, a coral-tinted prompt, and a "Set up" pill — so the row reads as a
 // to-do, not just a setting.
+// Compact private-contact row (email / phone) shown under the name. Verified
+// values get a sage check; empty ones invite an "Add your …" in coral.
+const ContactRow = ({ Icon, label, value, onClick }) => (
+  <button onClick={onClick} className="w-full active:scale-[.99] transition-transform"
+    style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'transparent', border: 'none', padding: '7px 0', cursor: 'pointer', textAlign: 'left' }}>
+    <Icon size={14} color={C.muted} style={{ flexShrink: 0 }}/>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      {value ? (
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, color: C.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+      ) : (
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.coralDeep }}>Add your {label}</div>
+      )}
+    </div>
+    {value ? (
+      <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3, color: C.sageDark, fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800 }}>
+        <BadgeCheck size={12}/> Verified
+      </span>
+    ) : (
+      <ChevronRight size={14} color={C.muted}/>
+    )}
+  </button>
+);
+
 const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick, incomplete }) => (
   <button
     onClick={onClick}
@@ -134,11 +161,13 @@ const SocialRow = ({ Icon, name, handle, linked, onConnect }) => (
 export const YouTab = ({
   profile, setProfile, account,
   location, setLocation, locationGeo, setLocationGeo, distance, setDistance,
-  openPlans, restart, flash,
+  prefs, setPrefs,
+  verifiedRequiresSocial = true,
+  restart, flash,
 }) => {
   const [photosOpen, setPhotosOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
-  const [sheet, setSheet] = useState(null); // 'prefs'|'notif'|'priv'|'location'|'kids'|null
+  const [sheet, setSheet] = useState(null); // 'prefs'|'avail'|'notif'|'priv'|'location'|'kids'|null
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
   const [photoIdx, setPhotoIdx] = useState(0); // active photo in the hero carousel
@@ -153,25 +182,93 @@ export const YouTab = ({
   const displayName = profile?.displayName || fullName;
   const handle = profile?.username || account?.username || null;
 
+  // Availability lives in app-level prefs (prefs.slots → "Day-window" strings).
+  const availSlots = prefs?.slots || [];
+  const availDays = new Set(availSlots.map(s => String(s).split('-')[0])).size;
+
   const socialLinks = profile?.socialLinks || {};
   const igLinked = !!socialLinks.instagram;
   const fbLinked = !!socialLinks.facebook;
   const hasPhoto = !!primaryPhoto;
-  const verified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: hasPhoto });
 
-  // Profile completion — the four sections a mom fills in herself. A section
-  // is "done" once it has content; anything not done gets a "Set up" nudge and
-  // counts against the progress bar.
-  const completionItems = [
-    { key: 'photo',    done: hasPhoto },
-    // "Done" only when every question in the sheet is answered: mom type, values, and interests.
-    { key: 'prefs',    done: (profile?.momTypes?.length || 0) > 0 && (profile?.values?.length || 0) > 0 && (profile?.interests?.length || 0) > 0 },
-    { key: 'location', done: !!location },
-    { key: 'kids',     done: kidsCount > 0 },
-  ];
-  const completionDone = completionItems.filter(c => c.done).length;
-  const completionPct = Math.round((completionDone / completionItems.length) * 100);
+  // Profile completion — shared with HomeTab's "Complete your profile" card
+  // via src/lib/profile-completion.js. A section that isn't done gets a "Set
+  // up" nudge here and counts against the progress bar.
+  const { items: completionItems, done: completionDone, pct: completionPct } = profileCompletion(profile, location);
   const isDone = (key) => !!completionItems.find(c => c.key === key)?.done;
+
+  // Each completion step → the screen that fixes it, so the "Complete your
+  // profile" card can list exactly what's missing and route a tap straight to
+  // it. Filtered from the same completionItems, so the list always matches the
+  // progress bar.
+  const STEP_FIX = {
+    photo:    { Icon: Camera, label: 'Add a profile photo',        onFix: () => setPhotosOpen(true) },
+    prefs:    { Icon: Heart,  label: 'Add your interests & values', onFix: () => setSheet('prefs') },
+    location: { Icon: MapPin, label: 'Set your neighborhood',       onFix: () => setSheet('location') },
+    kids:     { Icon: Baby,   label: 'Add your kids',               onFix: () => setSheet('kids') },
+    bio:      { Icon: Pencil, label: 'Write a short bio',           onFix: () => { setBioDraft(profile?.bio || ''); setBioEditing(true); } },
+  };
+  const missingSteps = completionItems
+    .filter(c => !c.done && STEP_FIX[c.key])
+    .map(c => ({ key: c.key, ...STEP_FIX[c.key] }));
+
+  // Refer a friend — opens the device's native share sheet (Web Share API) so a
+  // mom can send the invite through any app she likes. Falls back to copying the
+  // invite link where Web Share isn't available (e.g. desktop browsers).
+  const referFriend = async () => {
+    // Link carries the mom's `?ref=` invite code so a friend who signs up is
+    // attributed back to her.
+    const url = inviteUrl(account?.username || myCode());
+    const shareData = {
+      title: 'Go Mama',
+      text: "I'm on Go Mama meeting other moms near me — come find your village 💛",
+      url,
+    };
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share(shareData);
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${shareData.text} ${url}`);
+        flash?.('✦ Invite link copied — send it to a friend');
+      } else {
+        flash?.("Sharing isn't available on this device");
+      }
+    } catch (err) {
+      // The user dismissing the native share sheet throws AbortError — that's
+      // not a failure, so stay quiet; only surface real errors.
+      if (err?.name !== 'AbortError') flash?.("Couldn't open share");
+    }
+  };
+
+  // Friends who joined via this mom's invite link — shown inline under the
+  // Refer card. Best-effort; stays empty/hidden if the fetch fails or there's
+  // no account yet.
+  const [referrals, setReferrals] = useState(null); // { code, count, friends[] } | null
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const data = await fetchReferrals({ seedMomId: account?.seedMomId });
+      if (alive && data?.ok) setReferrals(data);
+    })();
+    return () => { alive = false; };
+  }, [account?.auth_user_id, account?.seedMomId]);
+  const referredFriends = referrals?.friends || [];
+
+  // Private contact info (phone + email) shown under the name. The verified
+  // value comes from `account`; once the mom verifies a new one in this session
+  // we override locally so it shows immediately (server-persisted via sync).
+  const [contactSheet, setContactSheet] = useState(null); // 'email' | 'phone' | null
+  const [contactOverride, setContactOverride] = useState({});
+  const emailVal = contactOverride.email ?? account?.email ?? '';
+  const phoneVal = contactOverride.phone ?? account?.phone ?? '';
+
+  // Verified = every profile step complete, AND (when the admin requires it) a
+  // linked social account — the documented verified-only moat. Lose any step
+  // and the badge drops. The flag is persisted (below) so it's correct wherever
+  // others see this mom's avatar.
+  const profileComplete = completionItems.every(c => c.done);
+  const verified = profileComplete && (!verifiedRequiresSocial || igLinked || fbLinked);
 
   // Persist a local-shaped patch: merge into profile state + map → API fields.
   const saveProfile = async (localPatch) => {
@@ -204,22 +301,38 @@ export const YouTab = ({
     try { await updateMomProfile(api, { seedMomId: account?.seedMomId }); } catch { /* best-effort */ }
   };
 
+  // Availability persists to prefs.slots (app state) + free_slots (the column
+  // the matching engine reads), so picks here improve who sees her.
+  const saveAvailability = (nextSlots) => {
+    setPrefs?.(p => ({ ...(p || {}), slots: nextSlots }));
+    updateMomProfile({ free_slots: nextSlots }, { seedMomId: account?.seedMomId }).catch(() => { /* best-effort */ });
+  };
+
   const saveBio = () => { saveProfile({ bio: bioDraft.trim() }); setBioEditing(false); };
 
-  // Persist the photos array (primary = photos[0]) and recompute the verified
-  // flag — having a photo is one of the two verification signals.
+  // Persist the photos array (primary = photos[0]). Adding a first photo also
+  // auto-enables Discoverable (and unlocks its toggle); removing the last photo
+  // turns it back off — a mom with no photo isn't visible. The verified flag is
+  // persisted separately by the effect above.
   const savePhotos = (next) => {
-    setProfile(prev => ({ ...prev, photos: next }));
-    const isVerified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: next.length > 0 });
-    updateMomProfile({ photos: next, verified: isVerified }, { seedMomId: account?.seedMomId }).catch(() => { /* best-effort */ });
+    const hadPhoto = (profile?.photos?.length || 0) > 0;
+    const willHave = next.length > 0;
+    let nextSettings = null;
+    if (willHave !== hadPhoto) {
+      nextSettings = {
+        ...(profile?.settings || {}),
+        privacy: { ...(profile?.settings?.privacy || {}), discoverable: willHave },
+      };
+    }
+    setProfile(prev => ({ ...prev, photos: next, ...(nextSettings ? { settings: nextSettings } : {}) }));
+    const api = { photos: next };
+    if (nextSettings) api.settings = nextSettings;
+    updateMomProfile(api, { seedMomId: account?.seedMomId }).catch(() => { /* best-effort */ });
   };
 
   const linkSocial = (network, handle) => {
     const nextSocial = { ...socialLinks, [network]: handle };
-    const isVerified = computeVerified({
-      instagram: !!nextSocial.instagram, facebook: !!nextSocial.facebook, photo: hasPhoto,
-    });
-    saveProfile({ socialLinks: nextSocial, verifiedFlag: isVerified });
+    saveProfile({ socialLinks: nextSocial });
   };
 
   // On mount: pick up Instagram redirect-back (?ig=) and any linked FB identity.
@@ -242,6 +355,17 @@ export const YouTab = ({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist the computed verified flag whenever it flips, so the mom's badge
+  // stays correct everywhere others see her. Skips the initial render.
+  const verifiedRef = useRef(null);
+  useEffect(() => {
+    if (verifiedRef.current === null) { verifiedRef.current = verified; return; }
+    if (verifiedRef.current === verified) return;
+    verifiedRef.current = verified;
+    updateMomProfile({ verified }, { seedMomId: account?.seedMomId }).catch(() => { /* best-effort */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verified]);
 
   const connectFacebook = async () => {
     try { await linkFacebook(); } catch (e) { flash?.(e?.message || 'Facebook sign-in not configured'); }
@@ -306,6 +430,19 @@ export const YouTab = ({
             <Camera size={15}/>
           </button>
 
+          {/* Verified seal — top-left, only when fully verified */}
+          {verified && (
+            <div style={{
+              position: 'absolute', top: 10, left: 10,
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: C.sageDark, color: '#fff', borderRadius: 999,
+              padding: '4px 9px', fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800,
+              boxShadow: '0 2px 6px -2px rgba(27,42,78,.4)',
+            }}>
+              <BadgeCheck size={12}/> Verified
+            </div>
+          )}
+
           {/* Bottom scrim + paging dots (only with more than one photo) */}
           {photos.length > 1 && (
             <>
@@ -341,13 +478,21 @@ export const YouTab = ({
               </span>
               <Pencil size={12} color={C.muted} style={{ flexShrink: 0 }}/>
             </button>
-            {verified && (
+            {verified ? (
               <span style={{
                 flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
                 background: `${C.sageDark}1A`, color: C.sageDark, borderRadius: 999,
                 padding: '3px 9px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
               }}>
                 <BadgeCheck size={11}/> Verified
+              </span>
+            ) : (
+              <span style={{
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
+                background: C.cream, color: C.muted, border: `1px solid ${C.divider}`, borderRadius: 999,
+                padding: '3px 9px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+              }}>
+                Unverified
               </span>
             )}
           </div>
@@ -359,6 +504,16 @@ export const YouTab = ({
             {handle && <span>·</span>}
             {kidsCount ? <span>Mom of {kidsCount} ·</span> : null}
             <MapPin size={11} color={C.muted}/> {cityLabel}
+          </div>
+
+          {/* Private contact info — phone + email, each OTP-verified. Never
+              shown to other moms (see the privacy line below). */}
+          <div style={{ marginTop: 10, borderTop: `1px solid ${C.line}`, paddingTop: 6 }}>
+            <ContactRow Icon={Mail}  label="email" value={emailVal} onClick={() => setContactSheet('email')}/>
+            <ContactRow Icon={Phone} label="phone" value={phoneVal} onClick={() => setContactSheet('phone')}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, fontFamily: 'Albert Sans', fontSize: 10, color: C.muted, lineHeight: 1.3 }}>
+              <Lock size={10} style={{ flexShrink: 0 }}/> Only you can see this — never shared with other moms.
+            </div>
           </div>
         </div>
       </div>
@@ -383,7 +538,35 @@ export const YouTab = ({
             }}/>
           </div>
           <div style={{ marginTop: 8, fontFamily: 'Albert Sans', fontSize: 11, color: C.muted }}>
-            {completionDone} of {completionItems.length} done · finish the highlighted steps to get seen.
+            {completionDone} of {completionItems.length} done · finish these to get verified
+          </div>
+
+          {/* What's left — each row routes straight to the screen that fixes it */}
+          <div style={{ marginTop: 8 }}>
+            {missingSteps.map(m => (
+              <button
+                key={m.key}
+                onClick={m.onFix}
+                className="w-full active:scale-[.99] transition-transform"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+                  borderTop: `1px solid ${C.line}`, padding: '10px 0',
+                }}
+              >
+                <span style={{
+                  width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                  background: C.coralSoft, color: C.coralDeep,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <m.Icon size={13}/>
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>
+                  {m.label}
+                </span>
+                <ChevronRight size={15} color={C.muted}/>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -393,14 +576,19 @@ export const YouTab = ({
         marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: 14,
       }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-          <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700 }}>
-            About me
+          <div className="flex items-center gap-1.5">
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700 }}>
+              About me
+            </div>
+            {!isDone('bio') && (
+              <span style={{ width: 7, height: 7, borderRadius: 999, background: C.coral, flexShrink: 0 }}/>
+            )}
           </div>
           {!bioEditing && (
             <button onClick={() => { setBioDraft(profile?.bio || ''); setBioEditing(true); }} style={{
               background: 'transparent', border: 'none', padding: 0, color: C.coralDeep,
               fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            }}>Edit</button>
+            }}>{isDone('bio') ? 'Edit' : 'Add'}</button>
           )}
         </div>
         {bioEditing ? (
@@ -454,6 +642,9 @@ export const YouTab = ({
         <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
           label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'}
           incomplete={!isDone('kids')} onClick={() => setSheet('kids')}/>
+        <SettingsRow Icon={CalendarClock} iconBg={C.sage} iconFg={C.sageDark}
+          label="Availability" sub={availDays ? `Free on ${availDays} day${availDays === 1 ? '' : 's'} a week` : "Set when you're free to meet"}
+          onClick={() => setSheet('avail')}/>
         <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
           label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
         <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
@@ -476,9 +667,11 @@ export const YouTab = ({
         <SocialRow Icon={Facebook}  name="Facebook"  handle={socialLinks.facebook}  linked={fbLinked} onConnect={connectFacebook}/>
       </div>
 
-      {/* Refer a friend */}
+      {/* Refer a friend — triggers the device's native share sheet */}
       <button
-        onClick={openPlans}
+        onClick={referFriend}
+        aria-label="Refer a friend"
+        className="active:scale-[.99] transition-transform"
         style={{
           marginTop: 12, width: '100%', background: C.lilac, border: 'none', borderRadius: 16,
           padding: 14, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left',
@@ -491,14 +684,80 @@ export const YouTab = ({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800, color: C.navy }}>Refer a friend</div>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.navySoft, marginTop: 3 }}>
-            Invite a mom, get $10 in rewards
+            Unlock rewards as friends join
           </div>
         </div>
         <span style={{
           background: C.coralDeep, color: '#fff', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800,
           padding: '6px 12px', borderRadius: 14, flexShrink: 0,
-        }}>Invite Now</span>
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+        }}><Share2 size={12}/> Share</span>
       </button>
+
+      {/* Friends who joined via your invite — inline under the Refer card.
+          Collapsed to an avatar stack + count; tap to expand the full list. */}
+      {referredFriends.length > 0 && (
+        <div style={{ marginTop: 8, background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden' }}>
+          <button
+            onClick={() => setFriendsOpen(o => !o)}
+            className="w-full active:scale-[.99] transition-transform"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'transparent', border: 'none', padding: '12px 14px', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <div style={{ display: 'flex', flexShrink: 0 }}>
+              {referredFriends.slice(0, 3).map((f, i) => (
+                <div key={i} style={{
+                  width: 28, height: 28, borderRadius: 14, marginLeft: i ? -8 : 0,
+                  border: `2px solid ${C.paper}`, overflow: 'hidden', flexShrink: 0,
+                  background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {f.photo
+                    ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                    : <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.navy }}>
+                {referrals.count} friend{referrals.count === 1 ? '' : 's'} joined
+              </div>
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>
+                Tap to see {friendsOpen ? 'less' : 'who'}
+              </div>
+            </div>
+            <ChevronRight size={15} color={C.muted} style={{ transform: friendsOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}/>
+          </button>
+          {friendsOpen && (
+            <div style={{ borderTop: `1px solid ${C.line}` }}>
+              {referredFriends.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? `1px solid ${C.line}` : 'none' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
+                    background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {f.photo
+                      ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                      : <span style={{ fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>{f.name}</div>
+                    {f.joinedAt && (
+                      <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>
+                        Joined {new Date(f.joinedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    flexShrink: 0, background: C.sage, color: C.sageDark, borderRadius: 999,
+                    padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+                  }}>
+                    {f.status === 'verified' ? 'Verified' : 'Joined'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sign out + restart */}
       {account && (
@@ -544,6 +803,8 @@ export const YouTab = ({
         eyebrow="Your space" title="Privacy" accentWord="controls"
         items={PRIVACY_ITEMS}
         values={profile?.settings?.privacy || {}}
+        disabledKeys={hasPhoto ? [] : ['discoverable']}
+        disabledNote="Add a profile photo to turn this on."
         onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), privacy: next } })}
         onClose={() => setSheet(null)}/>}
 
@@ -556,6 +817,21 @@ export const YouTab = ({
         profile={profile}
         onSave={(patch) => saveProfile(patch)}
         onClose={() => setSheet(null)}/>}
+
+      {sheet === 'avail' && <AvailabilitySheet
+        slots={availSlots}
+        onSave={saveAvailability}
+        onClose={() => setSheet(null)}/>}
+
+      {contactSheet && (
+        <ContactVerifySheet
+          kind={contactSheet}
+          current={contactSheet === 'phone' ? phoneVal : emailVal}
+          onVerified={(val) => setContactOverride(o => ({ ...o, [contactSheet]: val }))}
+          onClose={() => setContactSheet(null)}
+          flash={flash}
+        />
+      )}
     </div>
   );
 };

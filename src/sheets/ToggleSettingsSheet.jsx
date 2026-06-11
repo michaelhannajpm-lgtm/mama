@@ -8,12 +8,14 @@ import { Sheet } from '../components/Sheet';
 // it calls onSave(nextValues) which persists (settings jsonb) via the API.
 // ==========================================================================
 
-const Switch = ({ on, onClick }) => (
+const Switch = ({ on, onClick, disabled }) => (
   <button
-    onClick={onClick}
+    onClick={disabled ? undefined : onClick}
     aria-pressed={on}
+    disabled={disabled}
     style={{
-      width: 44, height: 26, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+      width: 44, height: 26, borderRadius: 999, flexShrink: 0,
+      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
       background: on ? C.coral : C.divider, border: 'none', padding: 2,
       display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start',
       transition: 'background .2s',
@@ -26,12 +28,14 @@ const Switch = ({ on, onClick }) => (
   </button>
 );
 
-export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], values = {}, onSave, onClose }) => {
-  const init = items.reduce((o, it) => { o[it.key] = values[it.key] ?? it.default ?? false; return o; }, {});
+export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], values = {}, onSave, onClose, disabledKeys = [], disabledNote }) => {
+  const disabled = new Set(disabledKeys);
+  // A disabled toggle (e.g. Discoverable with no photo yet) always reads false.
+  const init = items.reduce((o, it) => { o[it.key] = disabled.has(it.key) ? false : (values[it.key] ?? it.default ?? false); return o; }, {});
   const [draft, setDraft] = useState(init);
   const [saving, setSaving] = useState(false);
 
-  const flip = (key) => setDraft(d => ({ ...d, [key]: !d[key] }));
+  const flip = (key) => { if (disabled.has(key)) return; setDraft(d => ({ ...d, [key]: !d[key] })); };
 
   const save = async () => {
     setSaving(true);
@@ -58,8 +62,11 @@ export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], va
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>{it.label}</div>
                 {it.sub && <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 2 }}>{it.sub}</div>}
+                {disabled.has(it.key) && disabledNote && (
+                  <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.coralDeep, fontWeight: 700, marginTop: 3 }}>{disabledNote}</div>
+                )}
               </div>
-              <Switch on={!!draft[it.key]} onClick={() => flip(it.key)}/>
+              <Switch on={!!draft[it.key]} onClick={() => flip(it.key)} disabled={disabled.has(it.key)}/>
             </div>
           ))}
         </div>
