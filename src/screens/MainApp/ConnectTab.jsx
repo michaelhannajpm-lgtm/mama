@@ -3,7 +3,7 @@ import {
   Heart, Briefcase, MapPin, Users,
   ChevronRight, Sparkles, Moon, Baby, Coffee, Smile, BookOpen,
   SlidersHorizontal, ShieldCheck, Home, Sprout, Calendar,
-  User, MessageCircle, Crown, Check, UserPlus,
+  User, MessageCircle, Crown, Check, UserPlus, Circle,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { MeetupsFilterSheet, MEETUPS_FILTER_DEFAULT } from '../../sheets/MeetupsFilterSheet';
@@ -15,6 +15,7 @@ import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
 import { PresenceDot } from '../../components/PresenceDot';
+import { OnlineFilterToggle } from '../../components/OnlineFilterToggle';
 
 // ==========================================================================
 // ConnectTab — V5 "Connect" surface.
@@ -636,6 +637,7 @@ export const ConnectTab = ({
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  onlineOnly = false, onSetOnlineOnly,
   initialSeeAll = null, onConsumeSeeAll,
   chatAuthor,
   myUserId,
@@ -800,12 +802,15 @@ export const ConnectTab = ({
         {/* Your best matches — ranked by shared ground (kids, interests,
             values, free slots) minus a distance penalty. */}
         <SectionHead title="Your best matches" onLink={() => setSeeAll('moms')}/>
+        <div className="flex" style={{ marginBottom: 8 }}>
+          <OnlineFilterToggle active={onlineOnly} onToggle={() => onSetOnlineOnly?.(!onlineOnly)}/>
+        </div>
         {gridMoms.length === 0 ? (
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
             padding: '8px 2px',
           }}>
-            No matches yet — check back soon.
+            {onlineOnly ? 'No moms online right now — try turning off “Online only”.' : 'No matches yet — check back soon.'}
           </div>
         ) : (
           <div className="grid grid-cols-3" style={{ gap: 8 }}>
@@ -862,6 +867,7 @@ export const ConnectTab = ({
           layout="list"
           gap={12}
           quickFilters={[
+            { id: 'online',   label: 'Online',        icon: Circle },
             { id: 'verified', label: 'Verified',     icon: ShieldCheck },
             { id: 'similar',  label: 'Similar kids',  icon: Heart },
             { id: 'newmom',   label: 'New mom',       icon: Baby },
@@ -869,8 +875,9 @@ export const ConnectTab = ({
             { id: 'stay',     label: 'Stay-at-home',  icon: Home },
             { id: 'near',     label: 'Near me',       icon: MapPin },
           ]}
-          activeQuickFilter={momQuickFilter ?? (nearbyVerifiedOnly ? 'verified' : null)}
+          activeQuickFilter={momQuickFilter ?? (onlineOnly ? 'online' : (nearbyVerifiedOnly ? 'verified' : null))}
           onQuickFilter={(id) => {
+            if (id === 'online') { onSetOnlineOnly?.(!onlineOnly); setMomQuickFilter(null); return; }
             if (id === 'verified') {
               onSetVerifiedOnly?.(!nearbyVerifiedOnly);
               setMomQuickFilter(null);

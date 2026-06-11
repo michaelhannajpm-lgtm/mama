@@ -74,6 +74,7 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
   return {
     id: row.id,
     auth_user_id: row.auth_user_id || null,
+    username: row.username || null,   // for client-side self-exclusion (handle match)
     name: row.display_name || firstNameOf(row),
     firstName: firstNameOf(row),
     age: row.age ?? null,
