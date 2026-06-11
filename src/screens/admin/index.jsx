@@ -19,6 +19,7 @@ import { RefreshCw, ShieldOff, AlertTriangle } from 'lucide-react';
 import { AC } from './admin-theme';
 import { NAV_INDEX } from './nav';
 import { useAdminRoute } from './lib/adminRouter';
+import { useAdminDeepLink } from './lib/adminDeepLink';
 import { getAdminToken, clearAdminToken, fetchEndpoint, adminFetch } from './lib/adminFetch';
 import { useAdminTheme } from './lib/useAdminTheme';
 import { Sidebar } from './components/Sidebar';
@@ -47,7 +48,10 @@ const COLLAPSE_KEY = 'gm_admin_rail_collapsed';
 
 export const AdminApp = () => {
   const { theme, setTheme } = useAdminTheme();
-  const [section, navigate] = useAdminRoute();
+  const [section, navigate, recordRef] = useAdminRoute();
+  // URL → record bridge: when /admin/<section>/<ref> carries a ref, drive the
+  // existing gm-admin-open-<entity> machinery so the record's modal opens.
+  useAdminDeepLink(section, recordRef);
   const [authed, setAuthed] = useState(() => !!getAdminToken());
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }

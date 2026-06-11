@@ -54,12 +54,12 @@ export const navigateSection = (id) => {
   window.dispatchEvent(new Event('gm-admin-navigate'));
 };
 
-// Returns [currentSectionId, navigateSection]. Re-renders on pushState
-// navigation, browser back/forward, and external pathname changes.
+// Returns [currentSectionId, navigateSection, currentRecordRef]. Re-renders on
+// pushState navigation, browser back/forward, and external pathname changes.
 export const useAdminRoute = () => {
-  const [id, setId] = useState(currentSectionId);
+  const [state, setState] = useState(() => parseAdminPath(window.location.pathname));
   useEffect(() => {
-    const update = () => setId(currentSectionId());
+    const update = () => setState(parseAdminPath(window.location.pathname));
     window.addEventListener('popstate', update);
     window.addEventListener('gm-admin-navigate', update);
     return () => {
@@ -67,5 +67,5 @@ export const useAdminRoute = () => {
       window.removeEventListener('gm-admin-navigate', update);
     };
   }, []);
-  return [id, navigateSection];
+  return [state.section, navigateSection, state.ref];
 };
