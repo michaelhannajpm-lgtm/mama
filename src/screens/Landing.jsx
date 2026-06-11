@@ -18,6 +18,23 @@ import { HeroCarousel } from '../components/HeroCarousel';
 
 const BG = '#FAF3F0';
 
+// When this build was published (last commit date, injected at build time by
+// vite.config.js). Guarded so the bundle never throws if the define is absent.
+const PUBLISHED_AT = typeof __PUBLISHED_AT__ !== 'undefined' ? __PUBLISHED_AT__ : null;
+
+// Format as `dddd MM/dd HH:mm` (full weekday, month/day, 24h time) in the
+// viewer's local timezone — e.g. "Wednesday 06/11 05:13".
+const formatPublished = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+  const p = (n) => String(n).padStart(2, '0');
+  return `${weekday} ${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+const PUBLISHED_LABEL = formatPublished(PUBLISHED_AT);
+
 const STAT_PILLS = [
   { Icon: Users,    count: '1,200+',  label: 'moms nearby',      tint: C.peach,     fg: C.coralDeep },
   { Icon: Calendar, count: '50+',     label: 'events this week', tint: C.coralSoft, fg: C.coralDeep },
@@ -240,6 +257,16 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
           Pick seeded mom
         </button>
       </div>
+
+      {/* Version stamp — when this build was published (last push). */}
+      {PUBLISHED_LABEL && (
+        <div className="text-center" style={{
+          marginTop: 8, fontSize: 9, color: C.muted, opacity: .65,
+          fontFamily: 'Albert Sans', letterSpacing: '.02em',
+        }}>
+          Published {PUBLISHED_LABEL}
+        </div>
+      )}
     </div>
   </div>
 );
