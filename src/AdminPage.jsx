@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
   Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database, Settings,
+  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database, Settings, Star,
 } from 'lucide-react';
 import { C } from './theme';
 import { PlacesManager } from './admin/PlacesManager';
@@ -10,6 +10,7 @@ import { EventsManager } from './admin/EventsManager';
 import { IngestionManager } from './admin/IngestionManager';
 import { SourcesManager } from './admin/SourcesManager';
 import { ConfigManager } from './admin/ConfigManager';
+import { WeeklyFavoriteManager } from './admin/WeeklyFavoriteManager';
 
 // ============================================================================
 // Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
@@ -1729,6 +1730,7 @@ export const AdminPage = () => {
             { id: 'mom-profiles', icon: Users,         label: 'Mom profiles' },
             { id: 'places',       icon: MapPin,        label: 'Places' },
             { id: 'events',       icon: Calendar,      label: 'Events' },
+            { id: 'featured',     icon: Star,          label: 'Featured' },
             { id: 'ingestion',    icon: Server,        label: 'Ingestion' },
             { id: 'sources',      icon: Database,      label: 'Sources' },
             { id: 'config',       icon: Settings,      label: 'Config' },
@@ -1780,6 +1782,7 @@ export const AdminPage = () => {
             {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
             {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
             {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
+            {tab === 'featured'     && <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} />}
             {tab === 'ingestion'    && <IngestionManager adminFetch={adminFetch} />}
             {tab === 'sources'      && <SourcesManager rows={sources || []} adminFetch={adminFetch} onReload={load} />}
             {tab === 'config'       && <ConfigManager adminFetch={adminFetch} />}
