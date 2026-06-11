@@ -707,9 +707,9 @@ export const HomeTab = ({
           </button>
         )}
 
-        {/* 3 fun things happening near you — same MeetupCard shape as the
-            Upcoming Meetups row below, just 3 cards. */}
-        <SectionHead title="3 fun things happening near you" onLink={goToActivities}/>
+        {/* Local Events Nearby — live dated events (fallback only when empty);
+            same MeetupCard shape as the Upcoming Meetups row below. */}
+        <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
           {funThings.map(it => (
             <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
