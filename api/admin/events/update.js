@@ -3,6 +3,7 @@
 // Body is one of:
 //   { id, patch: {<editable fields>} }                     -> edit one event
 //   { ids: [uuid], patch: { review_status?, visible? } }   -> bulk status/visibility
+//   { create: {<editable fields incl. name+event_type+kind>} } -> insert a new event
 //   { delete: uuid }                                        -> delete an event
 //   { placeId, patch: { review_status?, visible? } }       -> cascade to a place's events
 import { json, readJsonBody, supabaseCreds, sbHeaders, isUuid } from '../../_lib/supabase.js';
@@ -13,6 +14,10 @@ const EDITABLE = new Set([
   'starts_at','ends_at','day_of_week','bucket','time_label','recurring','website','source_url',
   'tags','kid_ages','indoor','hue','age_min','age_max','price_summary','hero_photo','going_count',
   'review_status','visible',
+  // Matching-algorithm metadata (see _apply_place_event_matching_metadata.sql)
+  'kid_age_ranges','value_tags','interest_tags','mom_type_fit','neighborhoods','metadata',
+  // Admin-create extras
+  'external_id','timezone',
 ]);
 
 const sanitize = (patch) => {
@@ -55,6 +60,26 @@ export default async function handler(req, res) {
   if (body === null) return json(res, 400, { error: 'Invalid JSON body' });
 
   try {
+    // Create (insert a new event)
+    if (body.create) {
+      const s = sanitize(body.create);
+      if (s.error) return json(res, 400, { error: s.error });
+      const row = { ...s.patch };
+      if (!row.name || !row.event_type || !row.kind) return json(res, 400, { error: 'name, event_type and kind are required' });
+      if (row.review_status == null) row.review_status = 'needs_review';
+      if (row.visible == null) row.visible = false;
+      if (!row.timezone) row.timezone = 'America/New_York';
+      const r = await fetch(`${creds.supabaseUrl}/rest/v1/events`, {
+        method: 'POST',
+        headers: sbHeaders(creds.serviceRoleKey, { Prefer: 'return=representation' }),
+        body: JSON.stringify(row),
+      });
+      const text = await r.text();
+      if (!r.ok) return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 300)}` });
+      const rows = JSON.parse(text || '[]');
+      return json(res, 200, { ok: true, row: rows[0] });
+    }
+
     if (body.delete) {
       if (!isUuid(body.delete)) return json(res, 400, { error: 'delete must be a uuid' });
       const r = await fetch(`${creds.supabaseUrl}/rest/v1/events?id=eq.${body.delete}`, { method: 'DELETE', headers: sbHeaders(creds.serviceRoleKey) });

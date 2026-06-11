@@ -1,7 +1,7 @@
 // src/screens/MainApp/HomeTab.jsx
 import { useState } from 'react';
 import {
-  MapPin, ChevronRight, ChevronDown, Star, ShieldCheck, Users, Bookmark,
+  MapPin, ChevronRight, ChevronDown, Star, Users, Bookmark,
   Music, Calendar,
 } from 'lucide-react';
 import { C } from '../../theme';
@@ -112,40 +112,6 @@ const SectionHead = ({ title, subtitle, link = 'See all', onLink }) => (
       </div>
     )}
   </div>
-);
-
-const VerifyBanner = ({ onVerify }) => (
-  <button
-    onClick={onVerify}
-    className="text-left active:scale-[.99] transition-transform"
-    style={{
-      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 12px', borderRadius: 14, marginTop: 18, marginBottom: 4,
-      background: `linear-gradient(135deg, ${C.peach}, ${C.coralSoft})`,
-      border: `1px solid ${C.coralSoft}`, cursor: 'pointer',
-    }}
-  >
-    <div style={{
-      width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-      background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <ShieldCheck size={17} color={C.coralDeep}/>
-    </div>
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 800, color: C.navy }}>
-        Get your verified badge
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 10, color: C.inkSoft, marginTop: 1 }}>
-        Connect Instagram + add a real photo
-      </div>
-    </div>
-    <span style={{
-      flexShrink: 0, fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800,
-      color: '#fff', background: C.coralDeep, padding: '5px 11px', borderRadius: 12,
-    }}>
-      Verify →
-    </span>
-  </button>
 );
 
 // -------------------------- Mom preview card --------------------------
@@ -388,6 +354,11 @@ const LocalFavoriteCard = ({ item, onClick }) => (
               {item.review_count != null && <span style={{ fontWeight: 500, color: C.muted }}>({item.review_count})</span>}
             </div>
           )}
+          {item.when && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700, color: C.sageDark }}>
+              {item.when}
+            </div>
+          )}
           {item.distance && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontFamily: 'Albert Sans', fontSize: 10, color: C.muted }}>
               <MapPin size={10}/> {item.distance}
@@ -529,33 +500,50 @@ export const HomeTab = ({
     { id: 'cp-4', type: 'program', title: 'Music Together' },
   ];
 
-  // Local Favorite — admin-curated for the week (via /api/local-favorite),
-  // falling back to the top trending place only when the API has nothing yet.
+  // Feature this week — admin-curated for the week (via /api/local-favorite).
+  // The favorite can be either a place OR an event — `localFavorite.kind` tells
+  // us which, and we shape the rendered card + click handler accordingly.
+  // Falls back to the top trending place when no admin pick exists.
   const liveTrending = pickTrendingPlaces(places, 8, profile);
   const LOCAL_FAVORITE_FALLBACK = {
     id: 'lf-1', name: "Glazer Children's Museum",
     rating: 4.8, review_count: 450, distance: '1.4 miles',
     hero_photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=600&auto=format&fit=crop',
     tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
+    kind: 'place',
   };
-  const favoriteCard = localFavorite
-    ? {
+  const favoriteCard = (() => {
+    if (localFavorite?.kind === 'event') {
+      return {
+        kind: 'event',
+        id: `wf-event-${localFavorite.event_id}`,
+        event_id: localFavorite.event_id,
+        name: localFavorite.name,
+        hero_photo: localFavorite.hero_photo,
+        distance: localFavorite.place_name || localFavorite.area || '',
+        when: [localFavorite.day_of_week, localFavorite.time_label].filter(Boolean).join(' · '),
+        tagline: `Featured ${localFavorite.event_type || 'event'} in ${localFavorite.city || city || 'Tampa'} this week`,
+      };
+    }
+    if (localFavorite) {
+      return {
+        kind: 'place',
         id: `wf-${localFavorite.place_id}`,
+        place_id: localFavorite.place_id,
         name: localFavorite.name,
         rating: localFavorite.rating,
         review_count: localFavorite.review_count,
         hero_photo: localFavorite.hero_photo,
         distance: localFavorite.area || '',
         tagline: `Most loved place by ${localFavorite.city || city || 'Tampa'} moms this week`,
-      }
-    : liveTrending[0]
-      ? { ...liveTrending[0], distance: liveTrending[0].distance || '1.4 miles',
-          tagline: `Most loved place by ${city || 'Tampa'} moms this week` }
-      : LOCAL_FAVORITE_FALLBACK;
-
-  // Verified gate
-  const v = profile?.verified || {};
-  const isVerified = !!(v.photo && (v.instagram || v.facebook));
+      };
+    }
+    if (liveTrending[0]) {
+      return { ...liveTrending[0], kind: 'place', distance: liveTrending[0].distance || '1.4 miles',
+        tagline: `Most loved place by ${city || 'Tampa'} moms this week` };
+    }
+    return LOCAL_FAVORITE_FALLBACK;
+  })();
 
   const isSaved      = (id) => savedItems.includes(id);
   const isGoing      = (id) => goingItems.includes(id);
@@ -757,12 +745,23 @@ export const HomeTab = ({
           ))}
         </div>
 
-        {/* Local Favorite This Week */}
-        <SectionHead title="Local Favorite This Week"/>
-        <LocalFavoriteCard item={favoriteCard} onClick={() => openPlace(favoriteCard)}/>
-
-        {/* Verify banner — only when not yet verified */}
-        {!isVerified && <VerifyBanner onVerify={onVerify}/>}
+        {/* Feature this week — smart: opens place or event detail depending
+            on what the admin pinned. */}
+        <SectionHead title="Feature this week"/>
+        <LocalFavoriteCard item={favoriteCard} onClick={() => {
+          if (favoriteCard.kind === 'event') {
+            openMeetup({
+              id: favoriteCard.event_id || favoriteCard.id,
+              title: favoriteCard.name,
+              photo: favoriteCard.hero_photo,
+              when: favoriteCard.when,
+              mi: null,
+              place: favoriteCard.distance,
+            });
+          } else {
+            openPlace(favoriteCard);
+          }
+        }}/>
 
         {/* Saved-spots summary — only when something is saved */}
         {savedItems.length > 0 && (

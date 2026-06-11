@@ -3,6 +3,7 @@
 // Body is one of:
 //   { id, patch: {<editable fields>} }                 -> edit one place
 //   { ids: [uuid], patch: { review_status?, visible? } } -> bulk status/visibility
+//   { create: { <editable fields incl. name+category> } } -> insert a new place
 //   { delete: uuid }                                    -> delete a place
 //   { merge: { keepId, dropId } }                       -> repoint source_records, delete dropId
 import { json, readJsonBody, supabaseCreds, sbHeaders, isUuid } from '../../_lib/supabase.js';
@@ -14,7 +15,19 @@ const EDITABLE = new Set([
   'lat','lng','business_status','price_level',
   'is_featured','top_rank',
   'review_status','visible',
+  // Matching-algorithm metadata (see _apply_place_event_matching_metadata.sql)
+  'kid_age_ranges','value_tags','interest_tags','mom_type_fit','neighborhoods','metadata',
+  // Provenance (used when admin creates a curated row by hand)
+  'origin','slug',
 ]);
+
+// Generate a URL-safe slug from a name. Used when admin creates a place
+// without providing one explicitly. Lowercased, hyphenated, alphanumerics only.
+const slugify = (s) => String(s || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 80);
 
 const sanitize = (patch) => {
   if (!patch || typeof patch !== 'object') return { error: 'patch object required' };
@@ -56,6 +69,27 @@ export default async function handler(req, res) {
   if (body === null) return json(res, 400, { error: 'Invalid JSON body' });
 
   try {
+    // Create (insert a new place)
+    if (body.create) {
+      const s = sanitize(body.create);
+      if (s.error) return json(res, 400, { error: s.error });
+      const row = { ...s.patch };
+      if (!row.name || !row.category) return json(res, 400, { error: 'name and category are required' });
+      if (!row.slug) row.slug = slugify(row.name) || `place-${Date.now().toString(36)}`;
+      if (!row.origin) row.origin = 'curated';
+      if (row.review_status == null) row.review_status = 'needs_review';
+      if (row.visible == null) row.visible = false;
+      const r = await fetch(`${creds.supabaseUrl}/rest/v1/places`, {
+        method: 'POST',
+        headers: sbHeaders(creds.serviceRoleKey, { Prefer: 'return=representation' }),
+        body: JSON.stringify(row),
+      });
+      const text = await r.text();
+      if (!r.ok) return json(res, 502, { error: `Supabase ${r.status}: ${text.slice(0, 300)}` });
+      const rows = JSON.parse(text || '[]');
+      return json(res, 200, { ok: true, row: rows[0] });
+    }
+
     // Delete (single)
     if (body.delete) {
       if (!isUuid(body.delete)) return json(res, 400, { error: 'delete must be a uuid' });

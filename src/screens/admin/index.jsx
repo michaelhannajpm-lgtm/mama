@@ -25,7 +25,8 @@ import { AdminLogin } from './components/AdminLogin';
 import { Button, Banner } from './components/primitives';
 
 // Sections
-import { Overview, MomsReport, MomProfilesTab, QuickActions } from './sections/legacy';
+import { Overview, MomsReport, QuickActions } from './sections/legacy';
+import { MomProfilesSection } from './sections/MomProfilesSection';
 import { UsersSection } from './sections/UsersSection';
 import { DeploymentsSection } from './sections/DeploymentsSection';
 import { PlacesManager } from './managers/PlacesManager';
@@ -179,13 +180,18 @@ function renderSection(section, ctx) {
     case 'onboarding':
       return <MomsReport rows={moms} momProfiles={momProfiles} />;
     case 'mom-profiles':
-      return <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(u) => setMomProfiles((prev) => prev.map((r) => (r.id === u.id ? u : r)))} />;
+      return <MomProfilesSection
+        rows={momProfiles}
+        places={places || []}
+        onPatch={(u) => setMomProfiles((prev) => prev.map((r) => (r.id === u.id ? u : r)))}
+        onReload={load}
+      />;
     case 'places':
       return <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load} />;
     case 'events':
       return <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load} />;
     case 'featured':
-      return <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} />;
+      return <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} events={events || []} />;
     case 'ingestion':
       return <IngestionManager adminFetch={adminFetch} />;
     case 'sources':

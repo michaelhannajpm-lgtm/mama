@@ -2,19 +2,24 @@
 // SECURITY: gated by requireAdmin (admin bearer token). Uses the GoTrue Admin
 // API with the service-role key — this NEVER touches the browser.
 //
-// Returns a slimmed, paginated view of auth.users. Pages the GoTrue admin
-// endpoint (per_page=200) up to a sane cap so an early-stage app shows everyone
-// without an unbounded crawl.
+// Returns a slimmed, paginated view of auth.users joined with mom_profiles
+// (id, display_name, username) so the console can deep-link the user row to
+// their mom-profile detail. Pages the GoTrue admin endpoint (per_page=200)
+// up to a sane cap so an early-stage app shows everyone without an unbounded
+// crawl.
 import { json, supabaseCreds, sbHeaders } from '../_lib/supabase.js';
 import { requireAdmin } from '../_lib/admin-auth.js';
 
 const PER_PAGE = 200;
 const MAX_PAGES = 25; // 5,000 users cap — plenty for now, avoids runaway loops.
 
-// Map a GoTrue user into the slim shape the console renders.
-const toUi = (u) => {
+// Map a GoTrue user into the slim shape the console renders. `momByAuthId` is
+// a Map<auth_user_id, { id, display_name, username }> built once per request so
+// every row can show its linked mom-profile (if any) without an N+1 fetch.
+const toUi = (u, momByAuthId) => {
   const meta = u.app_metadata || {};
   const confirmedAt = u.email_confirmed_at || u.phone_confirmed_at || u.confirmed_at || null;
+  const mom = momByAuthId?.get(u.id) || null;
   return {
     id: u.id,
     email: u.email || null,
@@ -27,6 +32,7 @@ const toUi = (u) => {
     confirmed: !!confirmedAt,
     isAnonymous: !!u.is_anonymous,
     banned: !!(u.banned_until && new Date(u.banned_until) > new Date()),
+    mom: mom ? { id: mom.id, displayName: mom.display_name || null, username: mom.username || null } : null,
   };
 };
 
@@ -55,7 +61,24 @@ export default async function handler(req, res) {
       if (batch.length < PER_PAGE) break; // last page
     }
 
-    const users = all.map(toUi);
+    // Fetch all mom_profiles in one go and index by auth_user_id so we can
+    // attach the linked-profile pointer to each user row.
+    const momByAuthId = new Map();
+    let momLinked = 0;
+    try {
+      const r = await fetch(
+        `${creds.supabaseUrl}/rest/v1/mom_profiles?select=id,display_name,username,auth_user_id&auth_user_id=not.is.null&limit=10000`,
+        { headers: sbHeaders(creds.serviceRoleKey) }
+      );
+      if (r.ok) {
+        const rows = await r.json();
+        for (const m of rows) {
+          if (m.auth_user_id) momByAuthId.set(m.auth_user_id, m);
+        }
+      }
+    } catch { /* mom-profile join is best-effort; fall through */ }
+
+    const users = all.map((u) => toUi(u, momByAuthId));
     // Aggregate provider + status counts for the section's stat tiles.
     const byProvider = {};
     let anonymous = 0; let confirmed = 0;
@@ -64,13 +87,14 @@ export default async function handler(req, res) {
       byProvider[key] = (byProvider[key] || 0) + 1;
       if (u.isAnonymous) anonymous++;
       if (u.confirmed) confirmed++;
+      if (u.mom) momLinked++;
     }
 
     return json(res, 200, {
       ok: true,
       count: users.length,
       truncated: page > MAX_PAGES,
-      stats: { total: users.length, anonymous, confirmed, byProvider },
+      stats: { total: users.length, anonymous, confirmed, momLinked, byProvider },
       users,
     });
   } catch (e) {

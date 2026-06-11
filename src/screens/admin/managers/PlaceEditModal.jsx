@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { C } from '../../../theme';
 import { X, Star, ExternalLink } from 'lucide-react';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
+import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
+import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
 
 const CATS = ['fun','sports','wellness','schools','childcare','extracurricular','camps','health'];
 const REVIEW_STATUSES = ['needs_review','approved','rejected','archived'];
@@ -12,6 +14,33 @@ const AMENITY_KEYS = ['parking','restrooms','stroller_friendly','nursing_room','
 const AMENITY_LABELS = {
   parking: 'Parking', restrooms: 'Restrooms', stroller_friendly: 'Stroller friendly',
   nursing_room: 'Nursing room', food: 'Food', indoor: 'Indoor', outdoor: 'Outdoor',
+};
+
+// Chip multi-select. Used for the matching-metadata fields (kid age ranges,
+// values, interests, mom-type fit, neighborhoods). Visual matches the phone
+// app's selection language (rounded pills) but stays in console palette.
+const ChipPicker = ({ options, selected, onChange }) => {
+  const set = new Set(selected || []);
+  const toggle = (v) => { const n = new Set(set); n.has(v) ? n.delete(v) : n.add(v); onChange([...n]); };
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((opt) => {
+        const id = typeof opt === 'string' ? opt : opt.id;
+        const label = typeof opt === 'string' ? opt : opt.label;
+        const on = set.has(id);
+        return (
+          <button key={id} type="button" onClick={() => toggle(id)}
+            style={{
+              padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
+              background: on ? C.terracotta : C.paper,
+              color: on ? '#fff' : C.ink,
+              border: `1px solid ${on ? C.terracotta : C.divider}`,
+              fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600,
+            }}>{label}</button>
+        );
+      })}
+    </div>
+  );
 };
 
 // ── style helpers ──────────────────────────────────────────────────────────
@@ -25,6 +54,11 @@ const fmtDate = (v) => { if (!v) return '—'; try { return new Date(v).toLocale
 const pretty = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 
 export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
+  // `place.__new` is the manager's signal to open this modal in "create new"
+  // mode — everything starts blank, save POSTs `{ create: { … } }`, and the
+  // events / provenance panels at the bottom are hidden.
+  const isNew = !!place.__new;
+
   const initAmenities = () => {
     const src = (place.amenities && typeof place.amenities === 'object') ? place.amenities : {};
     const out = {};
@@ -34,6 +68,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
 
   const [form, setForm] = useState({
     name: place.name || '',
+    slug: place.slug || '',
     category: place.category || 'fun',
     badge: place.badge || '',
     description: place.description || '',
@@ -43,7 +78,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
     age_max: place.age_max ?? '',
     address: place.address || '',
     area: place.area || '',
-    city: place.city || '',
+    city: place.city || 'Tampa',
     lat: place.lat ?? '',
     lng: place.lng ?? '',
     phone: place.phone || '',
@@ -57,6 +92,12 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
     is_featured: !!place.is_featured,
     top_rank: place.top_rank == null ? '' : String(place.top_rank),
     amenities: initAmenities(),
+    // Matching-algorithm metadata
+    kid_age_ranges: place.kid_age_ranges || [],
+    value_tags: place.value_tags || [],
+    interest_tags: place.interest_tags || [],
+    mom_type_fit: place.mom_type_fit || [],
+    neighborhoods: (place.neighborhoods || []).join(', '),
   });
   const [busy, setBusy] = useState(false);
   const [lightbox, setLightbox] = useState(null);
@@ -142,8 +183,19 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
       is_featured: form.is_featured,
       top_rank: form.is_featured ? num(form.top_rank) : null,
       amenities: AMENITY_KEYS.reduce((o, k) => { o[k] = !!form.amenities[k]; return o; }, {}),
+      kid_age_ranges: form.kid_age_ranges,
+      value_tags: form.value_tags,
+      interest_tags: form.interest_tags,
+      mom_type_fit: form.mom_type_fit,
+      neighborhoods: csv(form.neighborhoods),
     };
-    if (await post({ id: place.id, patch }, 'Save')) await onSaved();
+    if (isNew) {
+      if (!patch.name) { alert('Name is required'); return; }
+      if (form.slug) patch.slug = form.slug;
+      if (await post({ create: patch }, 'Create')) await onSaved();
+    } else {
+      if (await post({ id: place.id, patch }, 'Save')) await onSaved();
+    }
   };
 
   const setHero = async (url) => { if (await post({ id: place.id, patch: { hero_photo: url } }, 'Set hero')) await onSaved(); };
@@ -165,9 +217,14 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
 
         {/* 1. Header */}
         <div className="flex items-center mb-1" style={{ gap: 10 }}>
-          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>{place.name || 'Place'}</h3>
+          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>
+            {isNew ? 'New place' : (place.name || 'Place')}
+          </h3>
           {isFromEvent && (
             <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>From event</span>
+          )}
+          {isNew && (
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.terracotta, background: `${C.terracotta}15`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
           )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
         </div>
@@ -178,7 +235,9 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           <VisibilityBadge visible={form.visible} />
         </div>
 
-        {/* 2. Photo gallery */}
+        {/* 2. Photo gallery (only shown for existing places) */}
+        {!isNew && (
+        <>
         <div style={sectionHeader}>Photos</div>
         {photos.length === 0 ? (
           <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted }}>No photos</div>
@@ -214,6 +273,9 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           </div>
         )}
 
+        </>
+        )}
+
         {/* 3. Basics */}
         <div style={sectionHeader}>Basics</div>
         <div className="grid grid-cols-3 gap-2">
@@ -226,6 +288,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           {Text('badge', 'Badge')}
           {Text('age_min', 'Age min', 'number')}
           {Text('age_max', 'Age max', 'number')}
+          {isNew && Text('slug', 'Slug (auto from name if blank)')}
         </div>
         <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Description
           <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} style={inputStyle} />
@@ -235,6 +298,25 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         </label>
         <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Good for (comma-separated)
           <input value={form.good_for} onChange={e => set('good_for', e.target.value)} style={inputStyle} />
+        </label>
+
+        {/* 3b. Matching metadata — aligned with the same taxonomies the mom
+            profile uses, so place ↔ mom matching can score on shared signals. */}
+        <div style={sectionHeader}>Matching metadata</div>
+        <div style={{ ...labelStyle, marginBottom: 4 }}>Kid age ranges that fit</div>
+        <ChipPicker options={KID_AGES} selected={form.kid_age_ranges} onChange={(v) => set('kid_age_ranges', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Family values it suits</div>
+        <ChipPicker options={VALUE_LABELS} selected={form.value_tags} onChange={(v) => set('value_tags', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Interests it satisfies</div>
+        <ChipPicker options={ACTIVITY_LABELS} selected={form.interest_tags} onChange={(v) => set('interest_tags', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Best for mom types</div>
+        <ChipPicker
+          options={MOM_TYPES.filter((t) => t.id !== 'prefer_not').map((t) => ({ id: t.id, label: t.label }))}
+          selected={form.mom_type_fit}
+          onChange={(v) => set('mom_type_fit', v)}
+        />
+        <label style={{ ...labelStyle, display: 'block', marginTop: 10 }}>Additional neighborhoods served (comma-separated)
+          <input value={form.neighborhoods} onChange={e => set('neighborhoods', e.target.value)} style={inputStyle} />
         </label>
 
         {/* 4. Location */}
@@ -316,7 +398,9 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           </>
         )}
 
-        {/* 9. Provenance (read-only) */}
+        {/* 9. Provenance (read-only — hidden in create mode, no row to read) */}
+        {!isNew && (
+        <>
         <div style={sectionHeader}>Provenance</div>
         <div className="grid grid-cols-3 gap-x-4 gap-y-2">
           {[
@@ -341,16 +425,19 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* 10. Save */}
         <div className="flex mt-4">
           <button disabled={busy} onClick={save}
             style={{ marginLeft: 'auto', background: C.terracotta, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? (isNew ? 'Creating…' : 'Saving…') : (isNew ? 'Create place' : 'Save')}
           </button>
         </div>
 
-        {/* 11. Events at this place (preserved) */}
+        {/* 11. Events at this place (preserved, hidden in create mode) */}
+        {!isNew && (
         <div style={{ marginTop: 20, borderTop: `1px solid ${C.divider}`, paddingTop: 14 }}>
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontFamily: 'Fraunces', fontSize: 15, color: C.ink, flex: 1 }}>Events at this place</span>
@@ -374,6 +461,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* Lightbox overlay */}

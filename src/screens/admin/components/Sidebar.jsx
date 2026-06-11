@@ -29,7 +29,7 @@ export const Sidebar = ({ current, onNavigate, collapsed, onToggleCollapse }) =>
       </div>
 
       {/* Nav groups */}
-      <nav className="flex-1" style={{ overflowY: 'auto', padding: '10px 8px' }}>
+      <nav className="flex-1 admin-rail-scroll" style={{ overflowY: 'auto', padding: '10px 8px' }}>
         {NAV_GROUPS.map((group) => (
           <div key={group.label} style={{ marginBottom: 14 }}>
             {!collapsed && (

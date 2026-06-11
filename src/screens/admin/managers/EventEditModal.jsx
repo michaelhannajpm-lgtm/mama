@@ -2,6 +2,35 @@ import { useState, useMemo } from 'react';
 import { C } from '../../../theme';
 import { X, ExternalLink } from 'lucide-react';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
+import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
+import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
+
+// Same chip multi-select used in PlaceEditModal — kept inline so the two
+// modals stay independently editable. If a third surface needs it, lift to
+// AdminFilters.
+const ChipPicker = ({ options, selected, onChange, accent = C.sageDark }) => {
+  const set = new Set(selected || []);
+  const toggle = (v) => { const n = new Set(set); n.has(v) ? n.delete(v) : n.add(v); onChange([...n]); };
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((opt) => {
+        const id = typeof opt === 'string' ? opt : opt.id;
+        const label = typeof opt === 'string' ? opt : opt.label;
+        const on = set.has(id);
+        return (
+          <button key={id} type="button" onClick={() => toggle(id)}
+            style={{
+              padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
+              background: on ? accent : C.paper,
+              color: on ? '#fff' : C.ink,
+              border: `1px solid ${on ? accent : C.divider}`,
+              fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600,
+            }}>{label}</button>
+        );
+      })}
+    </div>
+  );
+};
 
 const TYPES = [
   'storytime','class','workshop','stem','art-class','music-class','dance-class','cooking-class',
@@ -29,15 +58,19 @@ const fmtDate = (v) => { if (!v) return '—'; try { return new Date(v).toLocale
 const dtLocal = (v) => { if (!v) return ''; try { const d = new Date(v); if (Number.isNaN(d.getTime())) return ''; const off = d.getTimezoneOffset(); return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16); } catch { return ''; } };
 
 export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSaved }) => {
+  // `event.__new` → modal opens in create mode (blank form, POST `{ create }`,
+  // no provenance/audit panels). Mirrors PlaceEditModal's pattern.
+  const isNew = !!event.__new;
+
   const [form, setForm] = useState({
     name: event.name || '',
-    event_type: event.event_type || 'other',
+    event_type: event.event_type || 'class',
     kind: event.kind || 'dated',
     description: event.description || '',
     place_id: event.place_id || '',
     place_name: event.place_name || '',
     area: event.area || '',
-    city: event.city || '',
+    city: event.city || 'Tampa',
     starts_at: dtLocal(event.starts_at),
     ends_at: dtLocal(event.ends_at),
     day_of_week: event.day_of_week || '',
@@ -56,6 +89,12 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
     going_count: event.going_count ?? '',
     review_status: event.review_status || 'needs_review',
     visible: !!event.visible,
+    // Matching metadata (parallel to PlaceEditModal)
+    kid_age_ranges: event.kid_age_ranges || [],
+    value_tags: event.value_tags || [],
+    interest_tags: event.interest_tags || [],
+    mom_type_fit: event.mom_type_fit || [],
+    neighborhoods: (event.neighborhoods || []).join(', '),
   });
   const [placeQuery, setPlaceQuery] = useState('');
   const [busy, setBusy] = useState(false);
@@ -111,8 +150,18 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
       going_count: num(form.going_count),
       review_status: form.review_status,
       visible: form.visible,
+      kid_age_ranges: form.kid_age_ranges,
+      value_tags: form.value_tags,
+      interest_tags: form.interest_tags,
+      mom_type_fit: form.mom_type_fit,
+      neighborhoods: csv(form.neighborhoods),
     };
-    if (await post({ id: event.id, patch }, 'Save')) await onSaved();
+    if (isNew) {
+      if (!patch.name) { alert('Name is required'); return; }
+      if (await post({ create: patch }, 'Create')) await onSaved();
+    } else {
+      if (await post({ id: event.id, patch }, 'Save')) await onSaved();
+    }
   };
 
   // ── reusable field renderer ────────────────────────────────────────────────
@@ -132,9 +181,14 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
 
         {/* 1. Header */}
         <div className="flex items-center mb-1" style={{ gap: 10 }}>
-          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>{event.name || 'Event'}</h3>
+          <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, color: C.ink, flex: 1, margin: 0 }}>
+            {isNew ? 'New event' : (event.name || 'Event')}
+          </h3>
           <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.sageDark, background: C.sage, borderRadius: 999, padding: '3px 10px' }}>{form.kind}</span>
           <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.inkSoft, background: C.lilac, borderRadius: 999, padding: '3px 10px' }}>{form.event_type}</span>
+          {isNew && (
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: C.terracotta, background: `${C.terracotta}15`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
+          )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
         </div>
 
@@ -263,6 +317,25 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           {Text('hue', 'Hue')}
         </div>
 
+        {/* 6b. Matching metadata — aligned with mom-profile signals. Drives
+            mom ↔ event match scoring on shared values, interests, kid ages. */}
+        <div style={sectionHeader}>Matching metadata</div>
+        <div style={{ ...labelStyle, marginBottom: 4 }}>Kid age ranges that fit</div>
+        <ChipPicker options={KID_AGES} selected={form.kid_age_ranges} onChange={(v) => set('kid_age_ranges', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Family values it suits</div>
+        <ChipPicker options={VALUE_LABELS} selected={form.value_tags} onChange={(v) => set('value_tags', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Interests it satisfies</div>
+        <ChipPicker options={ACTIVITY_LABELS} selected={form.interest_tags} onChange={(v) => set('interest_tags', v)} />
+        <div style={{ ...labelStyle, marginTop: 10, marginBottom: 4 }}>Best for mom types</div>
+        <ChipPicker
+          options={MOM_TYPES.filter((t) => t.id !== 'prefer_not').map((t) => ({ id: t.id, label: t.label }))}
+          selected={form.mom_type_fit}
+          onChange={(v) => set('mom_type_fit', v)}
+        />
+        <label style={{ ...labelStyle, display: 'block', marginTop: 10 }}>Additional neighborhoods served (comma-separated)
+          <input value={form.neighborhoods} onChange={e => set('neighborhoods', e.target.value)} style={inputStyle} />
+        </label>
+
         {/* 7. Status */}
         <div style={sectionHeader}>Status</div>
         <div className="grid grid-cols-3 gap-2">
@@ -276,7 +349,9 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           </label>
         </div>
 
-        {/* 8. Provenance (read-only) */}
+        {/* 8. Provenance (read-only — hidden for create mode) */}
+        {!isNew && (
+        <>
         <div style={sectionHeader}>Provenance</div>
         <div className="grid grid-cols-3 gap-x-4 gap-y-2">
           {[
@@ -301,12 +376,14 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* 9. Save (sage) */}
         <div className="flex mt-4">
           <button disabled={busy} onClick={save}
             style={{ marginLeft: 'auto', background: C.sageDark, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 22px', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? (isNew ? 'Creating…' : 'Saving…') : (isNew ? 'Create event' : 'Save')}
           </button>
         </div>
       </div>

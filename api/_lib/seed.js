@@ -212,12 +212,33 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
   // variety; Facebook + verified are guaranteed.
   const verified  = true;
   const visible   = rand() < 0.95;
-  const lastActive = rand() < 0.9
-    ? new Date(Date.now() - Math.floor(rand() * 30) * 86400000).toISOString()
-    : new Date(Date.now() - (30 + Math.floor(rand() * 60)) * 86400000).toISOString();
+  const blocked   = rand() < 0.02; // ~2% blocked — surfaces the Blocked admin pill
+  const lastActiveMs = Date.now() - Math.floor(rand() * (rand() < 0.9 ? 30 : 90)) * 86400000;
+  const lastActive = new Date(lastActiveMs).toISOString();
+  const lastSeen   = new Date(lastActiveMs - Math.floor(rand() * 3600 * 24) * 1000).toISOString();
+  // ~4% deactivated, ~1% deleted — exercises the lifecycle buttons in admin.
+  const lifecycleRoll = rand();
+  let accountStatus = 'active';
+  let deactivatedAt = null;
+  let deletedAt = null;
+  if (lifecycleRoll < 0.01) {
+    accountStatus = 'deleted';
+    deletedAt = new Date(Date.now() - Math.floor(rand() * 14) * 86400000).toISOString();
+  } else if (lifecycleRoll < 0.05) {
+    accountStatus = 'deactivated';
+    deactivatedAt = new Date(Date.now() - Math.floor(rand() * 90) * 86400000).toISOString();
+  }
   const socialLinks = { facebook: `https://facebook.com/${username}` };
   if (rand() < 0.55) socialLinks.instagram = `@${username}`;
   if (rand() < 0.2) socialLinks.tiktok = `@${username}mama`;
+  // Per-signal verification flags — the admin Social tab renders these as the
+  // {instagram, facebook, photo} pill set. Photo verified iff the mom has at
+  // least one photo; social verified iff she's linked any social account.
+  const verificationSignals = {
+    instagram: !!socialLinks.instagram,
+    facebook: !!socialLinks.facebook,
+    photo: photosForMom(idx).length > 0,
+  };
 
   // Derive the same AI-style familyTags a real user gets, from the mom's bio +
   // her interests/values, so the tag dimension actually matches real users.
@@ -247,11 +268,20 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
     distance_miles,
     visible,
     verified,
-    blocked_global: false,
+    blocked_global: blocked,
+    account_status: accountStatus,
+    deactivated_at: deactivatedAt,
+    deleted_at: deletedAt,
     social_links: socialLinks,
-    settings: { privacy: { verified_only_dms: true }, familyTags },
+    settings: {
+      privacy: { verified_only_dms: true },
+      notifications: { new_matches: true, messages: true },
+      verification: verificationSignals,
+      familyTags,
+    },
     source: 'seed',
     last_active_at: lastActive,
+    last_seen_at: lastSeen,
   };
 };
 

@@ -5,7 +5,8 @@ import { C } from '../../../theme';
 // Admin editor for app_config values, grouped into categories across two
 // columns. Reads/writes via /api/admin/config (admin-gated); the public
 // /api/config mirror exposes the same keys (camelCased) to the app.
-const RADIUS_OPTS = [10, 20, 30, 50, 100, 150];
+const RADIUS_MIN = 1;
+const RADIUS_MAX = 200;
 
 export const ConfigManager = ({ adminFetch }) => {
   // Discovery & matching
@@ -150,126 +151,101 @@ export const ConfigManager = ({ adminFetch }) => {
         Application-wide settings. Changes take effect on the next app load (no deploy needed).
       </p>
 
-      {/* Two-column layout — collapses to one column when narrow. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginTop: 8, alignItems: 'flex-start' }}>
+      {/* Paired 2-col grid — each row has two cards aligned at equal height
+          via align-items: stretch + flex content fill. The category headers
+          live inside cards so they don't drift columns out of sync. */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))',
+        gap: 16,
+        marginTop: 12,
+        alignItems: 'stretch',
+      }}>
+        <Card title="Default Top Spots radius" category="Discovery & matching"
+          desc="The fallback radius for the “Top Spots” section when a user hasn’t set their own.">
+          <RadiusSlider value={radius} onChange={setRadius} disabled={loading || busy} />
+          <SaveRow onSave={saveRadius} dirty={radiusDirty} disabled={busy || loading || radius == null} busy={busy} msg={msg} />
+        </Card>
 
-        {/* ───────── Column A ───────── */}
-        <div style={col}>
-          <Category title="Discovery & matching" />
+        <Card title="Verified badge policy" category="Trust & safety"
+          desc={<>When <strong>on</strong>, a mom must link a social account (Instagram or Facebook) <em>and</em> complete
+            her profile to earn the Verified badge — the verified-only moat. When <strong>off</strong>, completing
+            every profile step alone verifies her.</>}>
+          <Toggle on={reqSocial} disabled={busy || loading} onToggle={() => saveReqSocial(!reqSocial)}
+            label={reqSocial ? 'Require a linked social account' : 'Social account not required'} msg={verifyMsg} />
+        </Card>
 
-          <Card title="Default Top Spots radius"
-            desc="The fallback radius for the “Top Spots” section when a user hasn’t set their own.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              {RADIUS_OPTS.map(r => {
-                const active = radius === r;
-                return (
-                  <button key={r} onClick={() => setRadius(r)} disabled={loading} style={{
-                    padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
-                    background: active ? C.terracotta : C.paper,
-                    color: active ? '#fff' : C.ink,
-                    border: `1px solid ${active ? C.terracotta : C.divider}`,
-                    fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-                  }}>{r} mi</button>
-                );
-              })}
-              <input
-                type="number" min={1} max={500} value={radius ?? ''} disabled={loading}
-                onChange={e => setRadius(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-                style={{ ...field, width: 90 }} placeholder="custom"
-              />
-            </div>
-            <SaveRow onSave={saveRadius} dirty={radiusDirty} disabled={busy || loading || radius == null} busy={busy} msg={msg} />
-          </Card>
+        <Card title="Default verified-only discovery" category="Discovery & matching"
+          desc="When on, new users see only verified moms in the nearby discovery feed until they change the filter themselves.">
+          <Toggle on={vod} disabled={busy || loading} onToggle={() => saveVod(!vod)}
+            label={vod ? 'Show verified moms only by default' : 'Show all moms by default'} msg={vodMsg} />
+        </Card>
 
-          <Card title="Default verified-only discovery"
-            desc="When on, new users see only verified moms in the nearby discovery feed until they change the filter themselves.">
-            <Toggle on={vod} disabled={busy || loading} onToggle={() => saveVod(!vod)}
-              label={vod ? 'Show verified moms only by default' : 'Show all moms by default'} msg={vodMsg} />
-          </Card>
+        <Card title="Free DM message limit" category="Monetization"
+          desc={<>Messages a free mom can send each match before Plus is required.
+            <span style={{ color: C.terracotta, fontWeight: 700 }}> Protected lever — default 3.</span> Raising it weakens Plus conversion.</>}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            {[3, 5, 10, 25].map(n => {
+              const active = dmLimit === n;
+              return (
+                <button key={n} onClick={() => setDmLimit(n)} disabled={loading} style={{
+                  padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
+                  background: active ? C.terracotta : C.paper,
+                  color: active ? '#fff' : C.ink,
+                  border: `1px solid ${active ? C.terracotta : C.divider}`,
+                  fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+                }}>{n}</button>
+              );
+            })}
+            <input type="number" min={1} max={50} value={dmLimit ?? ''} disabled={loading}
+              onChange={e => setDmLimit(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+              style={{ ...field, width: 90 }} placeholder="custom"/>
+          </div>
+          <SaveRow onSave={saveDmLimit} dirty={dmDirty} disabled={busy || loading || dmLimit == null} busy={busy} msg={dmMsg} />
+        </Card>
 
-          <Category title="Presence" style={{ marginTop: 22 }} />
+        <Card title="Presence thresholds" category="Presence"
+          desc="How recent a mom’s last activity must be to show as online vs. away. Older than the away window shows as offline.">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
+            <label style={lbl}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Online within (seconds)</div>
+              <input type="number" min={30} max={3600} value={onlineS ?? ''} disabled={loading}
+                onChange={e => setOnlineS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                style={{ ...field, width: 120 }}/>
+              <div style={{ color: C.inkMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
+            </label>
+            <label style={lbl}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Away within (seconds)</div>
+              <input type="number" min={60} max={86400} value={awayS ?? ''} disabled={loading}
+                onChange={e => setAwayS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                style={{ ...field, width: 120 }}/>
+              <div style={{ color: C.inkMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
+            </label>
+          </div>
+          <SaveRow onSave={savePresence} dirty={presenceDirty} disabled={busy || loading || onlineS == null || awayS == null} busy={busy} msg={presenceMsg} />
+        </Card>
 
-          <Card title="Presence thresholds"
-            desc="How recent a mom’s last activity must be to show as online vs. away. Older than the away window shows as offline.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
-              <label style={lbl}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Online within (seconds)</div>
-                <input type="number" min={30} max={3600} value={onlineS ?? ''} disabled={loading}
-                  onChange={e => setOnlineS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-                  style={{ ...field, width: 120 }}/>
-                <div style={{ color: C.inkMuted, marginTop: 3 }}>{onlineS ? `≈ ${(onlineS / 60).toFixed(onlineS % 60 ? 1 : 0)} min` : ''}</div>
-              </label>
-              <label style={lbl}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Away within (seconds)</div>
-                <input type="number" min={60} max={86400} value={awayS ?? ''} disabled={loading}
-                  onChange={e => setAwayS(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-                  style={{ ...field, width: 120 }}/>
-                <div style={{ color: C.inkMuted, marginTop: 3 }}>{awayS ? `≈ ${(awayS / 60).toFixed(awayS % 60 ? 1 : 0)} min` : ''}</div>
-              </label>
-            </div>
-            <SaveRow onSave={savePresence} dirty={presenceDirty} disabled={busy || loading || onlineS == null || awayS == null} busy={busy} msg={presenceMsg} />
-          </Card>
-        </div>
-
-        {/* ───────── Column B ───────── */}
-        <div style={col}>
-          <Category title="Trust & safety" />
-
-          <Card title="Verified badge policy"
-            desc={<>When <strong>on</strong>, a mom must link a social account (Instagram or Facebook) <em>and</em> complete
-              her profile to earn the Verified badge — the verified-only moat. When <strong>off</strong>, completing
-              every profile step alone verifies her.</>}>
-            <Toggle on={reqSocial} disabled={busy || loading} onToggle={() => saveReqSocial(!reqSocial)}
-              label={reqSocial ? 'Require a linked social account' : 'Social account not required'} msg={verifyMsg} />
-          </Card>
-
-          <Category title="Monetization" style={{ marginTop: 22 }} />
-
-          <Card title="Free DM message limit"
-            desc={<>Messages a free mom can send each match before Plus is required.
-              <span style={{ color: C.terracotta, fontWeight: 700 }}> Protected lever — default 3.</span> Raising it weakens Plus conversion.</>}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              {[3, 5, 10, 25].map(n => {
-                const active = dmLimit === n;
-                return (
-                  <button key={n} onClick={() => setDmLimit(n)} disabled={loading} style={{
-                    padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
-                    background: active ? C.terracotta : C.paper,
-                    color: active ? '#fff' : C.ink,
-                    border: `1px solid ${active ? C.terracotta : C.divider}`,
-                    fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-                  }}>{n}</button>
-                );
-              })}
-              <input type="number" min={1} max={50} value={dmLimit ?? ''} disabled={loading}
-                onChange={e => setDmLimit(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
-                style={{ ...field, width: 90 }} placeholder="custom"/>
-            </div>
-            <SaveRow onSave={saveDmLimit} dirty={dmDirty} disabled={busy || loading || dmLimit == null} busy={busy} msg={dmMsg} />
-          </Card>
-
-          <Card title="Plus pricing"
-            desc="The monthly price and free-trial length shown on the Plus upsell screens. Display only — no real billing yet.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
-              <label style={lbl}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly price (USD)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: C.inkMuted }}>$</span>
-                  <input type="number" min={0} max={999} step="0.01" value={price ?? ''} disabled={loading}
-                    onChange={e => setPrice(e.target.value === '' ? null : Number(e.target.value))}
-                    style={{ ...field, width: 100 }}/>
-                </div>
-              </label>
-              <label style={lbl}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Free trial (days)</div>
-                <input type="number" min={0} max={90} value={trialDays ?? ''} disabled={loading}
-                  onChange={e => setTrialDays(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+        <Card title="Plus pricing" category="Monetization"
+          desc="The monthly price and free-trial length shown on the Plus upsell screens. Display only — no real billing yet.">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 14 }}>
+            <label style={lbl}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly price (USD)</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: C.inkMuted }}>$</span>
+                <input type="number" min={0} max={999} step="0.01" value={price ?? ''} disabled={loading}
+                  onChange={e => setPrice(e.target.value === '' ? null : Number(e.target.value))}
                   style={{ ...field, width: 100 }}/>
-              </label>
-            </div>
-            <SaveRow onSave={savePlus} dirty={plusDirty} disabled={busy || loading || price == null || trialDays == null} busy={busy} msg={plusMsg} />
-          </Card>
-        </div>
+              </div>
+            </label>
+            <label style={lbl}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Free trial (days)</div>
+              <input type="number" min={0} max={90} value={trialDays ?? ''} disabled={loading}
+                onChange={e => setTrialDays(e.target.value === '' ? null : Math.round(Number(e.target.value)))}
+                style={{ ...field, width: 100 }}/>
+            </label>
+          </div>
+          <SaveRow onSave={savePlus} dirty={plusDirty} disabled={busy || loading || price == null || trialDays == null} busy={busy} msg={plusMsg} />
+        </Card>
       </div>
     </div>
   );
@@ -277,20 +253,77 @@ export const ConfigManager = ({ adminFetch }) => {
 
 // ── Small building blocks ──────────────────────────────────────────────────
 
-const Category = ({ title, style }) => (
-  <div style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, letterSpacing: '.08em',
-    textTransform: 'uppercase', color: C.inkMuted, margin: '0 2px 2px', ...style }}>
-    {title}
+const Card = ({ title, category, desc, children }) => (
+  <div style={card}>
+    {category && (
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800, letterSpacing: '.10em',
+        textTransform: 'uppercase', color: C.inkMuted, marginBottom: 6 }}>
+        {category}
+      </div>
+    )}
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>{title}</div>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>{desc}</div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      {children}
+    </div>
   </div>
 );
 
-const Card = ({ title, desc, children }) => (
-  <div style={card}>
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 14, fontWeight: 700, color: C.ink }}>{title}</div>
-    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>{desc}</div>
-    {children}
-  </div>
-);
+// Range-slider control for the Top-Spots radius. Replaces 6 preset buttons +
+// a custom number input to recover vertical space on the Config card.
+const RadiusSlider = ({ value, onChange, disabled }) => {
+  const v = value ?? 50;
+  const fillPct = Math.max(0, Math.min(100, ((v - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN)) * 100));
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontFamily: 'Fraunces', fontSize: 28, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1 }}>
+          {value ?? '—'}
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 600, color: C.inkMuted, marginLeft: 6 }}>mi</span>
+        </div>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.inkMuted, letterSpacing: '.04em' }}>
+          {RADIUS_MIN}–{RADIUS_MAX} mi
+        </div>
+      </div>
+      <input
+        type="range"
+        min={RADIUS_MIN}
+        max={RADIUS_MAX}
+        step={1}
+        value={v}
+        disabled={disabled}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{
+          width: '100%',
+          appearance: 'none',
+          height: 6,
+          borderRadius: 999,
+          background: `linear-gradient(to right, ${C.terracotta} 0%, ${C.terracotta} ${fillPct}%, ${C.divider} ${fillPct}%, ${C.divider} 100%)`,
+          outline: 'none',
+          cursor: disabled ? 'default' : 'pointer',
+        }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+        {[10, 25, 50, 100, 150].map(p => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            disabled={disabled}
+            style={{
+              background: 'transparent', border: 'none', padding: '2px 6px',
+              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600,
+              color: value === p ? C.terracotta : C.inkMuted, cursor: disabled ? 'default' : 'pointer',
+              letterSpacing: '.02em',
+            }}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const SaveRow = ({ onSave, dirty, disabled, busy, msg }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
@@ -321,8 +354,8 @@ const Toggle = ({ on, disabled, onToggle, label, msg }) => (
   </div>
 );
 
-const col = { flex: 1, minWidth: 330, display: 'flex', flexDirection: 'column' };
-const card = { marginTop: 12, background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 14, padding: 18 };
+const card = { background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 14, padding: 18,
+  display: 'flex', flexDirection: 'column', height: '100%' };
 const iconBtn = { background: C.paper, border: `1px solid ${C.divider}`, borderRadius: 8, padding: 5, cursor: 'pointer', color: C.inkSoft, display: 'inline-flex' };
 const field = { border: `1px solid ${C.divider}`, borderRadius: 8, padding: '7px 9px', fontFamily: 'Albert Sans', fontSize: 13, background: C.paper, color: C.ink };
 const lbl = { fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink };

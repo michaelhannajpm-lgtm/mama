@@ -13,10 +13,13 @@ const fieldStyle = {
   cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
 };
 
-// Checkbox dropdown. `options` is an array of strings or {value,label}.
-// `selected` is an array; `onChange` gets the next array.
+// Checkbox dropdown with typeahead filtering. `options` is an array of strings
+// or {value,label}. `selected` is an array; `onChange` gets the next array.
+// A typeahead input appears at the top of the dropdown when there are more
+// than 6 options; users can type to narrow the list before checking.
 export const MultiSelect = ({ label, options, selected, onChange, accent = C.terracotta }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return;
@@ -24,11 +27,17 @@ export const MultiSelect = ({ label, options, selected, onChange, accent = C.ter
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
+  useEffect(() => { if (!open) setQuery(''); }, [open]);
 
   const opts = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? opts.filter(o => `${o.label} ${o.value}`.toLowerCase().includes(q))
+    : opts;
   const sel = new Set(selected);
   const toggle = (v) => { const n = new Set(sel); n.has(v) ? n.delete(v) : n.add(v); onChange([...n]); };
   const count = selected.length;
+  const showSearch = opts.length > 6;
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -38,25 +47,98 @@ export const MultiSelect = ({ label, options, selected, onChange, accent = C.ter
       </button>
       {open && (
         <div style={{
-          position: 'absolute', zIndex: 40, marginTop: 4, minWidth: 190, maxHeight: 280,
+          position: 'absolute', zIndex: 40, marginTop: 4, minWidth: 220, maxHeight: 320,
           overflowY: 'auto', background: C.paper, border: `1px solid ${C.divider}`,
           borderRadius: 10, boxShadow: '0 8px 24px -8px rgba(27,42,78,.28)', padding: 6,
         }}>
+          {showSearch && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px 6px', borderBottom: `1px solid ${C.divider}`, marginBottom: 4 }}>
+              <SearchIcon size={12} style={{ color: C.inkMuted, flexShrink: 0 }} />
+              <input
+                value={query}
+                autoFocus
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Type to filter ${label.toLowerCase()}…`}
+                style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontFamily: 'Albert Sans', fontSize: 12.5, background: 'transparent', color: C.ink }}
+              />
+            </div>
+          )}
           {count > 0 && (
             <button onClick={() => onChange([])}
               style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: C.inkMuted, fontFamily: 'Albert Sans', fontSize: 12, padding: '4px 6px', cursor: 'pointer' }}>
               Clear ({count})
             </button>
           )}
-          {opts.length === 0 && (
-            <div style={{ padding: '6px', fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted }}>No options</div>
+          {visible.length === 0 && (
+            <div style={{ padding: '6px', fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted }}>
+              {opts.length === 0 ? 'No options' : 'No matches'}
+            </div>
           )}
-          {opts.map(o => (
+          {visible.map(o => (
             <label key={o.value}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', fontFamily: 'Albert Sans', fontSize: 12.5, color: C.ink, cursor: 'pointer', borderRadius: 6 }}>
               <input type="checkbox" checked={sel.has(o.value)} onChange={() => toggle(o.value)} />
               {o.label}
             </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Single-select dropdown with typeahead. Same look as MultiSelect but only one
+// value at a time. Used for filter controls that aren't binary (e.g. Photo,
+// minRating) but might benefit from typing instead of scrolling.
+export const TypeaheadSelect = ({ label, value, onChange, options, accent = C.terracotta, placeholder }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  useEffect(() => { if (!open) setQuery(''); }, [open]);
+
+  const opts = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
+  const q = query.trim().toLowerCase();
+  const visible = q ? opts.filter(o => `${o.label} ${o.value}`.toLowerCase().includes(q)) : opts;
+  const selected = opts.find(o => o.value === value);
+  const showSearch = opts.length > 6;
+  const hasValue = value != null && value !== '' && value !== 0 && value !== 'any';
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ ...fieldStyle, borderColor: hasValue ? accent : C.divider, color: hasValue ? accent : C.ink, fontWeight: hasValue ? 600 : 400 }}>
+        {label ? `${label}: ` : ''}{selected ? selected.label : (placeholder || 'Any')} <ChevronDown size={13} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', zIndex: 40, marginTop: 4, minWidth: 200, maxHeight: 320,
+          overflowY: 'auto', background: C.paper, border: `1px solid ${C.divider}`,
+          borderRadius: 10, boxShadow: '0 8px 24px -8px rgba(27,42,78,.28)', padding: 6,
+        }}>
+          {showSearch && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px 6px', borderBottom: `1px solid ${C.divider}`, marginBottom: 4 }}>
+              <SearchIcon size={12} style={{ color: C.inkMuted }} />
+              <input value={query} autoFocus onChange={(e) => setQuery(e.target.value)}
+                placeholder="Type to filter…"
+                style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontFamily: 'Albert Sans', fontSize: 12.5, background: 'transparent', color: C.ink }} />
+            </div>
+          )}
+          {visible.length === 0 && (
+            <div style={{ padding: '6px', fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted }}>No matches</div>
+          )}
+          {visible.map(o => (
+            <button key={String(o.value)} onClick={() => { onChange(o.value); setOpen(false); }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '4px 8px', borderRadius: 6,
+                background: o.value === value ? `${accent}15` : 'transparent', color: C.ink,
+                border: 'none', cursor: 'pointer', fontFamily: 'Albert Sans', fontSize: 12.5,
+              }}>{o.label}</button>
           ))}
         </div>
       )}

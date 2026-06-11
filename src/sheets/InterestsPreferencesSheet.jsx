@@ -152,34 +152,22 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
   const back = () => (step === 0 ? onClose() : setStep(step - 1));
 
   return (
-    <div className="absolute inset-0 z-40" style={{ background: 'rgba(20,14,16,.45)' }} onClick={onClose}>
-    <div onClick={(e) => e.stopPropagation()} className="absolute left-0 right-0 bottom-0 flex flex-col overflow-hidden"
-      style={{
-        borderTopLeftRadius: 28, borderTopRightRadius: 28,
-        background: C.cream, maxHeight: '90%',
-        animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)',
-      }}>
-      {/* Header — back arrow + eyebrow + step progress */}
+    <div className="absolute inset-0 z-40 flex flex-col overflow-hidden" style={{
+      background: C.cream,
+      animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)',
+    }}>
+      {/* Header — eyebrow on left, back arrow top-right + step progress */}
       <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${C.divider}` }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <button onClick={back} aria-label="Back" className="active:scale-[.94] transition-transform" style={{
-              width: 36, height: 36, borderRadius: 999, flexShrink: 0,
-              background: C.paper, border: `1px solid ${C.divider}`, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <ChevronLeft size={18} color={C.navy} />
-            </button>
-            <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.coral, fontFamily: 'Albert Sans', fontWeight: 700 }}>
-              About your family
-            </div>
+          <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.coral, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+            About your family
           </div>
-          <button onClick={onClose} aria-label="Close" className="active:scale-[.94] transition-transform" style={{
-            width: 32, height: 32, borderRadius: 999, flexShrink: 0,
+          <button onClick={back} aria-label="Back" className="active:scale-[.94] transition-transform" style={{
+            width: 36, height: 36, borderRadius: 999, flexShrink: 0,
             background: C.paper, border: `1px solid ${C.divider}`, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <X size={15} color={C.ink} />
+            <ChevronLeft size={18} color={C.navy} />
           </button>
         </div>
         <div className="flex items-center gap-1.5" style={{ marginTop: 12 }}>
@@ -311,7 +299,6 @@ export const InterestsPreferencesSheet = ({ profile, onSave, onClose }) => {
           {!isLast && !blocked && <ArrowRight size={17} />}
         </button>
       </div>
-    </div>
     </div>
   );
 };

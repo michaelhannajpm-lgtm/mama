@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { C } from '../../../theme';
-import { Check, EyeOff, X, Pencil, MapPin, Eye, Archive, Trash2 } from 'lucide-react';
+import { Check, EyeOff, X, Pencil, MapPin, Eye, Archive, Trash2, Download, Plus } from 'lucide-react';
 import { PlaceEditModal } from './PlaceEditModal';
 import { PlacesMap } from './PlacesMap';
-import { MultiSelect, CollapsibleSearch, ViewMenu, StatusChips } from './AdminFilters';
+import { MultiSelect, CollapsibleSearch, TypeaheadSelect, ViewMenu, StatusChips } from './AdminFilters';
 import { hasRealPhoto, statusColor, rowActionsFor } from './adminRows';
 
 const CATS = ['fun', 'sports', 'wellness', 'schools', 'childcare', 'extracurricular', 'camps', 'health'];
@@ -80,6 +80,28 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   // Reset pagination when filters or page size change.
   useEffect(() => { setPage(1); }, [status, cats, origins, citySel, areaSel, photo, minRating, q, pageSize]);
 
+  // Deep-link target — the Featured manager dispatches this to open a place's
+  // edit modal from outside the tab. Mirrors the Users → Mom-profiles flow.
+  useEffect(() => {
+    let pendingId = null;
+    try { pendingId = sessionStorage.getItem('gm-admin-open-place'); } catch { /* ignore */ }
+    if (pendingId && rows?.length) {
+      const target = rows.find((r) => r.id === pendingId);
+      if (target) {
+        setEditing(target);
+        try { sessionStorage.removeItem('gm-admin-open-place'); } catch { /* ignore */ }
+      }
+    }
+    const onOpen = (ev) => {
+      const id = ev?.detail?.id;
+      if (!id) return;
+      const target = (rows || []).find((r) => r.id === id);
+      if (target) setEditing(target);
+    };
+    window.addEventListener('gm-admin-open-place', onOpen);
+    return () => window.removeEventListener('gm-admin-open-place', onOpen);
+  }, [rows]);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
@@ -134,35 +156,74 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
     </div>
   );
 
+  const exportCsv = () => {
+    if (!filtered.length) return;
+    const cols = [
+      'id', 'slug', 'name', 'category', 'badge', 'review_status', 'visible',
+      'origin', 'area', 'city', 'address', 'phone', 'website', 'reference_url',
+      'rating', 'review_count', 'price_level', 'lat', 'lng',
+      'age_min', 'age_max', 'kid_age_ranges', 'value_tags', 'interest_tags',
+      'mom_type_fit', 'neighborhoods', 'tags', 'good_for', 'amenities',
+      'is_featured', 'top_rank', 'created_at', 'updated_at',
+    ];
+    const esc = (v) => {
+      if (v == null) return '';
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const csv = [cols.join(','), ...filtered.map((r) => cols.map((k) => esc(r[k])).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gomama-places-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <div>
-      {/* Filter bar — Row 1: status chips (left) + view dropdown (right) */}
+      {/* Filter bar — Row 1: status chips (left) + view / export / add (right) */}
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <StatusChips status={status} setStatus={setStatus} counts={statusCounts} accent={C.terracotta} />
-        <div style={{ marginLeft: 'auto' }}>
+        <div className="flex items-center gap-2" style={{ marginLeft: 'auto' }}>
+          <button onClick={exportCsv} disabled={!filtered.length} style={{
+            ...selectStyle, cursor: filtered.length ? 'pointer' : 'default',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            opacity: filtered.length ? 1 : 0.55, fontWeight: 600,
+          }}>
+            <Download size={13} /> Export ({filtered.length})
+          </button>
+          <button onClick={() => setEditing({ __new: true })} style={{
+            background: C.terracotta, color: '#fff', border: 'none', borderRadius: 8,
+            padding: '6px 11px', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+          }}>
+            <Plus size={13} /> Add place
+          </button>
           <ViewMenu value={view} onChange={setView} options={[{ value: 'grid', label: 'Grid view' }, { value: 'map', label: 'Map view' }]} />
         </div>
       </div>
 
-      {/* Filter bar — Row 2: multi-select source / categories / areas / city + photo + rating */}
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      {/* Filter bar — Row 2: search FIRST, then multi-select filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <CollapsibleSearch value={q} onChange={setQ} accent={C.terracotta} />
         <MultiSelect label="Source" options={ORIGINS} selected={origins} onChange={setOrigins} accent={C.terracotta} />
         <MultiSelect label="Categories" options={CATS} selected={cats} onChange={setCats} accent={C.terracotta} />
         <MultiSelect label="Areas" options={areaOptions} selected={areaSel} onChange={setAreaSel} accent={C.terracotta} />
         <MultiSelect label="City" options={cityOptions} selected={citySel} onChange={setCitySel} accent={C.terracotta} />
-        <select value={photo} onChange={e => setPhoto(e.target.value)} style={selectStyle}>
-          <option value="any">Any photo</option>
-          <option value="has">Has photo</option>
-          <option value="none">No photo</option>
-        </select>
-        <select value={minRating} onChange={e => setMinRating(+e.target.value)} style={selectStyle}>
-          <option value={0}>any rating</option><option value={4}>4.0+</option><option value={4.5}>4.5+</option>
-        </select>
-      </div>
-
-      {/* Filter bar — Row 3: collapsible search */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <CollapsibleSearch value={q} onChange={setQ} accent={C.terracotta} />
+        <TypeaheadSelect label="Photo" value={photo} onChange={setPhoto} accent={C.terracotta}
+          options={[
+            { value: 'any', label: 'Any photo' },
+            { value: 'has', label: 'Has photo' },
+            { value: 'none', label: 'No photo' },
+          ]} />
+        <TypeaheadSelect label="Rating" value={minRating} onChange={setMinRating} accent={C.terracotta}
+          options={[
+            { value: 0, label: 'Any rating' },
+            { value: 4, label: '4.0+' },
+            { value: 4.5, label: '4.5+' },
+          ]} />
       </div>
 
       {/* Bulk action bar */}
