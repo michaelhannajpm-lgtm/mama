@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   const { sent, pruned } = await sendToUser(creds, user.id, {
     title: 'Go Mama ✦',
     body: "It's working — this is a test notification.",
-    url: '/prototype',
+    url: '/',
     tag: 'gomama-test',
   });
   return json(res, 200, { ok: true, sent, pruned });

@@ -4,7 +4,7 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/data-deletion", "destination": "/data-deletion.html" },
     {
-      "source": "/((?!api/|@vite/|@react-refresh|src/|node_modules/|.*\\..*).*)",
+      "source": "/((?!api/|@vite/|@react-refresh|src/|node_modules/|prototype|.*\\..*).*)",
       "destination": "/"
     }
   ],

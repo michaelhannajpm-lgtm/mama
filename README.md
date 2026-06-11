@@ -6,7 +6,6 @@ The product is scheduling-first: Go Mama helps moms find nearby people who overl
 
 ```txt
 Live site:  https://gomama.app
-Prototype:  https://gomama.app/prototype
 GitHub:     git@github.com:michaelhannajpm-lgtm/mama.git
 ```
 
@@ -27,9 +26,9 @@ The database is **Postgres**, managed by Supabase. Schema lives in `supabase/*.s
 
 ## Current App
 
-- `/prototype` renders the phone-framed product prototype.
+- `/` renders the phone-framed product app.
 - `/api/onboarding/*` is the in-progress onboarding persistence layer.
-- `vercel.json` rewrites `/prototype` to the SPA entrypoint so direct links work on Vercel.
+- `vercel.json` rewrites unknown paths to the SPA entrypoint so direct links resolve on Vercel.
 
 ## Product Areas
 
@@ -62,7 +61,7 @@ api/
     get.js                    Load saved onboarding profile
 
 src/
-  App.jsx                     Route switch between admin and prototype
+  App.jsx                     Route switch between admin and the app
   lib/
     onboarding.js             Client helpers for onboarding persistence
     supabase.js               Browser Supabase auth client
@@ -98,7 +97,6 @@ Local routes:
 
 ```txt
 http://localhost:5173/
-http://localhost:5173/prototype
 ```
 
 Build:
@@ -181,8 +179,8 @@ Both tables have RLS enabled. The intended access pattern is server-side writes 
 For OAuth, configure Supabase Auth providers and callback URLs to return to:
 
 ```txt
-https://mama-iota-weld.vercel.app/prototype
-http://localhost:5173/prototype
+https://mama-iota-weld.vercel.app/
+http://localhost:5173/
 ```
 
 ## Deployment

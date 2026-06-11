@@ -48,7 +48,7 @@ const handleMessage = async (creds, messageId) => {
     body: isGroup && message.author_name
       ? `${message.author_name}: ${snippet(message.body)}`
       : snippet(message.body),
-    url: '/prototype',
+    url: '/',
     tag: `conversation-${message.conversation_id}`,
   };
 
