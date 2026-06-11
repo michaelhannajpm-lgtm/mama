@@ -21,6 +21,7 @@ import {
   EmptyState, BusyOverlay, fmt, pct, rel,
 } from '../components/primitives';
 import { useConfirm } from '../components/ConfirmDialog';
+import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES, DAYS, TIME_WINDOWS } from '../../../data/taxonomy';
 
 // Stable chip palettes for read-only displays.
@@ -61,21 +62,30 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload, reloading 
     let pendingId = null;
     try { pendingId = sessionStorage.getItem('gm-admin-open-mom'); } catch { /* ignore */ }
     if (pendingId && rows?.length) {
-      const target = rows.find((r) => r.id === pendingId);
+      const target = rows.find((r) => r.id === pendingId || r.username === pendingId);
       if (target) {
         setSelectedMom(target);
         try { sessionStorage.removeItem('gm-admin-open-mom'); } catch { /* ignore */ }
       }
     }
     const onOpen = (ev) => {
-      const id = ev?.detail?.id;
-      if (!id) return;
-      const target = (rows || []).find((r) => r.id === id);
+      const ref = ev?.detail?.id;
+      if (!ref) return;
+      const target = (rows || []).find((r) => r.id === ref || r.username === ref);
       if (target) setSelectedMom(target);
     };
     window.addEventListener('gm-admin-open-mom', onOpen);
     return () => window.removeEventListener('gm-admin-open-mom', onOpen);
   }, [rows]);
+
+  // Sync the address bar with the open profile (canonical id form).
+  useEffect(() => {
+    if (selectedMom && selectedMom.id) {
+      navigateRecord('mom-profiles', selectedMom.id);
+    } else if (!selectedMom && currentRecordRef()) {
+      navigateSection('mom-profiles');
+    }
+  }, [selectedMom]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
