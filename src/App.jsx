@@ -3,6 +3,7 @@ import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
 import { AdminPage } from './AdminPage';
 import { PhoneFrame } from './components/PhoneFrame';
+import { AuthLoading } from './components/AuthLoading';
 import { Toast } from './components/Toast';
 import { ScheduleSheet } from './sheets/ScheduleSheet';
 
@@ -35,7 +36,7 @@ import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat } from
 import { captureIncomingRef } from './lib/referral';
 import { derivePresence } from './lib/presence';
 import { computeVerified } from './lib/social-verify';
-import { ensureSession } from './lib/supabase';
+import { ensureSession, hasStoredSession } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces, fetchConfig } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
@@ -55,6 +56,11 @@ function PrototypeApp({ bare = false }) {
   const fullScreen = bare || isNarrow;
   const [step, setStep] = useState(0);
   const [splashShown, setSplashShown] = useState(false);
+  // True only while we're resolving a *persisted* session on launch. Seeded
+  // synchronously from localStorage so a returning mom's first paint is the
+  // quiet AuthLoading gate, not a flash of Landing before promoteSession()
+  // swaps her into MainApp. New visitors start false → Landing shows instantly.
+  const [authResolving, setAuthResolving] = useState(() => hasStoredSession());
   const [loginOpen, setLoginOpen] = useState(false);
   const [seededLoginOpen, setSeededLoginOpen] = useState(false);
   const [seededMoms, setSeededMoms] = useState([]);
@@ -332,6 +338,11 @@ function PrototypeApp({ bare = false }) {
         flash(`Welcome back, ${result.first_name} ✦`);
       } catch {
         /* silent */
+      } finally {
+        // Auth outcome is now known (signed in → splashShown already set above,
+        // or no session → fall through to Landing). Drop the launch gate either
+        // way so we never hang on the loading screen.
+        if (!cancelled) setAuthResolving(false);
       }
     };
 
@@ -414,7 +425,9 @@ function PrototypeApp({ bare = false }) {
 
   const inner = (
     <div className="w-full h-full relative">
-      {!splashShown && loginOpen ? (
+      {authResolving ? (
+            <AuthLoading/>
+          ) : !splashShown && loginOpen ? (
             <Login
               onBack={() => setLoginOpen(false)}
               onSuccess={(acct) => {
