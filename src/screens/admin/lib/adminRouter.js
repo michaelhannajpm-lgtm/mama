@@ -11,16 +11,40 @@ import { useEffect, useState } from 'react';
 export const ADMIN_BASE = '/admin';
 const DEFAULT_SECTION = 'overview';
 
-export const currentSectionId = () => {
-  const p = window.location.pathname.replace(/\/+$/, '');
-  if (p === ADMIN_BASE || p === '') return DEFAULT_SECTION;
+// Pure: parse an admin pathname into { section, ref }. ref is the decoded
+// record segment after the section, or null. Used by the URL→record bridge.
+export const parseAdminPath = (pathname) => {
+  const p = (pathname || '').replace(/\/+$/, '');
+  if (p === ADMIN_BASE || p === '') return { section: DEFAULT_SECTION, ref: null };
   if (p.startsWith(`${ADMIN_BASE}/`)) {
-    return p.slice(ADMIN_BASE.length + 1).split('/')[0] || DEFAULT_SECTION;
+    const parts = p.slice(ADMIN_BASE.length + 1).split('/');
+    let ref = null;
+    if (parts[1]) { try { ref = decodeURIComponent(parts[1]); } catch { ref = parts[1]; } }
+    return { section: parts[0] || DEFAULT_SECTION, ref };
   }
-  return DEFAULT_SECTION;
+  return { section: DEFAULT_SECTION, ref: null };
 };
 
+export const currentSectionId = () => parseAdminPath(window.location.pathname).section;
+
+export const currentRecordRef = () => parseAdminPath(window.location.pathname).ref;
+
 export const sectionPath = (id) => (id === DEFAULT_SECTION ? ADMIN_BASE : `${ADMIN_BASE}/${id}`);
+
+// Build a deep-link path. ref is URL-encoded; omitted when null.
+export const recordPath = (section, ref) => {
+  const base = section === DEFAULT_SECTION ? ADMIN_BASE : `${ADMIN_BASE}/${section}`;
+  return ref ? `${base}/${encodeURIComponent(ref)}` : base;
+};
+
+// Navigate to a record deep-link (pushState + broadcast), like navigateSection.
+export const navigateRecord = (section, ref) => {
+  const url = recordPath(section, ref);
+  if (window.location.pathname.replace(/\/+$/, '') !== url.replace(/\/+$/, '')) {
+    window.history.pushState({}, '', url);
+  }
+  window.dispatchEvent(new Event('gm-admin-navigate'));
+};
 
 export const navigateSection = (id) => {
   const url = sectionPath(id);
