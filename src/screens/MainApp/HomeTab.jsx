@@ -9,22 +9,18 @@ import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { buildAgeRail, childList } from '../../lib/age-rail';
 import { profileCompletion } from '../../lib/profile-completion';
-import { scoreDiscussion, rankByRelevance } from '../../lib/content-score';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { MomDetailSheet } from '../../sheets/MomDetailSheet';
-import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 
 // ==========================================================================
 // HomeTab — editorial landing feed.
 //
 //   • Greeting + "Here's what's happening near you"
-//   • 3 fun things happening near you (horizontal scroll of 3 cards,
-//     same shape as Upcoming Meetups)
+//   • Local Events Nearby (horizontal scroll of 3 cards)
 //   • Moms You May Want To Meet (horizontal preview cards)
 //   • Upcoming Meetups (cards with host avatar overlay)
-//   • Active Group Chats (colored-dot chips)
 //   • Based On Your Child's Age (age-personalized programs)
 //   • Continue Planning (2x2 saved-items grid)
 //   • Local Favorite This Week (featured card)
@@ -238,33 +234,6 @@ const MeetupCard = ({ item, onClick }) => (
   </button>
 );
 
-// -------------------------- Group chat chip --------------------------
-
-const GROUP_DOT = [C.coralDeep, '#3F8AC8', C.sageDark, C.saffron];
-
-const GroupChatChip = ({ item, index, onClick }) => (
-  <button onClick={onClick} className="active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
-    background: '#fff', border: `1px solid ${C.line}`,
-    borderRadius: 999, padding: '8px 13px 8px 11px',
-    boxShadow: '0 3px 9px -7px rgba(27,42,78,.25)',
-    cursor: 'pointer',
-  }}>
-    <span style={{
-      width: 9, height: 9, borderRadius: 5,
-      background: GROUP_DOT[index % GROUP_DOT.length], flexShrink: 0,
-    }}/>
-    <div style={{ textAlign: 'left' }}>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800, color: C.navy, lineHeight: 1 }}>
-        {item.title}
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 2 }}>
-        {item.members} members
-      </div>
-    </div>
-  </button>
-);
-
 // -------------------------- Age program card --------------------------
 
 const AgeProgramCard = ({ item, onClick }) => {
@@ -411,24 +380,21 @@ const LocalFavoriteCard = ({ item, onClick }) => (
 
 export const HomeTab = ({
   thisWeek = [], events = [],
-  places = null, nearbyMoms = [], groups = [],
+  places = null, nearbyMoms = [],
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToActivities, goToMeetups, goToKidsPrograms,
-  goToConnectMoms, goToConnectGroups, onVerify, openVillage,
+  goToConnectMoms, onVerify, openVillage,
   location,
   city = 'Tampa',
   locationLabel, openLocation,
   localFavorite = null,
   onDiscuss,
-  chatAuthor, myUserId,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [selectedMom, setSelectedMom] = useState(null);
-  const [selectedDiscussion, setSelectedDiscussion] = useState(null);
-  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
   const [invited, setInvited] = useState({});
   const [shareItem, setShareItem] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState({});
@@ -512,23 +478,6 @@ export const HomeTab = ({
     },
   ];
 
-  // Active Group Chats — pull from `groups` (TOP_DISCUSSIONS) when present,
-  // else use a curated fallback.
-  const GROUP_CHAT_FALLBACK = [
-    { id: 'gc-1', title: 'SouthShore Moms',      members: 156 },
-    { id: 'gc-2', title: 'Toddler Moms',         members: 200 },
-    { id: 'gc-3', title: 'Tampa Working Moms',   members: 98  },
-    { id: 'gc-4', title: 'Weekend Adventures',   members: 65  },
-  ];
-  const groupChats = groups.length > 0
-    ? rankByRelevance(groups, profile, scoreDiscussion).slice(0, 6).map(g => ({
-        id: g.id,
-        title: g.title,
-        members: g.members ?? GROUP_CHAT_FALLBACK[0].members,
-        raw: g,
-      }))
-    : GROUP_CHAT_FALLBACK;
-
   // Based On Your Child's Age — real, kid-age-ranked places + events.
   const ageKids = childList(profile);
   const ageRailAll = buildAgeRail(profile, places, { thisWeek, events }, { limit: 12 });
@@ -591,11 +540,6 @@ export const HomeTab = ({
     rating: p.rating, reviews: p.review_count,
     tag: p.area || p.city, distance: p.distance || 'Near you', kind: 'Place',
   });
-  const openGroup = (g) => {
-    if (g.raw) setSelectedDiscussion(g.raw);
-    else setSelectedDiscussion({ id: g.id, title: g.title, members: g.members });
-  };
-
   const continueRoute = (item) => {
     if (item.type === 'meetup' && goToMeetups)       goToMeetups();
     else if (item.type === 'place' && goToPlaces)    goToPlaces();
@@ -722,14 +666,6 @@ export const HomeTab = ({
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
           {UPCOMING_MEETUPS.map(m => (
             <MeetupCard key={m.id} item={m} onClick={() => openMeetup(m)}/>
-          ))}
-        </div>
-
-        {/* Active Group Chats */}
-        <SectionHead title="Active Group Chats" onLink={goToConnectGroups}/>
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-          {groupChats.map((g, i) => (
-            <GroupChatChip key={g.id} item={g} index={i} onClick={() => openGroup(g)}/>
           ))}
         </div>
 
@@ -897,32 +833,6 @@ export const HomeTab = ({
             place: selectedMom.distance, photo: selectedMom.photo,
           })}
           onClose={() => setSelectedMom(null)}
-        />
-      )}
-
-      {selectedDiscussion && (
-        <GroupDiscussionSheet
-          discussion={selectedDiscussion}
-          joined={joinedDiscussions.has(selectedDiscussion.id)}
-          onToggleJoin={() => {
-            setJoinedDiscussions(prev => {
-              const next = new Set(prev);
-              if (next.has(selectedDiscussion.id)) {
-                next.delete(selectedDiscussion.id);
-                flash?.(`Left ${selectedDiscussion.title}`);
-              } else {
-                next.add(selectedDiscussion.id);
-                flash?.(`✦ Joined ${selectedDiscussion.title}`);
-              }
-              return next;
-            });
-          }}
-          onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
-          onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
-          flash={flash}
-          author={chatAuthor}
-          myUserId={myUserId}
-          onClose={() => setSelectedDiscussion(null)}
         />
       )}
 

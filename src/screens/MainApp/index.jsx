@@ -185,7 +185,7 @@ export const MainApp = ({
 
       {tab === 'home' && <HomeTab
         thisWeek={thisWeek} events={events}
-        places={places} nearbyMoms={nearbyMoms} groups={TOP_DISCUSSIONS}
+        places={places} nearbyMoms={nearbyMoms}
         localFavorite={localFavorite}
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
@@ -197,16 +197,13 @@ export const MainApp = ({
         goToMeetups={() => goToExploreSeeAll('meetups')}
         goToKidsPrograms={() => goToExploreSeeAll('kids')}
         goToConnectMoms={() => goToConnectSeeAll('moms')}
-        goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
         location={location}
         city={locationGeo?.city || location || 'Tampa'}
         locationLabel={locationLabel}
         openLocation={() => setLocationOpen(true)}
         openVillage={() => setVillageOpen(true)}
-        onDiscuss={setSubjectThread}
-        chatAuthor={chatAuthor}
-        myUserId={myUserId}/>}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
