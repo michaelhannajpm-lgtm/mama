@@ -62,15 +62,32 @@ export const recordStep = (step, patch = {}) => {
 
 const toPhoneE164 = (phone) => `+1${(phone || '').replace(/\D/g, '')}`;
 
-const friendlyAuthError = (error) => {
+// Map a Supabase auth error to a user-facing message. `phase` separates the
+// SEND step (signInWithOtp / updateUser) from the VERIFY step (verifyOtp):
+// only a verify failure may say "that code doesn't match". A send-step provider
+// error (e.g. Twilio "Invalid From Number") must NOT be rewritten as a bad
+// code — otherwise an SMS misconfig masquerades as a verification problem and
+// hides the real cause. The raw error is preserved on `err.cause` for debugging.
+const friendlyAuthError = (error, { phase = 'verify' } = {}) => {
   const msg = error?.message || 'Something went wrong';
-  const friendly =
-    /expired/i.test(msg) ? 'That code expired — tap “Resend code” for a new one.' :
-    /invalid|incorrect|token/i.test(msg) ? "That code doesn't match. Double-check and try again." :
-    /rate limit|too many|security purposes/i.test(msg) ? 'Too many attempts — wait a moment, then try again.' :
-    msg;
+  let friendly;
+  if (/rate limit|too many|security purposes/i.test(msg)) {
+    friendly = 'Too many attempts — wait a moment, then try again.';
+  } else if (phase === 'send') {
+    // The code never went out — surface a delivery problem, not a code problem.
+    // Log the real provider error so a misconfig fails loudly in the console.
+    console.warn('[auth] OTP send failed:', msg);
+    friendly = "We couldn't send your code right now — please try again in a moment.";
+  } else if (/expired/i.test(msg)) {
+    friendly = 'That code expired — tap “Resend code” for a new one.';
+  } else if (/invalid|incorrect|token|otp/i.test(msg)) {
+    friendly = "That code doesn't match. Double-check and try again.";
+  } else {
+    friendly = msg;
+  }
   const err = new Error(friendly);
   err.status = error?.status;
+  err.cause = error;
   return err;
 };
 
@@ -97,7 +114,7 @@ export const sendOtp = async ({ method, phone, email, firstName, agreedTerms }) 
       };
 
   const { error } = await supabase.auth.signInWithOtp(target);
-  if (error) throw friendlyAuthError(error);
+  if (error) throw friendlyAuthError(error, { phase: 'send' });
   return { ok: true };
 };
 
@@ -113,7 +130,7 @@ export const verifyOtp = async ({ method, phone, email, token, local }) => {
     : { email: (email || '').trim().toLowerCase(), token, type: 'email' };
 
   const { data, error } = await supabase.auth.verifyOtp(params);
-  if (error) throw friendlyAuthError(error);
+  if (error) throw friendlyAuthError(error, { phase: 'verify' });
   return data; // { session, user }
 };
 
@@ -129,7 +146,7 @@ export const requestContactChange = async ({ kind, value }) => {
     ? { phone: toPhoneE164(value) }
     : { email: (value || '').trim().toLowerCase() };
   const { error } = await supabase.auth.updateUser(payload);
-  if (error) throw friendlyAuthError(error);
+  if (error) throw friendlyAuthError(error, { phase: 'send' });
   return { ok: true };
 };
 
@@ -144,7 +161,7 @@ export const confirmContactChange = async ({ kind, value, token }) => {
     ? { phone: toPhoneE164(value), token, type: 'phone_change' }
     : { email: (value || '').trim().toLowerCase(), token, type: 'email_change' };
   const { error } = await supabase.auth.verifyOtp(params);
-  if (error) throw friendlyAuthError(error);
+  if (error) throw friendlyAuthError(error, { phase: 'verify' });
 
   const access_token = (await supabase.auth.getSession()).data?.session?.access_token || null;
   if (access_token) {
