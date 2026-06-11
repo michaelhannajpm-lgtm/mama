@@ -1,28 +1,123 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   MapPin, School, Brain, Star,
   Music, Activity, Sparkles, ChevronRight,
   HeartHandshake, Stethoscope, Users,
-  SlidersHorizontal, ShieldCheck, Palette, BookOpen,
-  Tent, Trees,
+  ShieldCheck, Palette, BookOpen,
+  Tent, Trees, CalendarDays, Clock,
+  Bookmark, Check,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
+import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
+import { RateSheet } from '../../sheets/RateSheet';
 import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
 
 // ==========================================================================
-// LocalPicksTab — V5 "Local Picks" surface.
+// LocalPicksTab — the "Explore" surface (file kept, exported as
+// LocalPicksTab and rendered when the Explore tab is active).
 //
 //   Sections (in order):
-//     1. Top places nearby      — photo cards w/ rating + distance
-//     2. Fun & entertainment    — photo cards (zoos, museums, attractions)
-//     3. Schools & childcare    — photo cards w/ rating + tag
-//     4. Extracurricular & camps — icon cards (classes, camps, programs)
-//     5. Health & wellness       — photo cards (pediatric, mental, postpartum)
+//     1. Events                  — recurring + one-off group activities
+//     2. Meetups                 — small mom-led playdates
+//     3. Top local picks         — curated nearby spots
+//     4. Kids programs           — classes + camps
+//     5. Schools & childcare     — preschools, daycares, K-8
+//     6. Health & wellness       — pediatric, mental, postpartum
+//
+//   Each section shows ~2.2 cards horizontally (peek of the next card to
+//   hint scrollability). A coral "Explore more using advanced filters"
+//   CTA at the bottom opens PlacesFilterSheet.
 // ==========================================================================
+
+// 0a. Events — large/recurring group activities.
+const EVENTS_EXPLORE = [
+  {
+    id: 'ev_stroll', title: 'Stroller Walk + Coffee',
+    when: 'Tue · 9:00 AM', going: 8, distance: '1.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1483721310020-03333e577078?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_storytime', title: 'Storytime + Coffee',
+    when: 'Wed · 10:00 AM', going: 6, distance: '2.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_brunch', title: 'Saturday Mom Brunch',
+    when: 'Sat · 12:30 PM', going: 7, distance: '1.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop',
+  },
+];
+
+const EVENTS_EXPLORE_ALL = [
+  ...EVENTS_EXPLORE,
+  {
+    id: 'ev_playgroup', title: 'Saturday Playgroup',
+    when: 'Sat · 10:30 AM', going: 12, distance: '2.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_yoga', title: 'Mom + Baby Yoga',
+    when: 'Fri · 9:30 AM', going: 4, distance: '0.9 mi away',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_picnic', title: 'Sunday Park Picnic',
+    when: 'Sun · 1:00 PM', going: 9, distance: '1.0 mi away',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'ev_kidsfair', title: 'Tampa Kids & Family Fair',
+    when: 'Sat · 11:00 AM', going: 41, distance: '3.2 mi away',
+    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+  },
+];
+
+// 0b. Meetups — small, informal, mom-led.
+const MEETUPS_EXPLORE = [
+  {
+    id: 'mt_coffee', title: 'Coffee Hour at Buddy Brew',
+    when: 'Thu · 10:00 AM', going: 5, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_sunset', title: 'Sunset Stroll · Bayshore',
+    when: 'Mon · 6:00 PM', going: 5, distance: '1.3 mi away',
+    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_libplay', title: 'Library Playdate',
+    when: 'Wed · 11:00 AM', going: 4, distance: '1.4 mi away',
+    photo: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&auto=format&fit=crop',
+  },
+];
+
+const MEETUPS_EXPLORE_ALL = [
+  ...MEETUPS_EXPLORE,
+  {
+    id: 'mt_dadpark', title: 'Davis Islands Park Hang',
+    when: 'Sat · 9:30 AM', going: 6, distance: '1.1 mi away',
+    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_armtre', title: 'Armature Works Breakfast',
+    when: 'Fri · 8:30 AM', going: 3, distance: '0.8 mi away',
+    photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_hydekids', title: 'Hyde Park Toddler Run',
+    when: 'Tue · 10:00 AM', going: 5, distance: '0.5 mi away',
+    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'mt_curtisfair', title: 'Curtis Hixon Splash Hangout',
+    when: 'Thu · 11:00 AM', going: 7, distance: '0.6 mi away',
+    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
+  },
+];
 
 // 1. Top places nearby — curated nearby family-friendly spots.
 const TOP_PLACES_NEARBY = [
@@ -278,24 +373,67 @@ const HEALTH_WELLNESS_ALL = [
   },
 ];
 
+// Tag events vs. meetups so the combined events SeeAll can split them with
+// the "Meetups" quick-filter chip, and the meetups SeeAll can stay scoped.
+const tagSource = (arr, src) => arr.map(it => ({ ...it, _source: src }));
+const EVENTS_TAGGED        = tagSource(EVENTS_EXPLORE,        'event');
+const EVENTS_ALL_TAGGED    = tagSource(EVENTS_EXPLORE_ALL,    'event');
+const MEETUPS_TAGGED       = tagSource(MEETUPS_EXPLORE,       'meetup');
+const MEETUPS_ALL_TAGGED   = tagSource(MEETUPS_EXPLORE_ALL,   'meetup');
+// Events SeeAll surfaces both; the homepage section keeps showing just events.
+const EVENTS_PLUS_MEETUPS_ALL = [...EVENTS_ALL_TAGGED, ...MEETUPS_ALL_TAGGED];
+
+// Sub-category tag per Health & wellness item — drives the visible chip row
+// (Wellness / Pediatricians / Therapists / Dentists). Each item belongs to one.
+const HEALTH_CAT_BY_ID = {
+  hw_ped: 'pediatricians',
+  hw_men: 'therapists',
+  hw_pp:  'wellness',
+  hw_lac: 'wellness',
+  hw_sle: 'wellness',
+  hw_ot:  'therapists',
+  hw_doc: 'wellness',
+  hw_yog: 'wellness',
+  hw_dent:'dentists',
+};
+const tagHealth = (arr) => arr.map(it => ({ ...it, _health: HEALTH_CAT_BY_ID[it.id] || 'wellness' }));
+const HEALTH_WELLNESS_TAGGED     = tagHealth(HEALTH_WELLNESS);
+const HEALTH_WELLNESS_ALL_TAGGED = tagHealth(HEALTH_WELLNESS_ALL);
+
 // Section metadata — keeps the rendering loop declarative and lets the
 // Category filter map titles to data sources without a giant switch.
 const SECTIONS = [
   {
+    key: 'events',
+    title: 'Events',
+    kind: 'event',
+    items: EVENTS_TAGGED,
+    allItems: EVENTS_PLUS_MEETUPS_ALL,
+    seeAllSubtitle: 'Events + meetups · this week',
+  },
+  {
+    key: 'meetups',
+    title: 'Meetups',
+    kind: 'event',
+    items: MEETUPS_TAGGED,
+    allItems: MEETUPS_ALL_TAGGED,
+    seeAllSubtitle: 'Small, informal, mom-led',
+  },
+  {
     key: 'places',
-    title: 'Top Spots',
+    title: 'Top local picks',
     kind: 'photo',
     items: TOP_PLACES_NEARBY,
     allItems: TOP_PLACES_NEARBY_ALL,
     seeAllSubtitle: 'Top rated near you',
   },
   {
-    key: 'fun',
-    title: 'Fun & entertainment',
-    kind: 'photo',
-    items: FUN_ENTERTAINMENT,
-    allItems: FUN_ENTERTAINMENT_ALL,
-    seeAllSubtitle: 'Days out, weekend ideas',
+    key: 'kids',
+    title: 'Kids programs',
+    kind: 'program',
+    items: EXTRACURRICULAR_CAMPS,
+    allItems: EXTRACURRICULAR_CAMPS_ALL,
+    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
   },
   {
     key: 'schools',
@@ -306,62 +444,62 @@ const SECTIONS = [
     seeAllSubtitle: `${SCHOOLS_CHILDCARE_ALL.length} options within 5 mi`,
   },
   {
-    key: 'extras',
-    title: 'Extracurricular & camps',
-    kind: 'program',
-    items: EXTRACURRICULAR_CAMPS,
-    allItems: EXTRACURRICULAR_CAMPS_ALL,
-    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
-  },
-  {
     key: 'health',
     title: 'Health & wellness',
     kind: 'photo',
-    items: HEALTH_WELLNESS,
-    allItems: HEALTH_WELLNESS_ALL,
+    items: HEALTH_WELLNESS_TAGGED,
+    allItems: HEALTH_WELLNESS_ALL_TAGGED,
     seeAllSubtitle: 'Pediatric, mental, postpartum',
   },
 ];
 
 // Map section keys to filter Category labels for filtering visibility.
 const SECTION_CATEGORY = {
-  places:  'Top Spots',
-  fun:     'Fun & entertainment',
+  events:  'Events',
+  meetups: 'Meetups',
+  places:  'Top local picks',
+  kids:    'Kids programs',
   schools: 'Schools & childcare',
-  extras:  'Extracurricular & camps',
   health:  'Health & wellness',
 };
 
 // Only data-backed quick filters (wired in quickFilterMatch). Unbacked chips
 // like Rainy day / Live events / Waitlist / Mental / Postpartum were removed.
 const QUICK_FILTERS_BY_SECTION = {
+  events: [
+    { id: 'thisweek',    label: 'This week',    icon: CalendarDays },
+    { id: 'thisweekend', label: 'This weekend'                      },
+    { id: 'free',        label: 'Free'                               },
+    { id: 'meetups',     label: 'Meetups',      icon: Users          },
+  ],
+  meetups: [
+    { id: 'small',       label: 'Small (≤6)',   icon: Users   },
+    { id: 'thisweek',    label: 'This week',    icon: Clock   },
+    { id: 'thisweekend', label: 'This weekend'                 },
+    { id: 'near5',       label: '< 5 mi',       icon: MapPin  },
+  ],
   places: [
     { id: 'free',     label: 'Free'                                 },
     { id: 'indoor',   label: 'Indoor'                               },
     { id: 'outdoor',  label: 'Outdoor'                              },
     { id: 'stroller', label: 'Stroller-friendly', icon: ShieldCheck },
   ],
-  fun: [
-    { id: 'top',     label: 'Top rated', icon: Star  },
-    { id: 'near',    label: 'Near me',   icon: MapPin },
-    { id: 'indoor',  label: 'Indoor'                  },
-    { id: 'outdoor', label: 'Outdoor'                 },
-    { id: 'free',    label: 'Free'                    },
+  // Mirrors the last 3 stages from onboarding's "What stage are you in?".
+  kids: [
+    { id: 'schoolage', label: 'School-age', icon: BookOpen },
+    { id: 'tween',     label: 'Tween',      icon: Users    },
+    { id: 'teen',      label: 'Teen',       icon: Sparkles },
   ],
   schools: [
     { id: 'top',  label: 'Top rated', icon: Star  },
     { id: 'near', label: 'Near me',   icon: MapPin },
   ],
-  extras: [
-    { id: 'baby', label: 'Baby (0–1)',    icon: Sparkles },
-    { id: 'tod',  label: 'Toddler (1–3)', icon: Activity },
-    { id: 'pre',  label: 'Pre-K (3–5)',   icon: BookOpen },
-    { id: 'kid',  label: 'Kid (5+)',      icon: Users    },
-    { id: 'top',  label: 'Top rated',     icon: Star     },
-  ],
+  // Each chip maps to a single _health sub-category.
   health: [
-    { id: 'top',  label: 'Top rated', icon: Star  },
-    { id: 'near', label: 'Near me',   icon: MapPin },
+    { id: 'wellness',     label: 'Wellness',      icon: HeartHandshake },
+    { id: 'pediatricians',label: 'Pediatricians', icon: Stethoscope    },
+    { id: 'therapists',   label: 'Therapists',    icon: Brain          },
+    { id: 'dentists',     label: 'Dentists',      icon: Sparkles       },
   ],
 };
 
@@ -392,17 +530,141 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
 );
 
 
-const PhotoCard = ({ item, onClick }) => (
+// SaveBadge — bookmark overlay on the photo. Rendered when the parent
+// supplies onSave; outer card stays a <button> for keyboard a11y, so the
+// badge is a <div role="button"> (no nested <button>) with stopPropagation
+// so a tap doesn't also open the detail sheet.
+const SaveBadge = ({ saved, onClick }) => (
+  <div
+    role="button"
+    aria-label={saved ? 'Remove from saved' : 'Save'}
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      position: 'absolute', top: 6, right: 6,
+      width: 28, height: 28, borderRadius: 14,
+      background: 'rgba(255,255,255,.95)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer',
+      boxShadow: '0 2px 6px rgba(27,42,78,.2)',
+    }}
+  >
+    <Bookmark
+      size={14}
+      color={saved ? C.coralDeep : C.navy}
+      fill={saved ? C.coralDeep : 'none'}
+      strokeWidth={2}
+    />
+  </div>
+);
+
+// GoingButton — "I'm going" CTA at the bottom of Event / Meetup cards in
+// SeeAll views. Flips to a sage "Going" state once tapped. Same stop-prop
+// trick as SaveBadge.
+const GoingButton = ({ going, onClick }) => (
+  <div
+    role="button"
+    aria-label={going ? 'Cancel RSVP' : 'I am going'}
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      marginTop: 8, height: 32, borderRadius: 8,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      background: going ? C.sage : `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+      color: going ? C.sageDark : '#fff',
+      border: going ? `1px solid ${C.sageDark}` : 'none',
+      cursor: 'pointer',
+      fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
+    }}
+  >
+    {going ? <><Check size={12}/> I'm going</> : "I'm going"}
+  </div>
+);
+
+// RateButton — "Rate" CTA at the bottom of Place / Program / School cards
+// in SeeAll views. Shows the user's current rating when they've rated.
+const RateButton = ({ rating, onClick }) => (
+  <div
+    role="button"
+    aria-label="Rate this place"
+    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    style={{
+      marginTop: 8, height: 32, borderRadius: 8,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      background: rating > 0 ? C.saffron : C.paper,
+      color: rating > 0 ? '#fff' : C.navy,
+      border: rating > 0 ? 'none' : `1px solid ${C.divider}`,
+      cursor: 'pointer',
+      fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 11.5,
+    }}
+  >
+    {rating > 0
+      ? <><Star size={12} fill="#fff" color="#fff"/> {rating} / 5</>
+      : <><Star size={12} color={C.saffron} fill={C.saffron}/> Rate</>}
+  </div>
+);
+
+// Event card — photo + name + when + going count + distance. Used for
+// both Events and Meetups (same shape, different data sets).
+const EventCard = ({ item, onClick, saved, onSave, going, onGoing }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
     padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
   }}>
-    <img src={item.photo} alt="" style={{
-      width: '100%', height: 96, objectFit: 'cover', display: 'block',
-    }}/>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
+    <div style={{ padding: '8px 10px 10px' }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
+        color: C.navy, lineHeight: 1.25,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden', minHeight: 31,
+      }}>
+        {item.title}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4, marginTop: 5,
+        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, color: C.coralDeep,
+      }}>
+        <Clock size={10}/> {item.when}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginTop: 3,
+        fontFamily: 'Albert Sans', fontSize: 10, color: C.muted,
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Users size={10}/> {item.going} going
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <MapPin size={10}/> {item.distance}
+        </span>
+      </div>
+      {onGoing && <GoingButton going={going} onClick={onGoing}/>}
+    </div>
+  </button>
+);
+
+const PhotoCard = ({ item, onClick, saved, onSave, myRating, onRate }) => (
+  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
+    background: '#fff', borderRadius: 12,
+    border: `1px solid ${C.line}`,
+    boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
+    overflow: 'hidden',
+    padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
+  }}>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
     <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -430,11 +692,12 @@ const PhotoCard = ({ item, onClick }) => (
           <MapPin size={10}/> {item.distance}
         </span>
       </div>
+      {onRate && <RateButton rating={myRating} onClick={onRate}/>}
     </div>
   </button>
 );
 
-const ProgramCard = ({ item, onClick }) => {
+const ProgramCard = ({ item, onClick, saved, onSave, myRating, onRate }) => {
   const Icon = item.Icon;
   return (
     <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
@@ -443,19 +706,23 @@ const ProgramCard = ({ item, onClick }) => {
       boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
       overflow: 'hidden',
       padding: 0, cursor: 'pointer',
+      width: '100%', height: '100%',
     }}>
-      {item.photo ? (
-        <img src={item.photo} alt="" style={{
-          width: '100%', height: 96, objectFit: 'cover', display: 'block',
-        }}/>
-      ) : (
-        <div style={{
-          height: 96, background: item.bg, color: item.fg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={36}/>
-        </div>
-      )}
+      <div style={{ position: 'relative' }}>
+        {item.photo ? (
+          <img src={item.photo} alt="" style={{
+            width: '100%', height: 96, objectFit: 'cover', display: 'block',
+          }}/>
+        ) : (
+          <div style={{
+            height: 96, background: item.bg, color: item.fg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Icon size={36}/>
+          </div>
+        )}
+        {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+      </div>
       <div style={{ padding: '8px 10px 10px' }}>
         <div style={{
           fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -474,22 +741,27 @@ const ProgramCard = ({ item, onClick }) => {
         }}>
           <MapPin size={10}/> {item.distance}
         </div>
+        {onRate && <RateButton rating={myRating} onClick={onRate}/>}
       </div>
     </button>
   );
 };
 
-const SchoolCard = ({ item, onClick }) => (
+const SchoolCard = ({ item, onClick, saved, onSave, myRating, onRate }) => (
   <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
     background: '#fff', borderRadius: 12,
     border: `1px solid ${C.line}`,
     boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
     overflow: 'hidden',
     padding: 0, cursor: 'pointer',
+    width: '100%', height: '100%',
   }}>
-    <img src={item.photo} alt="" style={{
-      width: '100%', height: 96, objectFit: 'cover', display: 'block',
-    }}/>
+    <div style={{ position: 'relative' }}>
+      <img src={item.photo} alt="" style={{
+        width: '100%', height: 96, objectFit: 'cover', display: 'block',
+      }}/>
+      {onSave && <SaveBadge saved={saved} onClick={onSave}/>}
+    </div>
     <div style={{ padding: '8px 10px 10px' }}>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700,
@@ -525,6 +797,7 @@ const SchoolCard = ({ item, onClick }) => (
       }}>
         {item.tag}
       </div>
+      {onRate && <RateButton rating={myRating} onClick={onRate}/>}
     </div>
   </button>
 );
@@ -754,11 +1027,80 @@ const buildLiveSections = (places, filters, userCoords, radiusMiles) => {
 
 // ---- "See all" quick-filter chips (only data-backed ones) ----
 const QUICK_AGE = { baby: [0, 1], tod: [1, 3], pre: [3, 5], kid: [5, 18] };
+
+// Stage chips → age ranges, mirroring AboutYou's STAGE_OPTS last 3 options.
+const STAGE_AGE = {
+  schoolage: [5, 9],
+  tween:     [9, 12],
+  teen:      [13, 18],
+};
+
+// Event/meetup quick-filter helpers — parse the hardcoded `when` and
+// `distance` strings ("Sat · 12:30 PM", "1.6 mi away").
+const startsWithDay = (when, prefixes) =>
+  typeof when === 'string' && prefixes.some(p => when.startsWith(p));
+const parseMiles = (distance) => {
+  const m = typeof distance === 'string' && distance.match(/([\d.]+)\s*mi/i);
+  return m ? Number(m[1]) : null;
+};
+// Parse "Ages 5–12" / "Ages 0–2" / "Ages 5+" → [min, max]. "All ages" → [0,18].
+const parseAgeRange = (ages) => {
+  if (!ages || typeof ages !== 'string') return [0, 18];
+  const range = ages.match(/(\d+)\s*[–-]\s*(\d+)/);
+  if (range) return [Number(range[1]), Number(range[2])];
+  const plus = ages.match(/(\d+)\s*\+/);
+  if (plus) return [Number(plus[1]), 18];
+  return [0, 18];
+};
+const rangesOverlap = (aMin, aMax, bMin, bMax) => aMax >= bMin && aMin <= bMax;
+
 // (item, activeIds[]) => boolean. Age buckets OR together; the rest AND.
-// Hardcoded (non-live) items can't be filtered, so they always pass.
 const quickFilterMatch = (item, ids, userCoords) => {
   const row = item._live;
-  if (!row) return true;
+
+  // Event/meetup items have no `_live` row — match against parsed fields.
+  if (!row) {
+    if (item._source === 'event' || item._source === 'meetup') {
+      return ids.every(id => {
+        switch (id) {
+          case 'thisweek':    return true; // all hardcoded events are within this week
+          case 'thisweekend': return startsWithDay(item.when, ['Sat', 'Sun']);
+          case 'free':        return true; // prototype items have no price
+          case 'meetups':     return item._source === 'meetup';
+          case 'small':       return (item.going ?? 99) <= 6;
+          case 'near5': {
+            const mi = parseMiles(item.distance);
+            return mi == null || mi <= 5;
+          }
+          default: return true;
+        }
+      });
+    }
+
+    // Kids programs (no _live) — stage chips OR together against item.ages.
+    if (item.ages) {
+      const stageIds = ids.filter(id => STAGE_AGE[id]);
+      if (stageIds.length) {
+        const [aMin, aMax] = parseAgeRange(item.ages);
+        const stageOk = stageIds.some(id => {
+          const [bMin, bMax] = STAGE_AGE[id];
+          return rangesOverlap(aMin, aMax, bMin, bMax);
+        });
+        if (!stageOk) return false;
+      }
+      return true;
+    }
+
+    // Health & wellness — chips map to the item's _health sub-category (OR).
+    if (item._health) {
+      const healthIds = ids.filter(id => ['wellness', 'pediatricians', 'therapists', 'dentists'].includes(id));
+      if (healthIds.length && !healthIds.includes(item._health)) return false;
+      return true;
+    }
+
+    return true;
+  }
+
   const ageIds = ids.filter(id => QUICK_AGE[id]);
   const ageOk = ageIds.length === 0 || ageIds.some(id => {
     const [lo, hi] = QUICK_AGE[id]; const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
@@ -787,9 +1129,50 @@ export const LocalPicksTab = ({
   location, locationGeo,
   placesRadius = 50,
   savedItems = [], setSavedItems, flash,
+  joinedEvents = [], setJoinedEvents,
+  ratings = {}, setRatings,
+  requireVerify,
   filterOpen, setFilterOpen,
+  account, openPremium,
+  initialSeeAll = null, onConsumeSeeAll,
   onDiscuss,
 }) => {
+  const isPremium = !!account?.isPremium;
+  // SeeAll-card action helpers — save, RSVP, rate. Save & rate are direct;
+  // RSVP gates through requireVerify so unverified moms see the prompt.
+  const isSaved   = (id) => savedItems.includes(id);
+  const toggleSave = (id, label) => {
+    const next = isSaved(id) ? savedItems.filter(x => x !== id) : [...savedItems, id];
+    setSavedItems?.(next);
+    flash?.(isSaved(id) ? 'Removed from saved' : `✦ Saved · ${label || 'item'}`);
+  };
+  const isGoing = (id) => joinedEvents.includes(id);
+  const toggleGoing = (item) => {
+    const already = isGoing(item.id);
+    if (!already && requireVerify && !requireVerify('meetup', item.title)) return;
+    const next = already ? joinedEvents.filter(x => x !== item.id) : [...joinedEvents, item.id];
+    setJoinedEvents?.(next);
+    // Detail sheet handles its own flash on I'm-going; here we only toast
+    // when the user backs out of an RSVP, so the inline button stays quiet.
+    if (already) flash?.(`Removed RSVP · ${item.title}`);
+  };
+  const myRating = (id) => ratings?.[id]?.stars || 0;
+  const [rateTarget, setRateTarget] = useState(null); // { item, kind } | null
+  const openRate = (item, kind) => setRateTarget({ item, kind });
+  const saveRating = (stars, note) => {
+    if (!rateTarget) return;
+    setRatings?.({
+      ...ratings,
+      [rateTarget.item.id]: { stars, note, when: Date.now() },
+    });
+    flash?.(`✦ Rated ${stars}/5 · ${rateTarget.item.title}`);
+  };
+  // Advanced filters are premium-only — non-Plus users see the PremiumSheet
+  // instead of the filter drawer when they tap any "advanced filter" entry.
+  const openAdvancedFilter = () => {
+    if (!isPremium) { openPremium?.(); return; }
+    setFilterOpen?.(true);
+  };
   const [filters, setFilters] = useState(PLACES_FILTER_DEFAULT);
   // Prefer the user's captured coords (onboarding geo); fall back to the
   // centroid of their selected area.
@@ -826,13 +1209,16 @@ export const LocalPicksTab = ({
     [places, filters, userCoords],
   );
 
-  // Detail-sheet state — PlaceDetailSheet handles places, programs, and schools.
+  // Detail-sheet state — PlaceDetailSheet handles places, programs, and
+  // schools; EventDetailSheet handles events and meetups (the latter via
+  // the meetup variant).
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [shareItem, setShareItem] = useState(null);
 
-  const isSaved = (id) => savedItems.includes(id);
+  // `isSaved` + `toggleSave` are already declared above (with flash hooks).
+  // `isInterested` is the only fresh helper this block contributes.
   const isInterested = (id) => savedItems.includes(`int-${id}`);
-  const toggleSave = (id) => setSavedItems?.(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   // Build the PlaceDetailSheet input — rich live detail when the card came from
   // /api/places (it carries `_live`), else the minimal hardcoded card fields.
@@ -845,6 +1231,19 @@ export const LocalPicksTab = ({
   const openSchool = (item) => setSelectedPlace(item._live
     ? liveDetail(item._live, 'School', { tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg }, userCoords)
     : { id: item.id, title: item.title, photo: item.photo, rating: item.rating, distance: item.distance, tag: item.tag, tagBg: item.tagBg, tagFg: item.tagFg, kind: 'School' });
+  // Events and meetups both open in EventDetailSheet. The meetup variant
+  // adds the blurred-going avatars, "Meetup instructions" section, and
+  // "Chat with moms going" CTA — gated on item._source === 'meetup'.
+  const openEvent = (item) => {
+    const isMeetupItem = item._source === 'meetup';
+    setSelectedEvent({
+      id: item.id, title: item.title, photo: item.photo,
+      when: item.when, going: item.going, distance: item.distance,
+      place: item.place,
+      kind: isMeetupItem ? 'Meetup' : 'Event',
+      _variant: isMeetupItem ? 'meetup' : 'event',
+    });
+  };
 
   // Advanced filter badge count (category + the live-backed filters).
   const advCount =
@@ -864,38 +1263,60 @@ export const LocalPicksTab = ({
   const [seeAll, setSeeAll] = useState(null);
   const seeAllSection = effectiveSections.find(s => s.key === seeAll);
 
+  // Cross-tab intent: HomeTab and ConnectTab route their "See all" links
+  // here so every "see all" lands on the same Explore SeeAllSheet (same
+  // section, same quick filters, same advanced sheet). We accept the key
+  // only if it matches a known section so a stale key doesn't open a blank
+  // sheet, then clear the parent so a plain nav-bar visit is unaffected.
+  useEffect(() => {
+    if (!initialSeeAll) return;
+    if (SECTIONS.some(s => s.key === initialSeeAll)) {
+      setSeeAll(initialSeeAll);
+    }
+    onConsumeSeeAll?.();
+  }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Lone filter button — replaces the old quick-tiles jump row */}
-      <div className="px-5" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="flex items-center justify-end">
-          <LocalPicksFilterIconBtn
-            count={advCount}
-            onClick={() => setFilterOpen?.(true)}
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 4, paddingBottom: 16 }}>
         {visibleSections.map(section => (
-          <div key={section.key} id={`localpicks-section-${section.key}`}>
+          <div key={section.key} id={`explore-section-${section.key}`} className="px-5">
             <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
-            <div className="grid grid-cols-2" style={{ gap: 10 }}>
-              {section.items.map(item => {
-                if (section.kind === 'program') {
-                  return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
-                }
-                if (section.kind === 'school') {
-                  return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
-                }
-                return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
-              })}
+            {/* Horizontal scroll — ~2.2 cards visible to hint there's more */}
+            <div
+              className="flex"
+              style={{
+                overflowX: 'auto', overflowY: 'hidden',
+                scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                gap: 10,
+                paddingBottom: 4,
+              }}
+            >
+              {section.items.map(item => (
+                <div
+                  key={item.id}
+                  style={{
+                    flex: '0 0 45%', scrollSnapAlign: 'start',
+                    display: 'flex',
+                  }}
+                >
+                  {section.kind === 'event' ? (
+                    <EventCard item={item} onClick={() => openEvent(item)}/>
+                  ) : section.kind === 'program' ? (
+                    <ProgramCard item={item} onClick={() => openProgram(item)}/>
+                  ) : section.kind === 'school' ? (
+                    <SchoolCard item={item} onClick={() => openSchool(item)}/>
+                  ) : (
+                    <PhotoCard item={item} onClick={() => openTopPlace(item)}/>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         ))}
 
         {visibleSections.length === 0 && (
-          <div style={{
+          <div className="px-5" style={{
             marginTop: 40, textAlign: 'center',
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
             lineHeight: 1.5,
@@ -905,6 +1326,7 @@ export const LocalPicksTab = ({
               : 'No local picks to show here yet · check back soon'}
           </div>
         )}
+
       </div>
 
       {seeAllSection && (
@@ -913,24 +1335,70 @@ export const LocalPicksTab = ({
           subtitle={seeAllSection.seeAllSubtitle}
           items={seeAllSection.allItems}
           renderItem={(item) => {
+            if (seeAllSection.kind === 'event') {
+              // Events & meetups intentionally drop the inline Save badge —
+              // the only save-style action moms see on these cards lives in
+              // the detail sheet, and the spec asked for it to be removed
+              // there too. We keep the inline "I'm going" CTA.
+              return (
+                <EventCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openEvent(item)}
+                  going={isGoing(item.id)}
+                  onGoing={() => toggleGoing(item)}
+                />
+              );
+            }
             if (seeAllSection.kind === 'program') {
-              return <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)}/>;
+              return (
+                <ProgramCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openProgram(item)}
+                  saved={isSaved(item.id)}
+                  onSave={() => toggleSave(item.id, item.title)}
+                  myRating={myRating(item.id)}
+                  onRate={() => openRate(item, 'place')}
+                />
+              );
             }
             if (seeAllSection.kind === 'school') {
-              return <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)}/>;
+              return (
+                <SchoolCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openSchool(item)}
+                  saved={isSaved(item.id)}
+                  onSave={() => toggleSave(item.id, item.title)}
+                  myRating={myRating(item.id)}
+                  onRate={() => openRate(item, 'place')}
+                />
+              );
             }
-            return <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)}/>;
+            return (
+              <PhotoCard
+                key={item.id}
+                item={item}
+                onClick={() => openTopPlace(item)}
+                saved={isSaved(item.id)}
+                onSave={() => toggleSave(item.id, item.title)}
+                myRating={myRating(item.id)}
+                onRate={() => openRate(item, 'place')}
+              />
+            );
           }}
           columns={2}
           quickFilters={QUICK_FILTERS_BY_SECTION[seeAllSection.key]}
           matchQuickFilter={(item, ids) => quickFilterMatch(item, ids, userCoords)}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
+          onOpenAdvancedFilter={openAdvancedFilter}
           advancedFilterCount={advCount}
+          lockedPremium={!isPremium}
           onClose={() => setSeeAll(null)}
         />
       )}
 
-      {filterOpen && (
+      {filterOpen && isPremium && (
         <PlacesFilterSheet
           filters={filters}
           setFilters={setFilters}
@@ -977,6 +1445,36 @@ export const LocalPicksTab = ({
         />
       )}
 
+      {selectedEvent && (
+        <EventDetailSheet
+          event={selectedEvent}
+          variant={selectedEvent._variant || 'event'}
+          joined={isGoing(selectedEvent.id)}
+          interested={isInterested(selectedEvent.id)}
+          flash={flash}
+          onJoin={() => toggleGoing(selectedEvent)}
+          onInterested={() => toggleSave(`int-${selectedEvent.id}`)}
+          onShare={() => setShareItem({
+            title: selectedEvent.title,
+            kind: selectedEvent.kind || 'Event',
+            when: selectedEvent.when,
+            place: selectedEvent.place,
+            photo: selectedEvent.photo,
+          })}
+          onDiscuss={() => {
+            const isMeetupItem = selectedEvent._variant === 'meetup';
+            const chatType = isMeetupItem ? 'meetup-chat' : 'event-chat';
+            onDiscuss?.({
+              type: chatType,
+              id: `${chatType}-${selectedEvent.id}`,
+              title: `${selectedEvent.title} · moms going`,
+              expiresHint: `2 days after the ${isMeetupItem ? 'meetup' : 'event'}`,
+            });
+          }}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+
       {shareItem && (
         <ShareSheet
           item={shareItem}
@@ -984,40 +1482,21 @@ export const LocalPicksTab = ({
           onClose={() => setShareItem(null)}
         />
       )}
+
+      {rateTarget && (
+        <RateSheet
+          item={{
+            name: rateTarget.item.title,
+            area: rateTarget.item.distance,
+            dist: rateTarget.item.distance,
+          }}
+          kind={rateTarget.kind}
+          current={myRating(rateTarget.item.id)}
+          onSave={saveRating}
+          onClose={() => setRateTarget(null)}
+        />
+      )}
     </div>
   );
 };
 
-// Round filter icon button. Coral accent + count badge when any filter
-// is active. Matches the pattern in ThisWeekTab / ConnectTab.
-const LocalPicksFilterIconBtn = ({ count = 0, onClick }) => (
-  <button
-    onClick={onClick}
-    aria-label="Open advanced filters"
-    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
-    style={{
-      width: 34, height: 34,
-      background: count > 0 ? C.coral : C.paper,
-      color: count > 0 ? '#fff' : C.navy,
-      border: `1px solid ${count > 0 ? C.coral : C.divider}`,
-    }}
-  >
-    <SlidersHorizontal size={14}/>
-    {count > 0 && (
-      <span
-        className="absolute"
-        style={{
-          top: -3, right: -3,
-          minWidth: 16, height: 16, padding: '0 4px',
-          borderRadius: 8,
-          background: C.coralDeep, color: '#fff',
-          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `1.5px solid ${C.cream}`,
-        }}
-      >
-        {count > 9 ? '9+' : count}
-      </span>
-    )}
-  </button>
-);

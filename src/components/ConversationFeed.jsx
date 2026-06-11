@@ -7,7 +7,7 @@ import { buildThread } from '../lib/chat-helpers';
 // Threaded feed (posts → comments → likes) for group + subject conversations.
 // `conversationId` must already exist (caller find-or-creates it). `author` is
 // the { name, photo } snapshot. `myUserId` aligns ownership + like state.
-export const ConversationFeed = ({ conversationId, author, myUserId, placeholder = 'Share with the group…', flash }) => {
+export const ConversationFeed = ({ conversationId, author, myUserId, placeholder = 'Share with the group…', flash, readOnly = false }) => {
   const [rows, setRows] = useState([]);
   const [likes, setLikes] = useState([]);   // {message_id,user_id}
   const [composer, setComposer] = useState('');
@@ -56,24 +56,28 @@ export const ConversationFeed = ({ conversationId, author, myUserId, placeholder
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* composer */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          value={composer}
-          onChange={(e) => setComposer(e.target.value)}
-          placeholder={replyTo ? 'Write a reply…' : placeholder}
-          style={{ flex: 1, border: `1px solid ${C.divider}`, borderRadius: 12, padding: '10px 12px',
-                   fontFamily: 'Albert Sans', fontSize: 13, outline: 'none' }}/>
-        <button onClick={() => post(replyTo)} aria-label="Post" style={{
-          background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`, color: '#fff',
-          border: 'none', borderRadius: 12, padding: '0 14px', cursor: 'pointer' }}>
-          <Send size={16}/>
-        </button>
-      </div>
-      {replyTo && (
-        <button onClick={() => setReplyTo(null)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none',
-          color: C.muted, fontFamily: 'Albert Sans', fontSize: 11, cursor: 'pointer' }}>
-          Replying to a post · cancel
-        </button>
+      {!readOnly && (
+        <>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={composer}
+              onChange={(e) => setComposer(e.target.value)}
+              placeholder={replyTo ? 'Write a reply…' : placeholder}
+              style={{ flex: 1, border: `1px solid ${C.divider}`, borderRadius: 12, padding: '10px 12px',
+                       fontFamily: 'Albert Sans', fontSize: 13, outline: 'none' }}/>
+            <button onClick={() => post(replyTo)} aria-label="Post" style={{
+              background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`, color: '#fff',
+              border: 'none', borderRadius: 12, padding: '0 14px', cursor: 'pointer' }}>
+              <Send size={16}/>
+            </button>
+          </div>
+          {replyTo && (
+            <button onClick={() => setReplyTo(null)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none',
+              color: C.muted, fontFamily: 'Albert Sans', fontSize: 11, cursor: 'pointer' }}>
+              Replying to a post · cancel
+            </button>
+          )}
+        </>
       )}
 
       {/* posts */}
@@ -87,13 +91,23 @@ export const ConversationFeed = ({ conversationId, author, myUserId, placeholder
           </div>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.ink, marginTop: 8, lineHeight: 1.4 }}>{p.body}</div>
           <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
-            <button onClick={() => like(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none',
-              border: 'none', cursor: 'pointer', color: iLiked(p.id) ? C.coralDeep : C.muted,
-              fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700 }}>
+            <button
+              onClick={() => !readOnly && like(p.id)}
+              disabled={readOnly}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none',
+                border: 'none', cursor: readOnly ? 'default' : 'pointer',
+                color: iLiked(p.id) ? C.coralDeep : C.muted,
+                opacity: readOnly ? 0.6 : 1,
+                fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700 }}>
               <Heart size={13} fill={iLiked(p.id) ? C.coralDeep : 'none'}/> {likeCount(p.id)}
             </button>
-            <button onClick={() => setReplyTo(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none',
-              border: 'none', cursor: 'pointer', color: C.muted, fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700 }}>
+            <button
+              onClick={() => !readOnly && setReplyTo(p.id)}
+              disabled={readOnly}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none',
+                border: 'none', cursor: readOnly ? 'default' : 'pointer', color: C.muted,
+                opacity: readOnly ? 0.6 : 1,
+                fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700 }}>
               <MessageCircle size={13}/> {p.comments.length}
             </button>
           </div>

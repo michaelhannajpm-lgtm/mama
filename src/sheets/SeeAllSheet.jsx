@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, SlidersHorizontal, ArrowUpDown, Crown } from 'lucide-react';
 import { C } from '../theme';
 
 // ==========================================================================
@@ -33,6 +33,7 @@ export const SeeAllSheet = ({
   matchQuickFilter = () => true,
   onOpenAdvancedFilter,
   advancedFilterCount = 0,
+  lockedPremium = false,
   sortLabel = 'Best match',
   accent = C.coral,
   onClose,
@@ -95,7 +96,11 @@ export const SeeAllSheet = ({
             )}
           </div>
           {onOpenAdvancedFilter && (
-            <FilterIconBtn count={advancedFilterCount} onClick={onOpenAdvancedFilter}/>
+            <FilterIconBtn
+              count={advancedFilterCount}
+              locked={lockedPremium}
+              onClick={onOpenAdvancedFilter}
+            />
           )}
         </div>
 
@@ -108,7 +113,15 @@ export const SeeAllSheet = ({
             {quickFilters.map(f => {
               const Icon = f.icon;
               const controlled = typeof onQuickFilter === 'function';
-              const isActive = controlled ? activeQuickFilter === f.id : active.has(f.id);
+              // activeQuickFilter accepts either a single id (legacy single-
+              // select) or a Set/array of ids (multi-select chip row).
+              const activeMulti = activeQuickFilter && typeof activeQuickFilter === 'object'
+                && (activeQuickFilter instanceof Set
+                    ? activeQuickFilter
+                    : (Array.isArray(activeQuickFilter) ? new Set(activeQuickFilter) : null));
+              const isActive = controlled
+                ? (activeMulti ? activeMulti.has(f.id) : activeQuickFilter === f.id)
+                : active.has(f.id);
               return (
                 <button
                   key={f.id}
@@ -178,10 +191,10 @@ export const SeeAllSheet = ({
   );
 };
 
-const FilterIconBtn = ({ count = 0, onClick }) => (
+const FilterIconBtn = ({ count = 0, locked = false, onClick }) => (
   <button
     onClick={onClick}
-    aria-label="Open advanced filters"
+    aria-label={locked ? 'Advanced filters · Plus' : 'Open advanced filters'}
     className="relative flex-shrink-0 flex items-center justify-center rounded-full"
     style={{
       width: 34, height: 34,
@@ -192,7 +205,20 @@ const FilterIconBtn = ({ count = 0, onClick }) => (
     }}
   >
     <SlidersHorizontal size={14}/>
-    {count > 0 && (
+    {locked ? (
+      <span
+        className="absolute"
+        style={{
+          top: -4, right: -4,
+          width: 16, height: 16, borderRadius: 8,
+          background: C.saffron, color: C.ink,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: `1.5px solid ${C.cream}`,
+        }}
+      >
+        <Crown size={9}/>
+      </span>
+    ) : count > 0 && (
       <span
         className="absolute"
         style={{

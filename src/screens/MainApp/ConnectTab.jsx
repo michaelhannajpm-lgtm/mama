@@ -12,7 +12,15 @@ import { MomDetailSheet } from '../../sheets/MomDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
-import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import { GroupsAdvancedFilterSheet, GROUPS_FILTER_DEFAULT } from '../../sheets/GroupsAdvancedFilterSheet';
+import {
+  MomsAdvancedFilterSheet, MOMS_FILTER_DEFAULT, momsFilterCount,
+} from '../../sheets/MomsAdvancedFilterSheet';
+import { InviteFriendButton } from '../../components/InviteFriendButton';
+import {
+  GROUP_DISCUSSIONS, TOP_DISCUSSIONS,
+  GROUP_CATEGORIES_VISIBLE, matchesGroupFilters,
+} from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
 import { PresenceDot } from '../../components/PresenceDot';
 
@@ -43,46 +51,6 @@ const MEETUPS = [
     place: 'Al Lopez Park', meta: 'Sun, May 18 · 11:00 AM',
     going: 6,
     photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
-  },
-];
-
-const MEETUPS_ALL = [
-  ...MEETUPS,
-  {
-    id: 'um4', dow: 'MON', day: 19, title: 'Mom Coffee Chat',
-    place: 'Buddy Brew Coffee · Hyde Park', meta: 'Mon, May 19 · 8:30 AM',
-    going: 9,
-    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um5', dow: 'TUE', day: 20, title: 'Baby Sign Language Circle',
-    place: 'Little Explorers Play Cafe', meta: 'Tue, May 20 · 10:00 AM',
-    going: 5,
-    photo: 'https://images.unsplash.com/photo-1517842645767-c639042777db?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um6', dow: 'WED', day: 21, title: 'Music Together Jam',
-    place: 'Sunshine Studio', meta: 'Wed, May 21 · 9:30 AM',
-    going: 11,
-    photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um7', dow: 'THU', day: 22, title: 'Splash Pad Squad',
-    place: 'Julian B. Lane Park', meta: 'Thu, May 22 · 10:30 AM',
-    going: 14,
-    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um8', dow: 'FRI', day: 23, title: 'Mom Night Out',
-    place: 'Armature Works', meta: 'Fri, May 23 · 7:00 PM',
-    going: 16,
-    photo: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'um9', dow: 'SAT', day: 24, title: 'Library Storytime Crew',
-    place: 'John F. Germany Library', meta: 'Sat, May 24 · 10:00 AM',
-    going: 7,
-    photo: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&auto=format&fit=crop',
   },
 ];
 
@@ -141,104 +109,304 @@ const kidAgesLabel = (item) => {
   return youngestStageLabel(buckets);
 };
 
-const MomCard = ({ item, onClick }) => {
-  const Icon = item.Icon;
-  const ages = kidAgesLabel(item);
+// Bump the Unsplash w= param so the rendered circle (~88px @ 2× = 176px)
+// has enough pixels to look sharp instead of soft. Non-Unsplash URLs pass
+// through unchanged.
+const sharpenPhoto = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (!url.includes('images.unsplash.com')) return url;
+  return url.replace(/([?&])w=\d+/, '$1w=320').replace(/([?&])q=\d+/, '$1q=85');
+};
+
+// MomCard — competitor-class profile card for the Connect "Recommended
+// Moms for you" horizontal scroll. Modeled after Hinge / Peanut / Bumble
+// BFF in 2026: a tall photo-hero card with overlays (match %, online dot,
+// distance pill, verified shield), then identity + 2 shared-interest
+// chips below the photo. Keeps the editorial Go Mama palette so it doesn't
+// read like a swipe deck.
+//
+// Joins the kid age buckets ("0–1 · 3–5") if present, else falls back to
+// parsing the preformatted "1–3 yrs" string. Always returns a trimmed
+// label like "1–3 yrs" / "0–1 · 3–5 yrs" / null.
+const kidAgesText = (item) => {
+  if (Array.isArray(item.kidBuckets) && item.kidBuckets.length) {
+    return `${item.kidBuckets.join(' · ')} yrs`;
+  }
+  if (item.kids && item.kids !== 'Kids') {
+    const clean = String(item.kids).trim();
+    return /\byrs?\b/i.test(clean) ? clean : `${clean} yrs`;
+  }
+  return null;
+};
+
+// Pluralizes the kid count line ("2 kids" / "1 kid"). Falls back to
+// kidBuckets length, then the raw `kids` string when neither is shaped.
+const kidsCountText = (item) => {
+  const n = item.kidsCount
+    || (Array.isArray(item.kidBuckets) ? item.kidBuckets.length : null);
+  if (typeof n === 'number' && n > 0) return `${n} ${n === 1 ? 'kid' : 'kids'}`;
+  // Some sources pass "1 kid" / "2 kids" already in `kids` instead of an age
+  // string — surface that as-is, suppressing the duplicate age line.
+  if (item.kids && /\bkid/i.test(item.kids)) return item.kids;
+  return null;
+};
+
+// MomCard — small "preview" card used identically on Home, Connect, and the
+// SeeAll moms screen. Single source of truth for how a mom reads in a list.
+// Tap → MomDetailSheet (all deep actions live there).
+//
+// Exported so HomeTab can reuse the exact same component (parity is the
+// product requirement, not a coincidence).
+export const MomCard = ({ item, onClick, compact = false }) => {
+  const kidsLine = kidsCountText(item);
+  const ageLine = kidAgesText(item);
+  const shared = (item.sharedTags && item.sharedTags.length)
+    ? item.sharedTags.slice(0, 2)
+    : [];
+
+  const matchPct = item.overlap != null
+    ? Math.round(item.overlap)
+    : (80 + (((item.id || item.name || '').toString().charCodeAt(0) || 0) % 16));
+
+  const isOnline = item.online !== false;
+  const isVerified = item.verified !== false;
+
+  // Compact = 3-up grid variant used in Connect's "Recommended Moms for you"
+  // section: card stretches with its column and the hero is shorter.
+  const heroHeight = compact ? 88 : 130;
+
   return (
-    <button onClick={onClick} className="active:scale-[.97] transition-transform" style={{
-      background: '#fff', borderRadius: 14,
-      border: `1px solid ${C.line}`,
-      boxShadow: '0 2px 6px -5px rgba(27,42,78,.18)',
-      padding: '12px 6px 10px',
-      textAlign: 'center',
-      cursor: 'pointer',
-    }}>
-      <div style={{ position: 'relative', display: 'inline-block' }}>
+    <button
+      onClick={onClick}
+      className="text-left active:scale-[.98] transition-transform"
+      style={{
+        width: compact ? '100%' : 150, flexShrink: 0,
+        background: '#fff', borderRadius: 16,
+        border: `1px solid ${C.line}`,
+        boxShadow: '0 6px 16px -12px rgba(27,42,78,.3)',
+        overflow: 'hidden', padding: 0, cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* Hero photo — slimmed from 196→130 so the card feels like a preview
+          rather than a swipe-deck portrait. Compact mode drops it further to
+          88 so 3 cards fit on a single phone row. */}
+      <div style={{ position: 'relative', width: '100%', height: heroHeight }}>
         {item.photo ? (
-          <img src={item.photo} alt="" style={{
-            width: 62, height: 62, borderRadius: 31, objectFit: 'cover',
-            display: 'block',
-          }}/>
+          <img
+            src={sharpenPhoto(item.photo)}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
         ) : (
           <div style={{
-            width: 62, height: 62, borderRadius: 31,
-            background: item.hue,
+            width: '100%', height: '100%',
+            background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 22,
+            color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 40,
           }}>
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
-        {/* Presence dot — top-right, clear of the bottom distance pill. */}
-        <PresenceDot status={item.presence} size={13} style={{ top: 1, right: 1, bottom: 'auto' }}/>
-        {/* Distance marker — sits on the avatar like a map pin, so it never
-            wraps onto its own awkward line. Hidden when distance is unknown. */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.4) 100%)',
+          pointerEvents: 'none',
+        }}/>
+
+        {/* Top-left: match % */}
+        <div style={{
+          position: 'absolute', top: 6, left: 6,
+          background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+          color: '#fff', borderRadius: 999,
+          padding: '2px 6px',
+          fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
+          display: 'flex', alignItems: 'center', gap: 2,
+          boxShadow: '0 2px 6px -3px rgba(214,68,106,.55)',
+        }}>
+          <Sparkles size={8}/> {matchPct}%
+        </div>
+
+        {/* Top-right: verified shield over online dot */}
+        <div style={{
+          position: 'absolute', top: 6, right: 6,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4,
+        }}>
+          {isVerified && (
+            <div
+              aria-label="Verified"
+              style={{
+                width: 18, height: 18, borderRadius: 9,
+                background: C.sageDark, color: '#fff', border: '1.5px solid #fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 4px -2px rgba(27,42,78,.4)',
+              }}
+            >
+              <ShieldCheck size={9}/>
+            </div>
+          )}
+          {item.presence ? (
+            <PresenceDot status={item.presence} size={9} style={{ position: 'relative', right: 'auto', bottom: 'auto', borderWidth: 1.5 }}/>
+          ) : isOnline ? (
+            <PresenceDot status="online" size={9} style={{ position: 'relative', right: 'auto', bottom: 'auto', borderWidth: 1.5 }}/>
+          ) : null}
+        </div>
+
+        {/* Bottom-left: distance pill */}
         {item.distanceMi != null && (
           <div style={{
-            position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)',
-            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 999,
-            padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 2,
-            boxShadow: '0 2px 6px -3px rgba(27,42,78,.3)', whiteSpace: 'nowrap',
+            position: 'absolute', bottom: 6, left: 6,
+            background: 'rgba(255,255,255,.95)',
+            borderRadius: 999, padding: '2px 6px',
+            display: 'flex', alignItems: 'center', gap: 2,
+            boxShadow: '0 2px 5px -3px rgba(27,42,78,.4)',
           }}>
             <MapPin size={8} color={C.coralDeep} strokeWidth={2.4}/>
-            <span style={{ fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800, color: C.navy }}>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800, color: C.navy }}>
               {item.distanceMi.toFixed(1)} mi
             </span>
           </div>
         )}
       </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
-        color: C.navy, marginTop: 11, lineHeight: 1.1,
-      }}>
-        {item.name}
-      </div>
-      {ages && (
-        <div className="flex items-center justify-center" style={{
-          gap: 3, marginTop: 3, fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600, color: C.muted,
-          whiteSpace: 'nowrap',
+
+      {/* Identity + kids info */}
+      <div style={{ padding: '8px 9px 10px' }}>
+        <div style={{
+          fontFamily: 'Fraunces', fontSize: 13.5, fontWeight: 600,
+          color: C.navy, letterSpacing: '-.01em', lineHeight: 1.05,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          <Baby size={9}/> {ages}
+          {item.firstName || item.name}
         </div>
-      )}
-      <div style={{ marginTop: 6, display: 'inline-flex' }}>
-        <span style={{
-          background: item.tagBg, color: item.tagFg,
-          fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
-          padding: '2px 6px 2px 5px', borderRadius: 8,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          whiteSpace: 'nowrap',
-        }}>
-          <Icon size={9}/>
-          {item.tag}
-        </span>
+
+        {/* Kids count + kid age range — replaces the older "Mom of a toddler"
+            stage label. Count comes first, ages stack below so each line
+            answers a different question at a glance. */}
+        {kidsLine && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3, marginTop: 3,
+            fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, color: C.navy,
+            whiteSpace: 'nowrap',
+          }}>
+            <Baby size={9} color={C.coralDeep}/> {kidsLine}
+          </div>
+        )}
+        {ageLine && (
+          <div style={{
+            marginTop: 1,
+            paddingLeft: 14, // hangs under the Baby icon visually
+            fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 600, color: C.muted,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {ageLine}
+          </div>
+        )}
+
+        {shared.length > 0 && (
+          <div style={{
+            marginTop: 7,
+            display: 'flex', flexDirection: 'column', gap: 3,
+          }}>
+            {shared.map((tag, i) => (
+              <span
+                key={tag + i}
+                style={{
+                  background: i === 0 ? C.coralSoft : '#fff',
+                  color: C.coralDeep,
+                  border: `1px solid ${C.coral}33`,
+                  fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 700,
+                  padding: '2px 7px', borderRadius: 8,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  whiteSpace: 'nowrap', maxWidth: '100%',
+                  overflow: 'hidden', textOverflow: 'ellipsis',
+                  alignSelf: 'flex-start',
+                }}
+              >
+                {i === 0 && <Heart size={7} fill={C.coralDeep} color={C.coralDeep}/>}
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </button>
   );
 };
 
-// Richer per-mom row for the SeeAll "Your best matches" screen. Each row pairs
-// a square hero photo, identity + tag, "shared ground" coral pill, a
-// connection-request primary CTA, and three secondary CTAs:
-//   • Profile       — opens MomDetailSheet (full bio gated behind Plus)
-//   • Message       — 3 free per mom, then a coral Plus chip replaces it
-//   • Auto-schedule — taps the calendar overlap heuristic. If a slot is
-//                     already booked, renders the booked time + green tick.
-// Connection status is "status-only" — never blocks the secondary row,
-// just changes the primary CTA's label/color from coral "Send connection
-// request" → saffron "Request sent · waiting" → sage "Connected ✓".
+// Hard-coded availability windows fall back when the server hasn't shaped
+// `nextSlots`. Mirrors what the user might pick in onboarding.
+const FALLBACK_AVAILABILITY = ['Tue mornings', 'Thu mornings', 'Sat mornings'];
+const DAY_CHIPS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const TIME_CHIPS = [
+  { id: 'morning',   label: 'Morning',   icon: Coffee },
+  { id: 'midday',    label: 'Midday',    icon: Sparkles },
+  { id: 'afternoon', label: 'Afternoon', icon: Smile },
+  { id: 'evening',   label: 'Evening',   icon: Moon },
+];
+
+// Returns a 1-line "What you need to know" digest — first line of the bio,
+// or a sensible fallback derived from kids + type.
+const blurbFor = (item) => {
+  if (item.bio) {
+    const first = String(item.bio).split(/[.\n]/)[0].trim();
+    if (first.length > 6) return first.length > 110 ? `${first.slice(0, 108)}…` : first;
+  }
+  const stage = (item.kids || '').trim();
+  const type = (item.type || '').trim();
+  if (stage && type) return `${type} · ${stage}`;
+  return type || stage || 'Real-life mom friend, no chat penpals.';
+};
+
+// Richer per-mom card for the SeeAll "Recommended Moms for you" screen.
+// Surfaces everything a mom actually needs to decide whether to match:
+//   • Photo + verified badge
+//   • Name, stage, distance, neighborhood
+//   • 1-line bio / "what you need to know"
+//   • Availability ("Free: Tue + Thu mornings")
+//   • Kid count + ages
+//   • Interests / shared ground
+//   • Connection-request primary CTA
+//   • 3-up: Profile · Message · Schedule
+//   • "Propose first meetup" inline composer (collapsible)
 const MomListCard = ({
   item, sharedTags = ['Coffee dates', 'Same kid ages'],
   scheduledSlot,
+  proposal,
   messagesUsed = 0, freeLimit = 3, isPremium = false,
-  connectionStatus = 'none', // 'none' | 'pending' | 'accepted'
+  connectionStatus = 'none',
   onConnect,
-  onProfile, onMessage, onSchedule, onPremium,
+  onProfile, onMessage, onSchedule, onPropose, onPremium,
 }) => {
   const TagIcon = item.Icon;
   const msgLimitHit = !isPremium && messagesUsed >= freeLimit;
   const msgRemaining = Math.max(0, freeLimit - messagesUsed);
   const booked = !!scheduledSlot;
+  const blurb = blurbFor(item);
+  const availability = Array.isArray(item.nextSlots) && item.nextSlots.length
+    ? item.nextSlots.slice(0, 3)
+    : FALLBACK_AVAILABILITY;
+  const interests = Array.isArray(item.interests) && item.interests.length
+    ? item.interests.slice(0, 4)
+    : sharedTags.slice(0, 4);
+  const neighborhood = item.neighborhood || item.area;
+  const kidsCount = item.kidsCount
+    || (Array.isArray(item.kidBuckets) ? item.kidBuckets.length : null);
+
+  // Propose meetup composer — local draft state. Defaults to "Sat / Morning"
+  // so a one-tap send is possible.
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [pday, setPday] = useState('Sat');
+  const [ptime, setPtime] = useState('morning');
+  const [pplace, setPplace] = useState('');
+  const proposalSent = !!proposal;
+  const sendProposal = () => {
+    onPropose?.({
+      day: pday,
+      time: TIME_CHIPS.find(t => t.id === ptime)?.label || ptime,
+      place: pplace.trim(),
+    });
+    setProposeOpen(false);
+  };
 
   return (
     <div style={{
@@ -255,16 +423,16 @@ const MomListCard = ({
           style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
         >
           {item.photo ? (
-            <img src={item.photo} alt="" style={{
-              width: 68, height: 68, borderRadius: 16, objectFit: 'cover',
+            <img src={sharpenPhoto(item.photo)} alt="" style={{
+              width: 72, height: 72, borderRadius: 16, objectFit: 'cover',
               display: 'block',
             }}/>
           ) : (
             <div style={{
-              width: 68, height: 68, borderRadius: 16,
-              background: item.hue,
+              width: 72, height: 72, borderRadius: 16,
+              background: item.hue || `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 26,
+              color: '#fff', fontFamily: 'Fraunces', fontWeight: 600, fontSize: 28,
             }}>
               {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
             </div>
@@ -281,20 +449,35 @@ const MomListCard = ({
           <PresenceDot status={item.presence} size={14} style={{ top: -1, right: -1, bottom: 'auto' }}/>
         </button>
         <div className="flex-1 min-w-0">
-          <div style={{
-            fontFamily: 'Fraunces', fontSize: 17, fontWeight: 600,
-            color: C.navy, letterSpacing: '-.01em', lineHeight: 1.1,
-          }}>
-            {item.name}
+          <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
+            <div style={{
+              fontFamily: 'Fraunces', fontSize: 17, fontWeight: 600,
+              color: C.navy, letterSpacing: '-.01em', lineHeight: 1.1,
+            }}>
+              {item.name}
+            </div>
+            {item.overlap != null && (
+              <span style={{
+                background: C.coralSoft, color: C.coralDeep,
+                fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 800,
+                padding: '2px 7px', borderRadius: 9,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+              }}>
+                <Sparkles size={9}/> {Math.round(item.overlap)}% match
+              </span>
+            )}
           </div>
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted,
             marginTop: 3, display: 'flex', alignItems: 'center', gap: 5,
+            flexWrap: 'wrap',
           }}>
-            <span>{item.kids}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <Baby size={10}/> {kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'} · ` : ''}{item.kids}
+            </span>
             <span style={{ opacity: 0.4 }}>·</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <MapPin size={9}/> {item.distance}
+              <MapPin size={9}/> {item.distance}{neighborhood ? ` · ${neighborhood}` : ''}
             </span>
           </div>
           {item.tag && (
@@ -310,32 +493,82 @@ const MomListCard = ({
         </div>
       </div>
 
-      {/* Shared ground pill row */}
-      <div className="flex flex-wrap gap-1.5" style={{
-        background: `${C.coral}10`, border: `1px solid ${C.coral}26`,
-        borderRadius: 12, padding: '6px 8px',
+      {/* 1-line bio / what-you-need-to-know */}
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 12, color: C.navySoft,
+        lineHeight: 1.4, fontStyle: 'italic',
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
       }}>
-        <div className="flex items-center gap-1.5" style={{
-          color: C.coralDeep, fontFamily: 'Albert Sans', fontSize: 9.5,
-          fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase',
-        }}>
-          <Heart size={9} fill={C.coralDeep}/> Shared
-        </div>
-        {sharedTags.slice(0, 3).map(t => (
-          <span key={t} style={{
-            background: '#fff', color: C.coralDeep,
-            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 600,
-            padding: '2.5px 8px', borderRadius: 9,
-            border: `1px solid ${C.coral}33`,
-          }}>
-            {t}
-          </span>
-        ))}
+        “{blurb}”
       </div>
 
-      {/* Connection-request primary CTA — status-only, never blocks the
-          row below. Cycles none → pending → accepted, each with a distinct
-          color so the social signal reads at a glance. */}
+      {/* Availability + interests info rows */}
+      <div style={{
+        background: C.creamSoft, borderRadius: 12,
+        padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6,
+      }}>
+        <div className="flex items-center gap-1.5" style={{
+          fontFamily: 'Albert Sans', fontSize: 11, color: C.inkSoft, fontWeight: 600,
+        }}>
+          <Calendar size={10} color={C.coralDeep}/>
+          <span style={{ color: C.muted, textTransform: 'uppercase', fontWeight: 800, fontSize: 9, letterSpacing: '.1em' }}>
+            Free
+          </span>
+          <span>{availability.join(' · ')}</span>
+        </div>
+        {interests.length > 0 && (
+          <div className="flex items-center flex-wrap gap-1.5" style={{
+            fontFamily: 'Albert Sans', fontSize: 11, color: C.inkSoft, fontWeight: 600,
+          }}>
+            <Heart size={10} color={C.coralDeep} fill={C.coralDeep}/>
+            <span style={{
+              color: C.muted, textTransform: 'uppercase', fontWeight: 800, fontSize: 9, letterSpacing: '.1em',
+            }}>
+              Into
+            </span>
+            {interests.map(t => (
+              <span key={t} style={{
+                background: '#fff', color: C.navy,
+                border: `1px solid ${C.divider}`,
+                padding: '1.5px 6px', borderRadius: 7,
+                fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+                whiteSpace: 'nowrap',
+              }}>
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Shared ground pill row — kept distinct from "interests" because it's
+          the *intersection* with the user, not the mom's full profile. */}
+      {sharedTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" style={{
+          background: `${C.coral}10`, border: `1px solid ${C.coral}26`,
+          borderRadius: 12, padding: '6px 8px',
+        }}>
+          <div className="flex items-center gap-1.5" style={{
+            color: C.coralDeep, fontFamily: 'Albert Sans', fontSize: 9.5,
+            fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase',
+          }}>
+            <Sparkles size={9}/> Shared
+          </div>
+          {sharedTags.slice(0, 3).map(t => (
+            <span key={t} style={{
+              background: '#fff', color: C.coralDeep,
+              fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 600,
+              padding: '2.5px 8px', borderRadius: 9,
+              border: `1px solid ${C.coral}33`,
+            }}>
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Connection-request primary CTA */}
       <button
         onClick={connectionStatus === 'none' ? onConnect : undefined}
         disabled={connectionStatus !== 'none'}
@@ -387,9 +620,7 @@ const MomListCard = ({
           }}
         >
           <User size={14}/>
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, lineHeight: 1.1,
-          }}>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, lineHeight: 1.1 }}>
             Profile
           </span>
           <span style={{
@@ -412,24 +643,18 @@ const MomListCard = ({
           }}
         >
           {msgLimitHit ? <Crown size={14} color={C.saffron}/> : <MessageCircle size={14}/>}
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, lineHeight: 1.1,
-          }}>
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700, lineHeight: 1.1 }}>
             {msgLimitHit ? 'Unlock' : 'Message'}
           </span>
           <span style={{
             fontFamily: 'Albert Sans', fontSize: 8.5,
             color: msgLimitHit ? '#8A6610' : C.muted,
           }}>
-            {isPremium
-              ? 'Unlimited'
-              : msgLimitHit
-                ? 'Plus required'
-                : `${msgRemaining} free left`}
+            {isPremium ? 'Unlimited' : msgLimitHit ? 'Plus required' : `${msgRemaining} free left`}
           </span>
         </button>
 
-        {/* Auto-schedule */}
+        {/* Schedule — opens the ScheduleSheet so the user picks a slot */}
         <button
           onClick={onSchedule}
           className="rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-[.96] transition-transform"
@@ -442,20 +667,158 @@ const MomListCard = ({
             boxShadow: booked ? 'none' : '0 4px 10px -6px rgba(214,68,106,.55)',
           }}
         >
-          {booked ? <Check size={14}/> : <Sparkles size={14}/>}
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800, lineHeight: 1.1,
-          }}>
-            {booked ? 'Booked' : 'Auto-schedule'}
+          {booked ? <Check size={14}/> : <Calendar size={14}/>}
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800, lineHeight: 1.1 }}>
+            {booked ? 'Booked' : 'Schedule'}
           </span>
-          <span style={{
-            fontFamily: 'Albert Sans', fontSize: 8.5,
-            opacity: booked ? 0.85 : 0.92,
-          }}>
-            {booked ? `${scheduledSlot.day} · ${scheduledSlot.time}` : 'Picks best slot'}
+          <span style={{ fontFamily: 'Albert Sans', fontSize: 8.5, opacity: booked ? 0.85 : 0.92 }}>
+            {booked ? `${scheduledSlot.day} · ${scheduledSlot.time}` : 'Pick a slot'}
           </span>
         </button>
       </div>
+
+      {/* Propose first meetup — collapsed by default. Lives below Schedule
+          so it reads as the alternative to the standard slot flow. */}
+      {proposalSent ? (
+        <div style={{
+          background: `${C.sageDark}12`,
+          border: `1px solid ${C.sageDark}33`,
+          borderRadius: 12, padding: '8px 10px',
+          fontFamily: 'Albert Sans', fontSize: 11, color: C.sageDark,
+          fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <Check size={12}/> Proposal sent · {proposal.day} {proposal.time}
+          {proposal.place ? ` @ ${proposal.place}` : ''}
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={() => setProposeOpen(v => !v)}
+            className="active:scale-[.98] transition-transform"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'transparent', border: `1px dashed ${C.coral}55`,
+              borderRadius: 12, padding: '7px 10px',
+              fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700, color: C.coralDeep,
+              cursor: 'pointer',
+            }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles size={11}/> Propose time & place for first meetup
+            </span>
+            <span style={{ fontFamily: 'Albert Sans', fontSize: 16, lineHeight: 1, color: C.coralDeep }}>
+              {proposeOpen ? '−' : '+'}
+            </span>
+          </button>
+
+          {proposeOpen && (
+            <div style={{
+              marginTop: 6,
+              background: C.paper, border: `1px solid ${C.divider}`,
+              borderRadius: 12, padding: 10,
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
+                  color: C.muted, letterSpacing: '.1em', textTransform: 'uppercase',
+                  marginBottom: 5,
+                }}>
+                  Day
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {DAY_CHIPS.map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setPday(d)}
+                      style={{
+                        background: pday === d ? C.coralDeep : '#fff',
+                        color: pday === d ? '#fff' : C.navy,
+                        border: `1px solid ${pday === d ? C.coralDeep : C.divider}`,
+                        padding: '3px 8px', borderRadius: 8,
+                        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
+                  color: C.muted, letterSpacing: '.1em', textTransform: 'uppercase',
+                  marginBottom: 5,
+                }}>
+                  Time
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {TIME_CHIPS.map(t => {
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setPtime(t.id)}
+                        style={{
+                          background: ptime === t.id ? C.coralDeep : '#fff',
+                          color: ptime === t.id ? '#fff' : C.navy,
+                          border: `1px solid ${ptime === t.id ? C.coralDeep : C.divider}`,
+                          padding: '3px 8px', borderRadius: 8,
+                          fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                        }}
+                      >
+                        <Icon size={10}/> {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 9, fontWeight: 800,
+                  color: C.muted, letterSpacing: '.1em', textTransform: 'uppercase',
+                  marginBottom: 5,
+                }}>
+                  Place (optional)
+                </div>
+                <input
+                  value={pplace}
+                  onChange={(e) => setPplace(e.target.value.slice(0, 60))}
+                  placeholder="Buddy Brew · Hyde Park"
+                  style={{
+                    width: '100%',
+                    background: '#fff', border: `1px solid ${C.divider}`,
+                    borderRadius: 9, padding: '7px 9px',
+                    fontFamily: 'Albert Sans', fontSize: 11.5, color: C.navy,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={sendProposal}
+                className="active:scale-[.99] transition-transform"
+                style={{
+                  marginTop: 2, height: 36, width: '100%',
+                  background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+                  color: '#fff', border: 'none', borderRadius: 10,
+                  fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  boxShadow: '0 4px 10px -6px rgba(214,68,106,.55)',
+                }}
+              >
+                <Sparkles size={12}/> Send proposal to {item.name.split(' ')[0]}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -637,34 +1000,90 @@ export const ConnectTab = ({
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
   initialSeeAll = null, onConsumeSeeAll,
+  goToExploreSeeAll,                   // (key) => switch to Explore tab and
+                                       // open that section's SeeAllSheet.
   chatAuthor,
   myUserId,
   onDiscuss,
+  requireVerify,                       // (action, name?) => boolean. False means
+                                       // the verify-prompt sheet just opened.
 }) => {
-  void profile; void prefs;
+  void prefs;
   void openProfile;
   void requestAccount;
 
-  // Live moms come decorated (Icon + resolved colors) from App. The 3-up grid
-  // shows the top 3; the See-all list shows the full ranked set with filters.
-  const gridMoms = nearbyMoms.slice(0, 3);
+  // Live moms come decorated (Icon + resolved colors) from App. The
+  // horizontal scroll surfaces the top 6 (~2.2 cards visible at a time);
+  // the See-all list shows the full ranked set with filters.
+  const gridMoms = nearbyMoms.slice(0, 6);
 
-  // See-all quick-filter state (single-select chip). 'verified' re-fetches
-  // server-side (verified is a DB filter); the rest filter the loaded list.
+  // See-all quick-filter state (single-select chip). Only 3 visible chips
+  // ride above the deck: Near me · Similar stage · Similar interests. The
+  // rest of the criteria live behind the advanced filter (Plus-gated).
   const [momQuickFilter, setMomQuickFilter] = useState(null);
+
+  // Plus-gated advanced filter for moms — distance, kid ages, mom stage,
+  // interests, values, neighborhood, availability, verified-only. Free
+  // users see the PremiumSheet instead of the drawer.
+  const [momsAdvFilters, setMomsAdvFilters] = useState(MOMS_FILTER_DEFAULT);
+  const [momsAdvOpen, setMomsAdvOpen] = useState(false);
+  const momsAdvCount = momsFilterCount(momsAdvFilters);
+
+  // Matches the user's own kidBuckets (if known) to surface "similar stage"
+  // moms. Fall back to the most common bucket across nearbyMoms otherwise
+  // so the chip still does *something* useful.
+  const myKidBuckets = Array.isArray(profile?.kidBuckets) ? profile.kidBuckets
+    : (profile?.stage ? [] : []);
+  const stageMatch = (m) => {
+    if (!Array.isArray(m.kidBuckets) || !myKidBuckets.length) {
+      return (m.sharedTags || []).includes('Same kid ages');
+    }
+    return m.kidBuckets.some(b => myKidBuckets.includes(b));
+  };
+  const myInterests = (profile?.interests || []).map(s => String(s).toLowerCase());
+  const interestMatch = (m) => {
+    const tags = (m.sharedTags || []).map(s => String(s).toLowerCase());
+    if (myInterests.length) return tags.some(t => myInterests.includes(t));
+    // Fallback: any shared coffee / park / stroller signal counts
+    return tags.some(t => t.includes('coffee') || t.includes('park') || t.includes('stroller'));
+  };
 
   // iconKey values ('new','working','home',…) are assigned by the server card
   // shaper (api/_lib/mom-card.js MOM_TYPE_PRESENTATION).
   const applyMomFilter = (list) => {
-    switch (momQuickFilter) {
-      case 'similar': return list.filter(m => (m.sharedTags || []).includes('Same kid ages'));
-      case 'newmom':  return list.filter(m => m.iconKey === 'new');
-      case 'working': return list.filter(m => m.iconKey === 'working');
-      case 'stay':    return list.filter(m => m.iconKey === 'home');
-      case 'near':    return [...list].sort((a, b) =>
-        (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity));
-      default:        return list;
+    // Apply advanced filters first (distance + kid ages + stage + interests +
+    // neighborhood + availability).
+    const f = momsAdvFilters;
+    let out = list;
+    if (f.distanceMi != null) {
+      out = out.filter(m => (m.distanceMi ?? Infinity) <= f.distanceMi);
     }
+    if (f.kidAges?.length) {
+      out = out.filter(m => Array.isArray(m.kidBuckets) && m.kidBuckets.some(b => f.kidAges.includes(b)));
+    }
+    if (f.momTypes?.length) {
+      out = out.filter(m => f.momTypes.includes(m.iconKey) || f.momTypes.includes(m.type));
+    }
+    if (f.neighborhoods?.length) {
+      out = out.filter(m => f.neighborhoods.includes(m.neighborhood) || f.neighborhoods.includes(m.area));
+    }
+    if (f.interests?.length) {
+      out = out.filter(m => (m.sharedTags || []).some(t => f.interests.includes(t)));
+    }
+    if (f.values?.length) {
+      out = out.filter(m => Array.isArray(m.values) && m.values.some(v => f.values.includes(v)));
+    }
+
+    // Visible quick filter narrows further.
+    switch (momQuickFilter) {
+      case 'similar':   out = out.filter(stageMatch); break;
+      case 'interests': out = out.filter(interestMatch); break;
+      case 'near':
+        out = [...out].sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity));
+        break;
+      default: break;
+    }
+    return out;
   };
   const seeAllMoms = applyMomFilter(nearbyMoms);
 
@@ -672,24 +1091,39 @@ export const ConnectTab = ({
   const [selectedMom, setSelectedMom] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [shareItem, setShareItem] = useState(null);
-  // Group-discussion sheet state: the selected discussion + a Set of joined
-  // discussion ids (local to ConnectTab for the prototype).
+  // Group-discussion sheet state. Group join is now Plus-gated *and*
+  // host-approved, so we track per-discussion status as
+  // 'pending' (request sent) → 'accepted' (host approved). The accepted
+  // simulation fires ~3s later so the prototype demonstrates the flow.
   const [selectedDiscussion, setSelectedDiscussion] = useState(null);
-  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
+  const [discussionJoinStatus, setDiscussionJoinStatus] = useState({}); // { id: 'pending'|'accepted' }
   const openDiscussion = (d) => setSelectedDiscussion(d);
-  const toggleJoinDiscussion = () => {
+
+  const requestJoinDiscussion = () => {
     if (!selectedDiscussion) return;
-    setJoinedDiscussions(prev => {
-      const next = new Set(prev);
-      if (next.has(selectedDiscussion.id)) {
-        next.delete(selectedDiscussion.id);
-        flash?.(`Left ${selectedDiscussion.title}`);
-      } else {
-        next.add(selectedDiscussion.id);
-        flash?.(`✦ Joined ${selectedDiscussion.title}`);
-      }
+    const current = discussionJoinStatus[selectedDiscussion.id];
+    if (current) return; // already pending or accepted
+    if (requireVerify && !requireVerify('group', selectedDiscussion.title)) return;
+    setDiscussionJoinStatus(prev => ({ ...prev, [selectedDiscussion.id]: 'pending' }));
+    flash?.(`✦ Request sent to ${selectedDiscussion.hostName || 'the host'}`);
+    const reviewedId = selectedDiscussion.id;
+    setTimeout(() => {
+      setDiscussionJoinStatus(prev =>
+        prev[reviewedId] === 'pending' ? { ...prev, [reviewedId]: 'accepted' } : prev,
+      );
+      flash?.(`✦ You're in — welcome to ${selectedDiscussion.title}`);
+    }, 3000);
+  };
+
+  const leaveDiscussion = () => {
+    if (!selectedDiscussion) return;
+    const id = selectedDiscussion.id;
+    setDiscussionJoinStatus(prev => {
+      const next = { ...prev };
+      delete next[id];
       return next;
     });
+    flash?.(`Left ${selectedDiscussion.title}`);
   };
   const [invited, setInvited] = useState({}); // {momId: true} — local prototype state
 
@@ -720,6 +1154,17 @@ export const ConnectTab = ({
   // Which "See all" view is open (null = none).
   const [seeAll, setSeeAll] = useState(null);
 
+  // Group-discussion filters. `groupQuickCategories` is a Set of visible
+  // category ids toggled from the See-all chip row; `groupAdvanced` holds
+  // the Plus-gated multi-facet filter (topics, kid ages, mom stages,
+  // neighborhoods). They compose: a discussion must match both blocks.
+  const [groupQuickCategories, setGroupQuickCategories] = useState(new Set());
+  const [groupAdvanced, setGroupAdvanced] = useState(GROUPS_FILTER_DEFAULT);
+  const [groupAdvancedOpen, setGroupAdvancedOpen] = useState(false);
+  const groupAdvancedCount =
+    groupAdvanced.topics.length + groupAdvanced.kidAges.length +
+    groupAdvanced.momStages.length + groupAdvanced.neighborhoods.length;
+
   // Honor a cross-tab intent from Home ("See all moms / groups"): open the
   // requested drawer on mount, then clear it on the parent so a plain
   // nav-bar visit to Connect doesn't re-trigger it.
@@ -729,6 +1174,16 @@ export const ConnectTab = ({
       onConsumeSeeAll?.();
     }
   }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Advanced filters are Plus-only. If a non-premium user lands with the
+  // sheet flagged open (from any future entry point), bounce them to the
+  // PremiumSheet instead.
+  useEffect(() => {
+    if (filterOpen && !account?.isPremium) {
+      setFilterOpen?.(false);
+      openPremium?.();
+    }
+  }, [filterOpen, account?.isPremium]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local "Auto-scheduled" pool for prototype: tapping Auto-schedule on a
   // mom card flashes a confirmation and stamps a slot here so the button
@@ -763,6 +1218,17 @@ export const ConnectTab = ({
     flash?.(`✦ Auto-scheduled with ${mom.name} · ${slot.day} ${slot.time}`);
   };
 
+  // "Propose first meetup" composer in MomListCard hands its draft back
+  // here. The proposal is a soft signal (no calendar mutation yet) — we
+  // simulate sending an invite and stamp a `proposal` entry alongside any
+  // existing booking so the card shows acknowledgment of the send.
+  const [proposals, setProposals] = useState({});
+  const handleProposeMeetup = (mom, { day, time, place }) => {
+    if (requireVerify && !requireVerify('meetup', mom.name)) return;
+    setProposals(prev => ({ ...prev, [mom.id]: { day, time, place } }));
+    flash?.(`✦ Proposal sent to ${mom.name.split(' ')[0]} · ${day} ${time}${place ? ` @ ${place}` : ''}`);
+  };
+
   const handleMessage = (mom) => {
     openMessage?.(mom);
   };
@@ -774,6 +1240,7 @@ export const ConnectTab = ({
   const handleConnect = (mom) => {
     const current = connections[mom.id];
     if (current && current !== 'none') return;
+    if (requireVerify && !requireVerify('connect', mom.name)) return;
     setConnections(prev => ({ ...prev, [mom.id]: 'pending' }));
     flash?.(`✦ Connection request sent to ${mom.name}`);
     setTimeout(() => {
@@ -786,20 +1253,10 @@ export const ConnectTab = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Lone filter button — search row was removed; quick chips were removed earlier */}
-      <div className="px-5" style={{ paddingTop: 4, paddingBottom: 4 }}>
-        <div className="flex items-center justify-end">
-          <ConnectFilterIconBtn
-            count={advCount}
-            onClick={() => setFilterOpen?.(true)}
-          />
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 16 }}>
-        {/* Your best matches — ranked by shared ground (kids, interests,
+        {/* Recommended Moms for you — ranked by shared ground (kids, interests,
             values, free slots) minus a distance penalty. */}
-        <SectionHead title="Your best matches" onLink={() => setSeeAll('moms')}/>
+        <SectionHead title="Recommended Moms for you" onLink={() => setSeeAll('moms')}/>
         {gridMoms.length === 0 ? (
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
@@ -808,22 +1265,29 @@ export const ConnectTab = ({
             No matches yet — check back soon.
           </div>
         ) : (
+          // Three compact cards on a single phone row. Smaller hero photo
+          // (88px) keeps the card readable at 1/3 of the viewport width.
           <div className="grid grid-cols-3" style={{ gap: 8 }}>
-            {gridMoms.map(item => (
-              <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
+            {gridMoms.slice(0, 3).map(item => (
+              <MomCard
+                key={item.id}
+                item={item}
+                compact
+                onClick={() => openMomDetail(item)}
+              />
             ))}
           </div>
         )}
         {/* Upcoming meetups */}
-        <SectionHead title="Upcoming meetups" onLink={() => setSeeAll('meetups')}/>
+        <SectionHead title="Upcoming meetups" onLink={() => goToExploreSeeAll?.('meetups')}/>
         <div className="grid grid-cols-3" style={{ gap: 8 }}>
           {MEETUPS.map(item => (
             <MeetupCard key={item.id} item={item} onClick={() => openMeetupDetail(item)}/>
           ))}
         </div>
 
-        {/* Popular discussions nearby */}
-        <SectionHead title="Popular discussions nearby" onLink={() => setSeeAll('topics')}/>
+        {/* Popular Mom Groups */}
+        <SectionHead title="Popular Mom Groups" onLink={() => setSeeAll('topics')}/>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {TOP_DISCUSSIONS.map(d => (
             <DiscussionCard
@@ -833,85 +1297,75 @@ export const ConnectTab = ({
             />
           ))}
         </div>
+
+        <InviteFriendButton flash={flash}/>
       </div>
 
       {seeAll === 'moms' && (
         <SeeAllSheet
-          title="Your best matches"
+          title="Recommended Moms for you"
           subtitle={`${seeAllMoms.length} moms${nearbyVerifiedOnly ? ' · verified only' : ''}`}
           items={seeAllMoms}
-          renderItem={(item) => {
-            return (
-              <MomListCard
-                key={item.id}
-                item={item}
-                sharedTags={item.sharedTags}
-                scheduledSlot={scheduledFor(item)}
-                messagesUsed={0}
-                freeLimit={3}
-                isPremium={!!account?.isPremium}
-                connectionStatus={connections[item.id] || 'none'}
-                onConnect={() => handleConnect(item)}
-                onProfile={() => openMomDetail(item)}
-                onMessage={() => handleMessage(item)}
-                onSchedule={() => handleAutoSchedule(item)}
-                onPremium={() => openPremium?.()}
-              />
-            );
-          }}
-          layout="list"
-          gap={12}
+          renderItem={(item) => (
+            // Same MomCard preview used on the Connect + Home rows — taps
+            // open MomDetailSheet which hosts every deep action.
+            <MomCard key={item.id} item={item} onClick={() => openMomDetail(item)}/>
+          )}
+          columns={2}
+          gap={10}
+          // Only 3 visible quick filters; the rest are behind the (Plus-gated)
+          // advanced filter button at the top-right of the SeeAllSheet.
           quickFilters={[
-            { id: 'verified', label: 'Verified',     icon: ShieldCheck },
-            { id: 'similar',  label: 'Similar kids',  icon: Heart },
-            { id: 'newmom',   label: 'New mom',       icon: Baby },
-            { id: 'working',  label: 'Working',       icon: Briefcase },
-            { id: 'stay',     label: 'Stay-at-home',  icon: Home },
-            { id: 'near',     label: 'Near me',       icon: MapPin },
+            { id: 'near',      label: 'Near me',          icon: MapPin },
+            { id: 'similar',   label: 'Similar stage',    icon: Baby   },
+            { id: 'interests', label: 'Similar interests',icon: Heart  },
           ]}
-          activeQuickFilter={momQuickFilter ?? (nearbyVerifiedOnly ? 'verified' : null)}
+          activeQuickFilter={momQuickFilter}
           onQuickFilter={(id) => {
-            if (id === 'verified') {
-              onSetVerifiedOnly?.(!nearbyVerifiedOnly);
-              setMomQuickFilter(null);
-              return;
-            }
             setMomQuickFilter(prev => (prev === id ? null : id));
           }}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
+          onOpenAdvancedFilter={() => {
+            if (!account?.isPremium) { openPremium?.(); return; }
+            setMomsAdvOpen(true);
+          }}
+          advancedFilterCount={momsAdvCount}
+          lockedPremium={!account?.isPremium}
           onClose={() => { setSeeAll(null); setMomQuickFilter(null); }}
         />
       )}
 
-      {seeAll === 'meetups' && (
-        <SeeAllSheet
-          title="Upcoming meetups"
-          subtitle="Next 7 days"
-          items={MEETUPS_ALL}
-          renderItem={(item) => (
-            <MeetupCard key={item.id} item={item} onClick={() => openMeetupDetail(item)}/>
-          )}
-          columns={2}
-          quickFilters={[
-            { id: 'thisweek',label: 'This week',  icon: Calendar },
-            { id: 'weekend', label: 'Weekend',    icon: Calendar },
-            { id: 'morning', label: 'Mornings',   icon: Coffee   },
-            { id: 'kids',    label: 'Kid-friendly',icon: Baby    },
-            { id: 'verified',label: 'Verified',   icon: ShieldCheck },
-            { id: 'near',    label: 'Near me',    icon: MapPin   },
-          ]}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
-          onClose={() => setSeeAll(null)}
+      {momsAdvOpen && (
+        <MomsAdvancedFilterSheet
+          filters={momsAdvFilters}
+          setFilters={(next) => {
+            setMomsAdvFilters(next);
+            // The verified-only flag is also a server-side filter (controls
+            // the next nearby-moms re-fetch). Mirror it on App-level state so
+            // the cached list and the chip badge stay in sync.
+            if (next.verifiedOnly !== nearbyVerifiedOnly) {
+              onSetVerifiedOnly?.(next.verifiedOnly);
+            }
+          }}
+          onClose={() => setMomsAdvOpen(false)}
         />
       )}
 
+      {/* The 'meetups' See-all is owned by the Explore tab now — taps on
+          "Upcoming meetups" route there via goToExploreSeeAll. */}
+
       {seeAll === 'topics' && (
         <SeeAllSheet
-          title="Popular discussions nearby"
-          subtitle={`${GROUP_DISCUSSIONS.length} active threads · Tampa moms`}
-          items={GROUP_DISCUSSIONS}
+          title="Popular Mom Groups"
+          subtitle={`${GROUP_DISCUSSIONS.length} active groups · Tampa moms`}
+          items={GROUP_DISCUSSIONS.filter(d =>
+            matchesGroupFilters(d, {
+              categoryIds: [...groupQuickCategories],
+              topics: groupAdvanced.topics,
+              kidAges: groupAdvanced.kidAges,
+              momStages: groupAdvanced.momStages,
+              neighborhoods: groupAdvanced.neighborhoods,
+            }),
+          )}
           renderItem={(d) => (
             <DiscussionCard
               key={d.id}
@@ -921,21 +1375,45 @@ export const ConnectTab = ({
           )}
           layout="list"
           gap={10}
-          quickFilters={[
-            { id: 'sleep',     label: 'Sleep',     icon: Moon       },
-            { id: 'daycare',   label: 'Daycare',   icon: BookOpen   },
-            { id: 'play',      label: 'Playdates', icon: Users      },
-            { id: 'postpartum',label: 'Postpartum',icon: Heart      },
-            { id: 'feeding',   label: 'Feeding',   icon: Coffee     },
-            { id: 'working',   label: 'Working',   icon: Briefcase  },
-          ]}
-          onOpenAdvancedFilter={() => setFilterOpen?.(true)}
-          advancedFilterCount={advCount}
+          quickFilters={GROUP_CATEGORIES_VISIBLE}
+          activeQuickFilter={groupQuickCategories}
+          onQuickFilter={(id) => {
+            setGroupQuickCategories(prev => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+          }}
+          matchQuickFilter={(item) => {
+            if (groupQuickCategories.size === 0) return true;
+            return groupQuickCategories.has(item.categoryId);
+          }}
+          onOpenAdvancedFilter={() => {
+            if (!account?.isPremium) {
+              openPremium?.();
+              flash?.('✦ Advanced filters are a Plus perk');
+              return;
+            }
+            setGroupAdvancedOpen(true);
+          }}
+          advancedFilterCount={groupAdvancedCount}
+          lockedPremium={!account?.isPremium}
+          accent={C.sage}
           onClose={() => setSeeAll(null)}
         />
       )}
 
-      {filterOpen && (
+      {groupAdvancedOpen && (
+        <GroupsAdvancedFilterSheet
+          filters={groupAdvanced}
+          setFilters={setGroupAdvanced}
+          onClose={() => setGroupAdvancedOpen(false)}
+        />
+      )}
+
+      {/* Advanced filters are Plus-only — non-premium taps redirect to the
+          PremiumSheet via the effect below, so we never render the drawer. */}
+      {filterOpen && !!account?.isPremium && (
         <MeetupsFilterSheet
           filters={filters}
           setFilters={setFilters}
@@ -948,17 +1426,24 @@ export const ConnectTab = ({
         <MomDetailSheet
           mom={selectedMom}
           saved={isSaved(`mom-${selectedMom.id}`)}
-          invited={!!invited[selectedMom.id]}
-          onInvite={() => {
-            setInvited(i => ({ ...i, [selectedMom.id]: true }));
-            flash?.(`✦ Invite sent to ${selectedMom.name}`);
-          }}
+          // All deep actions live here now (moved off the old SeeAll card).
+          connectionStatus={connections[selectedMom.id] || 'none'}
+          scheduledSlot={scheduledFor(selectedMom)}
+          proposal={proposals[selectedMom.id]}
+          isPremium={!!account?.isPremium}
+          messagesUsed={(messageHistory?.[selectedMom.id] || []).filter(m => m.fromUser).length}
+          freeLimit={3}
+          onConnect={() => handleConnect(selectedMom)}
           onMessage={() => {
-            // MessageSheet renders from the mom's .id + .name; the live nearbyMoms
-            // card shape carries both, so the basic chat renders fine.
-            openMessage?.(selectedMom);
+            handleMessage(selectedMom);
             setSelectedMom(null);
           }}
+          onSchedule={() => {
+            openSchedule?.(selectedMom);
+            setSelectedMom(null);
+          }}
+          onPropose={(proposal) => handleProposeMeetup(selectedMom, proposal)}
+          onPremium={() => openPremium?.()}
           onSave={() => {
             const key = `mom-${selectedMom.id}`;
             toggleSave(key);
@@ -977,22 +1462,17 @@ export const ConnectTab = ({
       {selectedEvent && (
         <EventDetailSheet
           event={selectedEvent}
-          saved={isSaved(selectedEvent.id)}
+          variant="meetup"
           joined={isJoined(selectedEvent.id)}
           interested={isSaved(`int-${selectedEvent.id}`)}
+          flash={flash}
           onJoin={() => {
+            const alreadyJoined = isJoined(selectedEvent.id);
+            if (!alreadyJoined && requireVerify && !requireVerify('meetup', selectedEvent.title)) return;
             toggleJoined(selectedEvent.id);
-            flash?.(isJoined(selectedEvent.id)
-              ? `Removed RSVP · ${selectedEvent.title}`
-              : `✦ You're going · ${selectedEvent.title}`);
           }}
           onInterested={() => {
             toggleSave(`int-${selectedEvent.id}`);
-            flash?.(isSaved(`int-${selectedEvent.id}`) ? 'Removed interest' : '✦ Marked as interested');
-          }}
-          onSave={() => {
-            toggleSave(selectedEvent.id);
-            flash?.(isSaved(selectedEvent.id) ? 'Removed from saved' : '✦ Saved');
           }}
           onShare={() => setShareItem({
             title: selectedEvent.title,
@@ -1001,7 +1481,15 @@ export const ConnectTab = ({
             place: selectedEvent.place,
             photo: selectedEvent.photo,
           })}
-          onDiscuss={() => onDiscuss?.({ type: 'event', id: selectedEvent.id, title: selectedEvent.title })}
+          onDiscuss={() => onDiscuss?.({
+            type: 'meetup-chat',
+            id: `meetup-chat-${selectedEvent.id}`,
+            title: `${selectedEvent.title} · moms going`,
+            // Chat is intentionally short-lived: the group thread should
+            // close 2 days after the meetup ends. The receiving handler
+            // can use this hint to gate writes / show a banner.
+            expiresHint: '2 days after meetup',
+          })}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -1017,8 +1505,11 @@ export const ConnectTab = ({
       {selectedDiscussion && (
         <GroupDiscussionSheet
           discussion={selectedDiscussion}
-          joined={joinedDiscussions.has(selectedDiscussion.id)}
-          onToggleJoin={toggleJoinDiscussion}
+          joinStatus={discussionJoinStatus[selectedDiscussion.id] || 'none'}
+          onRequestJoin={requestJoinDiscussion}
+          onLeave={leaveDiscussion}
+          isPremium={!!account?.isPremium}
+          openPremium={openPremium}
           onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
           onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
           author={chatAuthor}
@@ -1030,36 +1521,3 @@ export const ConnectTab = ({
     </div>
   );
 };
-
-// Round filter icon button. Coral accent when any filter is active.
-const ConnectFilterIconBtn = ({ count = 0, onClick }) => (
-  <button
-    onClick={onClick}
-    aria-label="Open advanced filters"
-    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
-    style={{
-      width: 34, height: 34,
-      background: count > 0 ? C.coral : C.paper,
-      color: count > 0 ? '#fff' : C.navy,
-      border: `1px solid ${count > 0 ? C.coral : C.divider}`,
-    }}
-  >
-    <SlidersHorizontal size={14}/>
-    {count > 0 && (
-      <span
-        className="absolute"
-        style={{
-          top: -3, right: -3,
-          minWidth: 16, height: 16, padding: '0 4px',
-          borderRadius: 8,
-          background: C.coralDeep, color: '#fff',
-          fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `1.5px solid ${C.cream}`,
-        }}
-      >
-        {count > 9 ? '9+' : count}
-      </span>
-    )}
-  </button>
-);

@@ -1,31 +1,33 @@
 import { useState } from 'react';
 import {
-  MessageCircle, Users, CalendarDays, LayoutGrid,
+  MessageCircle, Users, CalendarDays, Bookmark,
   MapPin, Clock, ChevronRight, Heart,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { SUGGESTED_EVENTS } from '../data/events';
+import { findPlace } from '../data/places';
+import { SAMPLE_MOMS } from '../data/moms';
 
 // ==========================================================================
 // MamaHubSheet — the catch-all "what's happening in my orbit" surface.
-// Lifted from the new top-right LayoutGrid button in MainApp. Four
-// segmented tabs:
+// Four segmented tabs (ordered Plans-first so the user lands on her day):
 //
-//   Notifications · Chats · Groups · Plans
+//   Plans · Chat · Groups · Saved
 //
-// Each tab renders a light, scrollable list of items. Tapping a chat row
-// hands the mom back through `onOpenMessage` so MessageSheet opens via
-// App-level state; tapping a group hands the discussion through
-// `onOpenDiscussion`; tapping a plan flashes a confirmation.
+// An "Up next" hero card sits above the tabs and highlights the soonest
+// activity she's joining. The Plans tab lists this week's plans below,
+// with the day/time pinned on the right of each row.
 // ==========================================================================
 
 const TABS = [
-  { id: 'chats',   label: 'Chats',    Icon: MessageCircle },
-  { id: 'groups',  label: 'Groups',   Icon: Users         },
-  { id: 'plans',   label: 'Plans',    Icon: CalendarDays  },
+  { id: 'plans',  label: 'Plans',  Icon: CalendarDays  },
+  { id: 'chats',  label: 'Chat',   Icon: MessageCircle },
+  { id: 'groups', label: 'Groups', Icon: Users         },
+  { id: 'saved',  label: 'Saved',  Icon: Bookmark      },
 ];
 
-// Seed data — feels populated on first open.
+// Seed chat data — feels populated on first open.
 const SEED_CHATS = [
   { id: 'c1', name: 'Sarah K.', kids: '2 kids', preview: "Yes! Park tomorrow at 10 works",
     when: '8m', unread: 2,
@@ -41,27 +43,51 @@ const SEED_CHATS = [
     photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop' },
 ];
 
-const SEED_PLANS = [
-  { id: 'pl1', kind: 'Meetup', title: 'Stroller Walk + Coffee', when: 'Sat, May 17 · 9:00 AM',
-    place: 'Curtis Hixon Waterfront Park', going: 12 },
-  { id: 'pl2', kind: '1:1 meetup', title: 'Coffee with Sarah', when: 'Thu, May 22 · 10:00 AM',
-    place: 'Buddy Brew · Hyde Park' },
-  { id: 'pl3', kind: 'Activity', title: 'Family Yoga in the Park', when: 'Sun, May 18 · 10:00 AM',
-    place: 'Curtis Hixon Waterfront Park', going: 28 },
-  { id: 'pl4', kind: 'Group', title: 'Toddler playdates · Hyde Park', when: 'Joined · 2d ago',
-    place: '187 moms · 11 online' },
-];
+// Resolve a saved/interested id into a display shape (event, place, or mom).
+const resolveSaved = (id, moms = []) => {
+  if (typeof id === 'string' && id.startsWith('mom-')) {
+    const m = moms.find(x => String(x.id) === id.slice(4));
+    if (!m) return null;
+    return {
+      kind: 'mom', photo: m.photo, title: m.name,
+      sub: `${m.type} · ${m.kids}`,
+      meta: m.distance ? `${m.distance} · ${m.overlap}% match` : `${m.overlap}% match`,
+    };
+  }
+  const ev = SUGGESTED_EVENTS.find(e => e.id === id);
+  if (ev) return {
+    kind: 'event', photo: ev.photo, title: ev.name,
+    sub: `${ev.day} · ${ev.time}`, meta: ev.place,
+  };
+  const place = findPlace(id);
+  if (place) return {
+    kind: 'place', photo: null, title: place.name,
+    sub: place.area, meta: `${place.dist} mi`,
+  };
+  const numericId = typeof id === 'string' && id.startsWith('s') ? Number(id.slice(1)) : Number(id);
+  const mom = SAMPLE_MOMS.find(m => m.id === numericId);
+  if (mom) return {
+    kind: 'mom', photo: mom.photo, title: mom.name,
+    sub: `${mom.type} · ${mom.kids}`,
+    meta: `${mom.distance} · ${mom.overlap}% match`,
+  };
+  return null;
+};
 
 export const MamaHubSheet = ({
   groupDiscussions = [],
   joinedDiscussionIds = new Set(),
+  joinedEvents = [],
+  savedItems = [], setSavedItems,
+  goingItems = [], setGoingItems,
+  moms = [],
   onOpenMessage,
   onOpenDiscussion,
   flash,
   onClose,
   asScreen = false, // render as a full tab screen instead of a bottom drawer
 }) => {
-  const [tab, setTab] = useState('chats');
+  const [tab, setTab] = useState('plans');
 
   // Surface joined groups + a few popular ones as a single feed.
   const groupItems = groupDiscussions.slice(0, 6).map(d => ({
@@ -69,28 +95,39 @@ export const MamaHubSheet = ({
     joined: joinedDiscussionIds.has(d.id),
   }));
 
+  // Joined activities — resolve event ids to full event shapes (with photo).
+  // Fall back to the first few SUGGESTED_EVENTS so the prototype feels
+  // populated before the user RSVPs to anything.
+  const joinedActivities = joinedEvents
+    .map(id => SUGGESTED_EVENTS.find(e => e.id === id))
+    .filter(Boolean);
+  const planActivities = joinedActivities.length > 0
+    ? joinedActivities
+    : SUGGESTED_EVENTS.slice(0, 3);
+  const upNext = planActivities[0];
+
+  // Resolve saved + interested ids.
+  const savedResolved = savedItems
+    .map(id => ({ id, item: resolveSaved(id, moms) }))
+    .filter(x => x.item);
+  const interestedResolved = goingItems
+    .map(id => ({ id, item: resolveSaved(id, moms) }))
+    .filter(x => x.item);
+
+  const unsave     = (id) => setSavedItems?.(prev => prev.filter(x => x !== id));
+  const uninterest = (id) => setGoingItems?.(prev => prev.filter(x => x !== id));
+
   const inner = (
       <div className="pb-6">
-        {/* Header — drawer only; as a screen the MainApp header shows the title */}
-        {!asScreen && (
-        <div style={{
-          padding: '12px 20px 4px',
-          background: `linear-gradient(180deg, ${C.coralSoft} 0%, ${C.cream} 100%)`,
-        }}>
-          <div className="text-[10px] tracking-[.18em] uppercase" style={{
-            color: C.coralDeep, fontFamily: 'Albert Sans', fontWeight: 800,
-          }}>
-            Your village, all in one place
+
+        {/* Up next hero card — soonest activity in your plan */}
+        {upNext && (
+          <div className="px-5" style={{ paddingTop: 2, paddingBottom: 4 }}>
+            <UpNextCard
+              event={upNext}
+              onClick={() => flash?.(`Opening ${upNext.name}…`)}
+            />
           </div>
-          <div style={{
-            fontFamily: 'Fraunces', fontSize: 22, fontWeight: 600,
-            color: C.navy, letterSpacing: '-.02em', marginTop: 2,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            <LayoutGrid size={18} color={C.coralDeep}/>
-            Mama Hub
-          </div>
-        </div>
         )}
 
         {/* Tab segmented control */}
@@ -126,6 +163,29 @@ export const MamaHubSheet = ({
 
         {/* Tab body */}
         <div className="px-5 pt-4">
+          {tab === 'plans' && (
+            <div>
+              <SectionLabel Icon={CalendarDays} label="This week" count={planActivities.length} color={C.coralDeep}/>
+              {planActivities.length === 0 ? (
+                <EmptyState
+                  Icon={CalendarDays}
+                  title="No plans yet"
+                  subtitle="RSVP to a meetup and it'll land here."
+                />
+              ) : (
+                <div className="space-y-2">
+                  {planActivities.map(ev => (
+                    <PlanRow
+                      key={ev.id}
+                      event={ev}
+                      onClick={() => flash?.(`Opening ${ev.name}…`)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === 'chats' && (
             <div className="space-y-2">
               {SEED_CHATS.map(c => (
@@ -165,15 +225,46 @@ export const MamaHubSheet = ({
             </div>
           )}
 
-          {tab === 'plans' && (
-            <div className="space-y-2">
-              {SEED_PLANS.map(p => (
-                <PlanRow
-                  key={p.id}
-                  plan={p}
-                  onClick={() => flash?.(`Opening ${p.title}…`)}
+          {tab === 'saved' && (
+            <div>
+              <SectionLabel Icon={Bookmark} label="Saved" count={savedResolved.length} color={C.coralDeep}/>
+              {savedResolved.length === 0 ? (
+                <EmptyState
+                  Icon={Bookmark}
+                  title="Nothing saved yet"
+                  subtitle="Tap the bookmark on anything to save it here."
                 />
-              ))}
+              ) : (
+                <div className="space-y-2">
+                  {savedResolved.map(({ id, item }) => (
+                    <SavedRow
+                      key={`saved-${id}`}
+                      item={item}
+                      onRemove={() => unsave(id)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div style={{ height: 12 }}/>
+              <SectionLabel Icon={Heart} label="Interested" count={interestedResolved.length} color={C.coralDeep}/>
+              {interestedResolved.length === 0 ? (
+                <EmptyState
+                  Icon={Heart}
+                  title="Nothing marked interested"
+                  subtitle="Tap Interested on a place or event to track it here."
+                />
+              ) : (
+                <div className="space-y-2">
+                  {interestedResolved.map(({ id, item }) => (
+                    <SavedRow
+                      key={`int-${id}`}
+                      item={item}
+                      onRemove={() => uninterest(id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -187,6 +278,128 @@ export const MamaHubSheet = ({
 
 // ===== Rows =====
 
+const UpNextCard = ({ event, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-full text-left rounded-2xl overflow-hidden active:scale-[.99] transition-transform"
+    style={{
+      background: '#fff', border: `1px solid ${C.divider}`,
+      boxShadow: '0 8px 24px -16px rgba(27,42,78,.25)',
+      cursor: 'pointer', position: 'relative',
+    }}
+  >
+    <div style={{ position: 'relative', height: 96 }}>
+      {event.photo ? (
+        <img src={event.photo} alt="" style={{
+          width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+        }}/>
+      ) : (
+        <div style={{ width: '100%', height: '100%', background: event.hue || C.coralSoft }}/>
+      )}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%)',
+      }}/>
+      <div style={{
+        position: 'absolute', top: 10, left: 10,
+        padding: '4px 8px', borderRadius: 999,
+        background: `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+        color: '#fff', fontFamily: 'Albert Sans', fontSize: 9.5,
+        fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase',
+      }}>
+        Up next
+      </div>
+    </div>
+    <div style={{ padding: '10px 12px 12px' }}>
+      <div style={{
+        fontFamily: 'Fraunces', fontSize: 16, fontWeight: 600,
+        color: C.navy, letterSpacing: '-.01em', lineHeight: 1.15,
+      }}>
+        {event.name}
+      </div>
+      <div className="flex items-center" style={{
+        marginTop: 4, gap: 5, flexWrap: 'wrap',
+        fontFamily: 'Albert Sans', fontSize: 11.5, color: C.navySoft,
+      }}>
+        <Clock size={11} color={C.coralDeep}/>
+        <span style={{ fontWeight: 700, color: C.navy }}>{event.day} · {event.time}</span>
+        <span style={{ opacity: 0.4 }}>·</span>
+        <MapPin size={11} color={C.navySoft}/>
+        <span>{event.place}</span>
+      </div>
+    </div>
+  </button>
+);
+
+const PlanRow = ({ event, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-full flex items-center gap-3 rounded-2xl p-3 text-left active:scale-[.99] transition-transform"
+    style={{ background: '#fff', border: `1px solid ${C.divider}`, cursor: 'pointer' }}
+  >
+    <div style={{
+      width: 44, height: 44, borderRadius: 12,
+      background: C.coralSoft, color: C.coralDeep,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <CalendarDays size={18}/>
+    </div>
+    <div className="flex-1 min-w-0">
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
+        color: C.navy, lineHeight: 1.15,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {event.name}
+      </div>
+      <div className="flex items-center" style={{
+        marginTop: 3, gap: 4,
+        fontFamily: 'Albert Sans', fontSize: 11, color: C.muted,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {event.place && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            <MapPin size={9}/> {event.place}
+          </span>
+        )}
+        {event.going != null && (
+          <>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span style={{
+              color: C.sageDark, fontWeight: 700,
+              display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0,
+            }}>
+              <Heart size={9} fill={C.sageDark}/> {event.going}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+    {/* Day / time, right-aligned */}
+    <div style={{
+      flexShrink: 0, textAlign: 'right', paddingLeft: 8,
+      borderLeft: `1px solid ${C.divider}`, marginLeft: 4,
+    }}>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+        color: C.coralDeep, letterSpacing: '.08em', textTransform: 'uppercase',
+      }}>
+        {event.day}
+      </div>
+      <div className="flex items-center justify-end" style={{
+        marginTop: 2, gap: 3,
+        fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 700, color: C.navy,
+      }}>
+        <Clock size={9} color={C.navySoft}/>
+        {event.time}
+      </div>
+    </div>
+  </button>
+);
 
 const ChatRow = ({ chat, onClick }) => (
   <button
@@ -275,59 +488,78 @@ const GroupRow = ({ group, onClick }) => {
   );
 };
 
-const PlanRow = ({ plan, onClick }) => (
-  <button
-    onClick={onClick}
-    className="w-full flex items-center gap-3 rounded-2xl p-3 text-left active:scale-[.99] transition-transform"
-    style={{ background: '#fff', border: `1px solid ${C.divider}`, cursor: 'pointer' }}
+const SavedRow = ({ item, onRemove }) => (
+  <div
+    className="flex rounded-2xl overflow-hidden relative"
+    style={{ background: '#fff', border: `1px solid ${C.divider}` }}
   >
-    <div style={{
-      width: 44, height: 44, borderRadius: 12,
-      background: C.coralSoft, color: C.coralDeep,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <CalendarDays size={18}/>
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="text-[9.5px] tracking-[.14em] uppercase" style={{
-        color: C.coralDeep, fontFamily: 'Albert Sans', fontWeight: 800,
-      }}>
-        {plan.kind}
-      </div>
+    {item.photo
+      ? <img src={item.photo} alt="" style={{ width: 60, height: 60, objectFit: 'cover', flexShrink: 0 }}/>
+      : <div style={{
+          width: 60, height: 60, background: C.creamSoft,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Bookmark size={16} color={C.coralDeep}/>
+        </div>}
+    <div className="flex-1 px-3 py-2 flex flex-col justify-center min-w-0">
       <div style={{
-        fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700,
-        color: C.navy, lineHeight: 1.15, marginTop: 1,
+        fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
+        color: C.navy, lineHeight: 1.15,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }}>
-        {plan.title}
+        {item.title}
       </div>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 11, color: C.muted,
-        marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
-      }}>
-        <Clock size={9}/> {plan.when}
-        {plan.place && (
-          <>
-            <span style={{ opacity: 0.4 }}>·</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <MapPin size={9}/> {plan.place}
-            </span>
-          </>
-        )}
-        {plan.going != null && (
-          <>
-            <span style={{ opacity: 0.4 }}>·</span>
-            <span style={{
-              color: C.sageDark, fontWeight: 700,
-              display: 'inline-flex', alignItems: 'center', gap: 3,
-            }}>
-              <Heart size={9} fill={C.sageDark}/> {plan.going} going
-            </span>
-          </>
-        )}
-      </div>
+      {item.sub && (
+        <div style={{
+          fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 2,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {item.sub}
+        </div>
+      )}
+      {item.meta && (
+        <div className="flex items-center" style={{
+          gap: 4, marginTop: 3, fontFamily: 'Albert Sans',
+          fontSize: 9.5, fontWeight: 600, color: C.navySoft,
+        }}>
+          <MapPin size={9}/>
+          <span style={{
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {item.meta}
+          </span>
+        </div>
+      )}
     </div>
-  </button>
+    {onRemove && (
+      <button
+        onClick={onRemove}
+        aria-label="Remove"
+        style={{
+          alignSelf: 'center', marginRight: 8,
+          width: 24, height: 24, borderRadius: 12,
+          background: C.paper, border: `1px solid ${C.divider}`, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.muted, lineHeight: 1 }}>×</span>
+      </button>
+    )}
+  </div>
+);
+
+const SectionLabel = ({ Icon, label, count, color }) => (
+  <div className="flex items-center gap-1.5" style={{
+    marginBottom: 8,
+    fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+    letterSpacing: '.12em', color,
+  }}>
+    <Icon size={11}/>
+    <span>{label.toUpperCase()}</span>
+    <span style={{ color: C.muted, fontWeight: 600 }}>· {count}</span>
+  </div>
 );
 
 const EmptyState = ({ Icon, title, subtitle }) => (

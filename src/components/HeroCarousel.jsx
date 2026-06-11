@@ -12,13 +12,6 @@ import { C } from '../theme';
 
 const SLIDES = [
   {
-    img: '/landing/hero-this-week.png',
-    eyebrow: 'THIS WEEK',
-    title: 'Things to do this week',
-    stat: 'Family days out, picked for Tampa moms',
-    badge: 'calendar',
-  },
-  {
     img: '/landing/hero-connect.png',
     eyebrow: 'CONNECT',
     title: 'Meet other moms nearby',
@@ -26,16 +19,23 @@ const SLIDES = [
     badge: 'live',
   },
   {
+    img: '/landing/hero-this-week.png',
+    eyebrow: 'THIS WEEK',
+    title: 'Explore local events & meetups',
+    stat: 'Family days out, picked for Tampa moms',
+    badge: 'calendar',
+  },
+  {
     img: '/landing/hero-programs.png',
     eyebrow: 'PROGRAMS',
-    title: 'Kids programs',
+    title: 'Find classes & activities for your kids',
     stat: 'Swim, sports, music & classes your kids will love',
     badge: 'school',
   },
   {
     img: '/landing/hero-trusted-picks.png',
     eyebrow: 'TRUSTED PICKS',
-    title: 'Trusted local picks',
+    title: 'Explore local gems',
     stat: 'Schools, sitters & services other moms swear by',
     badge: 'rating',
   },

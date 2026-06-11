@@ -20,10 +20,11 @@ const DISTANCE_PRESETS = [
 ];
 
 const CATEGORY_OPTS = [
-  'Top Spots',
-  'Fun & entertainment',
+  'Events',
+  'Meetups',
+  'Top local picks',
+  'Kids programs',
   'Schools & childcare',
-  'Extracurricular & camps',
   'Health & wellness',
 ];
 const AMENITY_OPTS = [

@@ -19,8 +19,8 @@ import { HeroCarousel } from '../components/HeroCarousel';
 const BG = '#FAF3F0';
 
 const STAT_PILLS = [
-  { Icon: Calendar, count: '50+',     label: 'events this week', tint: C.coralSoft, fg: C.coralDeep },
   { Icon: Users,    count: '1,200+',  label: 'moms nearby',      tint: C.peach,     fg: C.coralDeep },
+  { Icon: Calendar, count: '50+',     label: 'events this week', tint: C.coralSoft, fg: C.coralDeep },
   { Icon: MapPin,   count: '300+',    label: 'local gems',       tint: C.sage,      fg: C.sageDark },
 ];
 
@@ -96,15 +96,19 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
           fontFamily: 'Fraunces', fontSize: 24, fontWeight: 700,
           color: C.navy, lineHeight: 1.2, letterSpacing: '-.02em',
         }}>
-          Everything a{' '}
-          <span style={{ color: C.coralDeep }}>mom</span>
-          {' '}needs. In one place.
+          Your kid needs a{' '}
+          <span style={{ fontStyle: 'italic', color: C.coralDeep, fontWeight: 500 }}>friend</span>
+          <span style={{ color: C.coralDeep }}>.</span>
+          <br/>
+          So do{' '}
+          <span style={{ fontStyle: 'italic', color: C.coralDeep, fontWeight: 500 }}>you</span>
+          <span style={{ color: C.coralDeep }}>.</span>
         </div>
         <p style={{
           fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
           lineHeight: 1.4, marginTop: 6, padding: '0 6px',
         }}>
-          Find activities, events, places, support and moms who get it — all near you.
+          Get out of the house, discover local activities and connect with moms who get it.
         </p>
       </div>
 

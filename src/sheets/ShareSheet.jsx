@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  MessageCircle, Mail, Link as LinkIcon, Copy, MoreHorizontal,
-  Check, Send, Search, ShieldCheck,
+  MessageCircle, Mail, Copy, MoreHorizontal,
+  Check, Send, Search, ShieldCheck, Instagram,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
@@ -37,14 +37,23 @@ const FacebookIcon = (props) => (
   </svg>
 );
 
-const CHANNELS = [
+// Section 1 — direct communication channels. Facebook lives below in the
+// social-post row, so the comms grid stays focused on 1:1 / small-group
+// sends (Messages, WhatsApp, Email, Copy link, X, More).
+const COMM_CHANNELS = [
   { id: 'sms',      label: 'Messages', Icon: MessageCircle, bg: '#E2EBD8', fg: '#5E7A3B' }, // sage
   { id: 'whatsapp', label: 'WhatsApp', Icon: WhatsAppIcon,  bg: '#DDF4E1', fg: '#2EA84E' },
   { id: 'email',    label: 'Email',    Icon: Mail,          bg: '#FCEEEE', fg: '#E96B7D' },
   { id: 'copy',     label: 'Copy link',Icon: Copy,          bg: '#EDE4F4', fg: '#5E4A8A' },
   { id: 'x',        label: 'X',        Icon: XIcon,         bg: '#1B2A4E', fg: '#FFFFFF' },
-  { id: 'facebook', label: 'Facebook', Icon: FacebookIcon,  bg: '#E8F0FE', fg: '#1877F2' },
   { id: 'more',     label: 'More',     Icon: MoreHorizontal,bg: '#F1ECE8', fg: '#1B2A4E' },
+];
+
+// Section 2 — broadcast a post to a social feed (Story / wall). Instagram
+// and Facebook are the two surfaces moms actually use to share plans.
+const SOCIAL_CHANNELS = [
+  { id: 'instagram', label: 'Instagram', Icon: Instagram,    bg: '#FCEEEE', fg: '#E96B7D' },
+  { id: 'facebook',  label: 'Facebook',  Icon: FacebookIcon, bg: '#E8F0FE', fg: '#1877F2' },
 ];
 
 // Default invitee pool — surfaces nearby moms when no caller-supplied list
@@ -101,6 +110,11 @@ export const ShareSheet = ({
     onClose?.();
   };
 
+  const handleSocial = (ch) => {
+    flash?.(`Opening ${ch.label} post composer…`);
+    onClose?.();
+  };
+
   const sendInvites = () => {
     if (selected.size === 0) return;
     flash?.(`✦ Invite sent to ${selected.size} mom${selected.size === 1 ? '' : 's'}`);
@@ -133,51 +147,29 @@ export const ShareSheet = ({
         )}
 
         {/* Channel grid */}
+        {/* Section 1 — Send via (direct comms) */}
         <div className="mt-5">
           <SectionLabel>Send via</SectionLabel>
-          <div
-            className="flex gap-3 overflow-x-auto"
-            style={{ scrollbarWidth: 'none', paddingBottom: 4, marginTop: 6 }}
-          >
-            {CHANNELS.map(ch => {
-              const isCopy = ch.id === 'copy' && copied;
-              const Icon = isCopy ? Check : ch.Icon;
-              return (
-                <button
-                  key={ch.id}
-                  onClick={() => handleChannel(ch)}
-                  className="flex-shrink-0 flex flex-col items-center active:scale-[.96] transition-transform"
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    width: 64,
-                  }}
-                >
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 26,
-                    background: isCopy ? C.sageDark : ch.bg,
-                    color: isCopy ? '#fff' : ch.fg,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 3px 8px -6px rgba(27,42,78,.2)',
-                  }}>
-                    <Icon size={20}/>
-                  </div>
-                  <div style={{
-                    marginTop: 6,
-                    fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
-                    color: C.navy, lineHeight: 1.15, textAlign: 'center',
-                  }}>
-                    {isCopy ? 'Copied' : ch.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <ChannelRow
+            channels={COMM_CHANNELS}
+            onChannel={handleChannel}
+            copiedId={copied ? 'copy' : null}
+          />
         </div>
 
-        {/* Invite specific moms */}
+        {/* Section 2 — Share post in social media (IG + Facebook). */}
+        <div className="mt-5">
+          <SectionLabel>Share post in social media</SectionLabel>
+          <ChannelRow
+            channels={SOCIAL_CHANNELS}
+            onChannel={handleSocial}
+          />
+        </div>
+
+        {/* Section 3 — Invite moms in the app */}
         <div className="mt-5">
           <div className="flex items-center justify-between">
-            <SectionLabel>Invite moms directly</SectionLabel>
+            <SectionLabel>Invite moms in the app</SectionLabel>
             <span style={{
               fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, fontWeight: 600,
             }}>
@@ -301,6 +293,48 @@ const SectionLabel = ({ children }) => (
     }}
   >
     {children}
+  </div>
+);
+
+// Horizontal scroll row of circular channel buttons. Reused by both the
+// "Send via" comms row and the "Share post in social media" row.
+const ChannelRow = ({ channels, onChannel, copiedId }) => (
+  <div
+    className="flex gap-3 overflow-x-auto"
+    style={{ scrollbarWidth: 'none', paddingBottom: 4, marginTop: 6 }}
+  >
+    {channels.map(ch => {
+      const isCopy = ch.id === copiedId;
+      const Icon = isCopy ? Check : ch.Icon;
+      return (
+        <button
+          key={ch.id}
+          onClick={() => onChannel(ch)}
+          className="flex-shrink-0 flex flex-col items-center active:scale-[.96] transition-transform"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            width: 64,
+          }}
+        >
+          <div style={{
+            width: 52, height: 52, borderRadius: 26,
+            background: isCopy ? C.sageDark : ch.bg,
+            color: isCopy ? '#fff' : ch.fg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 3px 8px -6px rgba(27,42,78,.2)',
+          }}>
+            <Icon size={20}/>
+          </div>
+          <div style={{
+            marginTop: 6,
+            fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+            color: C.navy, lineHeight: 1.15, textAlign: 'center',
+          }}>
+            {isCopy ? 'Copied' : ch.label}
+          </div>
+        </button>
+      );
+    })}
   </div>
 );
 

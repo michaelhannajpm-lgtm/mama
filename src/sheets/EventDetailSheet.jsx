@@ -1,26 +1,84 @@
 import { useState } from 'react';
 import {
-  MapPin, Clock, Users, Check, Star, Bookmark, Share2,
-  Sparkles, CalendarDays, MessageCircle,
+  MapPin, Clock, Users, Check, Star, Share2,
+  Sparkles, MessageCircle, ListChecks,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 
 // ==========================================================================
-// EventDetailSheet — shared detail surface for events / meetups across
-// ThisWeek and Connect. Accepts a normalized event shape:
+// EventDetailSheet — shared detail surface for events, meetups, and
+// "things-to-do" cards. Accepts a normalized shape:
 //
-//   { id, title, photo, when, place, distance?, going?, tags?, description? }
+//   { id, title, photo, when, place, distance?, going?, tags?,
+//     description?, instructions?, goingAvatars? }
 //
-// Action buttons: Join (RSVP), Interested, Save, Share. The first three
-// are stateful (joined / interested / saved flags toggle their UI),
-// Share just flashes.
+// Action layout (same for every variant):
+//
+//   ┌────────────────────────────────────────┐
+//   │              I'm going                  │   ← full-width primary
+//   ├────────────────────────────────────────┤
+//   │  Interested │ Join chat │   Share      │   ← secondary row
+//   └────────────────────────────────────────┘
+//
+// "Join chat" stays tappable even when the user hasn't RSVP'd — tapping
+// it surfaces a flash message ("Only accessible for moms going to the
+// event") instead of opening the thread. RSVP'ing first opens the
+// thread normally (the group chat closes 2 days after the event).
+//
+// "I'm going" also surfaces a flash ("Complete your profile & earn
+// verified badge") to nudge profile completion alongside the RSVP.
+//
+// `variant` ('event' | 'meetup', default 'event') still controls whether
+// the meetup-only extras render:
+//   - blurred "N moms going" preview row
+//   - "Meetup instructions" checklist after the About section
 // ==========================================================================
 
 const FALLBACK_DESCRIPTION =
   "Casual, mom-friendly meetup. Bring your kid, your stroller, and your favorite coffee — no pressure to stay the whole time.";
 
-const ActionTile = ({ active, onClick, accent, Icon, label, activeLabel }) => (
+const FALLBACK_INSTRUCTIONS = [
+  'Show up 5 min early — easier to spot the group.',
+  'Wear something coral so other moms can find you.',
+  'Strollers welcome. Bring water + a snack for your little one.',
+  'Bail-out friendly — no pressure to stay the whole time.',
+];
+
+const DEFAULT_GOING_AVATARS = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=120&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=120&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop',
+];
+
+// Full-width primary CTA — "I'm going" sits alone on its own row so the
+// commitment action stays unambiguous.
+const PrimaryCTA = ({ active, onClick, accent, Icon, label, activeLabel }) => (
+  <button
+    onClick={onClick}
+    className="w-full rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[.99]"
+    style={{
+      height: 52,
+      background: active
+        ? `linear-gradient(135deg, ${accent}, ${accent})`
+        : `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+      color: '#fff',
+      border: 'none',
+      fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 14.5,
+      boxShadow: `0 6px 16px -6px ${accent}99`,
+    }}
+  >
+    <Icon size={16}/>
+    {active ? (activeLabel || label) : label}
+  </button>
+);
+
+// Secondary tile — small, equal-width icon button used in the row of 3
+// (Interested / Join chat / Share).
+const SecondaryTile = ({ active, onClick, accent, Icon, label }) => (
   <button
     onClick={onClick}
     className="flex-1 rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-[.97]"
@@ -30,30 +88,63 @@ const ActionTile = ({ active, onClick, accent, Icon, label, activeLabel }) => (
       color: active ? '#fff' : C.navy,
       border: `1px solid ${active ? accent : C.divider}`,
       fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12,
+      cursor: 'pointer',
     }}
   >
-    <Icon size={14} fill={active && Icon === Bookmark ? '#fff' : 'none'}/>
-    {active ? (activeLabel || label) : label}
+    <Icon size={14}/>
+    {label}
   </button>
 );
 
 export const EventDetailSheet = ({
   event,
-  saved = false,
-  joined = false,
-  interested = false,
-  onJoin, onInterested, onSave, onShare, onDiscuss,
+  variant = 'event',                   // 'event' | 'meetup'
+  joined = false,                      // I'm-going / RSVP flag
+  interested = false,                  // lighter "Interested" flag
+  onJoin, onInterested, onShare, onDiscuss,
+  flash,                               // for the two inline message toasts
   onClose,
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
   if (!event) return null;
 
+  const isMeetup = variant === 'meetup';
   const description = event.description || FALLBACK_DESCRIPTION;
   const tags = event.tags || [];
+  const instructions = event.instructions && event.instructions.length
+    ? event.instructions
+    : FALLBACK_INSTRUCTIONS;
+
+  const isGoing = !!joined;
+  // Join chat stays tappable in both states; the locked state just routes
+  // to a flash toast instead of opening the thread.
+  const chatLocked = !isGoing;
+
+  const handleImGoing = () => {
+    onJoin?.(event);
+    // Nudge profile completion every time the RSVP is confirmed — keeps
+    // the verified-badge incentive in the user's path.
+    flash?.('Complete your profile & earn verified badge');
+  };
+
+  const handleJoinChat = () => {
+    if (chatLocked) {
+      flash?.('Only accessible for moms going to the event');
+      return;
+    }
+    onDiscuss?.();
+  };
+
+  const goingCount = event.going != null ? event.going : 0;
+  const avatars = (event.goingAvatars && event.goingAvatars.length
+    ? event.goingAvatars
+    : DEFAULT_GOING_AVATARS).slice(0, 5);
 
   return (
     <Sheet onClose={onClose} tall bleedTop>
-      <div className="pb-6">
+      {/* All content lives inside Sheet's overflow-y-auto wrapper, so the
+          whole detail view scrolls as one column — top hero to bottom CTA. */}
+      <div className="pb-8">
         {/* Hero */}
         <div
           className="relative"
@@ -71,7 +162,7 @@ export const EventDetailSheet = ({
             <div className="text-[10.5px] tracking-[.18em] uppercase opacity-95" style={{
               fontFamily: 'Albert Sans', fontWeight: 700,
             }}>
-              {event.kind || 'Meetup'}
+              {event.kind || (isMeetup ? 'Meetup' : 'Event')}
             </div>
             <div className="mt-1" style={{
               fontFamily: 'Fraunces', fontSize: 24, fontWeight: 600,
@@ -128,7 +219,7 @@ export const EventDetailSheet = ({
 
           {/* Description */}
           <div className="mt-5">
-            <SectionLabel>About this meetup</SectionLabel>
+            <SectionLabel>About this {isMeetup ? 'meetup' : 'event'}</SectionLabel>
             <div
               className="text-[13px]"
               style={{
@@ -155,6 +246,79 @@ export const EventDetailSheet = ({
               </button>
             )}
           </div>
+
+          {/* Meetup-only: instructions block (appears right after the
+              About section so the user knows what to expect on arrival). */}
+          {isMeetup && (
+            <div className="mt-5">
+              <SectionLabel>Meetup instructions</SectionLabel>
+              <ul style={{
+                margin: 0, padding: 0, listStyle: 'none',
+                background: C.paper, border: `1px solid ${C.divider}`,
+                borderRadius: 14, overflow: 'hidden',
+              }}>
+                {instructions.map((line, i) => (
+                  <li key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '10px 12px',
+                    borderTop: i === 0 ? 'none' : `1px solid ${C.divider}`,
+                  }}>
+                    <ListChecks size={14} color={C.coralDeep} style={{ marginTop: 2, flexShrink: 0 }}/>
+                    <span style={{
+                      fontFamily: 'Albert Sans', fontSize: 12.5,
+                      color: C.navySoft, lineHeight: 1.45,
+                    }}>
+                      {line}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Blurred avatar preview of moms going. Shows whenever there's a
+              going count — for events as well as meetups, since both now
+              share the unified card behavior. Identity is fuzzy on purpose:
+              this is social proof, not a roster. */}
+          {goingCount > 0 && (
+            <div
+              className="mt-5 rounded-2xl flex items-center gap-3"
+              style={{
+                background: C.paper, border: `1px solid ${C.divider}`,
+                padding: '12px 14px',
+              }}
+            >
+              <div className="flex" style={{ flexShrink: 0 }}>
+                {avatars.map((src, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 36, height: 36, borderRadius: 18,
+                      backgroundImage: `url('${src}')`,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                      border: '2px solid #fff',
+                      marginLeft: i === 0 ? 0 : -12,
+                      filter: 'blur(4px)',
+                      boxShadow: '0 2px 6px -3px rgba(27,42,78,.25)',
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy,
+                  lineHeight: 1.15,
+                }}>
+                  {goingCount} mom{goingCount === 1 ? '' : 's'} going to this {isMeetup ? 'meetup' : 'event'}
+                </div>
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 2,
+                }}>
+                  RSVP to see who's coming
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Hosted by (always shown to suggest social context) */}
           <div className="mt-5 rounded-2xl p-3.5 flex items-center gap-3" style={{
@@ -184,44 +348,34 @@ export const EventDetailSheet = ({
             <Sparkles size={14} color={C.saffron}/>
           </div>
 
-          {/* Primary action — Join */}
-          <button
-            onClick={() => onJoin?.(event)}
-            className="mt-5 w-full rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[.99]"
-            style={{
-              height: 50,
-              background: joined
-                ? `linear-gradient(135deg, ${C.sage}, ${C.sageDark})`
-                : `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
-              color: '#fff',
-              fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 14,
-              boxShadow: joined
-                ? '0 6px 16px -6px rgba(94,122,59,.5)'
-                : '0 6px 16px -6px rgba(214,68,106,.55)',
-            }}
-          >
-            {joined ? <><Check size={16}/> You're going</> : <><CalendarDays size={16}/> Join meetup</>}
-          </button>
-
-          {/* Secondary actions — Interested · Save · Share */}
-          <div className="mt-2.5 flex gap-2">
-            <ActionTile
+          {/* Action stack — full-width "I'm going" on its own row, then a
+              row of three secondary buttons (Interested · Join chat · Share). */}
+          <div className="mt-5">
+            <PrimaryCTA
+              active={isGoing}
+              onClick={handleImGoing}
+              accent={C.coralDeep}
+              Icon={Check}
+              label="I'm going"
+              activeLabel="I'm going ✓"
+            />
+          </div>
+          <div className="mt-2 flex gap-2">
+            <SecondaryTile
               active={interested}
               onClick={() => onInterested?.(event)}
               accent={C.saffron}
               Icon={Sparkles}
               label="Interested"
-              activeLabel="Interested ✓"
             />
-            <ActionTile
-              active={saved}
-              onClick={() => onSave?.(event)}
-              accent={C.coralDeep}
-              Icon={Bookmark}
-              label="Save"
-              activeLabel="Saved"
+            <SecondaryTile
+              active={false}
+              onClick={handleJoinChat}
+              accent={C.sageDark}
+              Icon={MessageCircle}
+              label="Join chat"
             />
-            <ActionTile
+            <SecondaryTile
               active={false}
               onClick={() => onShare?.(event)}
               accent={C.navy}
@@ -229,16 +383,12 @@ export const EventDetailSheet = ({
               label="Share"
             />
           </div>
-
-          {/* Discuss button — only when a thread handler is provided */}
-          {onDiscuss && (
-            <button onClick={onDiscuss} className="active:scale-[.98] transition-transform" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              width: '100%', padding: '11px', borderRadius: 12, marginTop: 8,
-              background: C.sage, color: C.sageDark, border: `1px solid ${C.sageDark}33`,
-              fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              <MessageCircle size={15}/> Discuss this event
-            </button>
+          {isGoing && (
+            <div className="mt-1.5 text-center" style={{
+              fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted,
+            }}>
+              Group chat closes 2 days after the event.
+            </div>
           )}
         </div>
       </div>

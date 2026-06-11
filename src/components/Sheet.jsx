@@ -9,14 +9,18 @@ import { C } from '../theme';
 // colored/photo header. Without it, content sits below a small handle strip
 // (the default, right for text-first sheets).
 export const Sheet = ({ children, onClose, tall, dark, hideClose, bleedTop }) => {
-  const maxVh = tall ? '88vh' : '78vh';
+  // Sheets used to top out at 78/88vh; long sheets (advanced filter, mom
+  // detail) cut off the bottom Apply / Send CTAs. Tall variant now grows
+  // to 92vh, default to 82vh, and the inner scroller adds bottom safe-area
+  // padding so the very last button always clears the iOS home indicator.
+  const maxVh = tall ? '92vh' : '82vh';
   return (
     <div className="absolute inset-0 z-40" style={{ background: 'rgba(20,14,16,.45)' }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="absolute left-0 right-0 bottom-0 overflow-hidden"
         style={{
           borderTopLeftRadius: 28, borderTopRightRadius: 28,
           background: dark ? C.ink : C.cream,
-          maxHeight: tall ? '88%' : '78%',
+          maxHeight: tall ? '92%' : '82%',
           animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)',
         }}>
         {/* Drag handle. Floats over the content in bleedTop mode so the hero
@@ -46,7 +50,13 @@ export const Sheet = ({ children, onClose, tall, dark, hideClose, bleedTop }) =>
           </button>
         )}
         <div className="overflow-y-auto"
-          style={{ maxHeight: bleedTop ? maxVh : `calc(${maxVh} - 50px)`, scrollbarWidth: 'none' }}>
+          style={{
+            maxHeight: bleedTop ? maxVh : `calc(${maxVh} - 50px)`,
+            scrollbarWidth: 'none',
+            // 24px breathing room + the iOS safe-area inset so the final
+            // CTA never sits flush with the home indicator.
+            paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+          }}>
           {children}
         </div>
       </div>

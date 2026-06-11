@@ -1,16 +1,19 @@
 import {
   Briefcase, Home, Sun, Flower2, Sparkles, Coffee, Lock,
   TreePine, Leaf, Palette, BookOpen, Music,
+  Globe, Compass,
 } from 'lucide-react';
 
 export const MOM_TYPES = [
-  { id: 'working', label: 'Working mom', icon: Briefcase },
-  { id: 'sahm',    label: 'Stay-at-home', icon: Home },
-  { id: 'solo',    label: 'Solo mom',     icon: Sun },
-  { id: 'new',     label: 'New mom',      icon: Flower2 },
-  { id: 'multi',   label: 'Multi-kid',    icon: Sparkles },
-  { id: 'hybrid',  label: 'Hybrid / WFH', icon: Coffee },
-  { id: 'prefer_not', label: 'Prefer not to say', icon: Lock },
+  { id: 'working',      label: 'Working mom',       icon: Briefcase },
+  { id: 'sahm',         label: 'Stay-at-home',      icon: Home },
+  { id: 'solo',         label: 'Solo mom',          icon: Sun },
+  { id: 'new',          label: 'New mom',           icon: Flower2 },
+  { id: 'multi',        label: 'Multi-kid',         icon: Sparkles },
+  { id: 'hybrid',       label: 'Hybrid / WFH',      icon: Coffee },
+  { id: 'multicultural',label: 'Multicultural mom', icon: Globe },
+  { id: 'new_to_area',  label: 'New to area',       icon: Compass },
+  { id: 'prefer_not',   label: 'Prefer not to say', icon: Lock },
 ];
 
 export const VALUES = [

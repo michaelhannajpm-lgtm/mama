@@ -3,13 +3,80 @@
 // opened in the GroupDiscussionSheet. Each discussion has a small seed
 // feed (3-4 posts) so the sheet feels alive on first open; local sheet
 // state appends new posts / likes / comments on top of these.
+//
+// Filter facets (categoryId, topics, kidAges, momStages, neighborhoods)
+// power the Connect → "Popular Mom Groups" See-all chip row + advanced
+// filter sheet. `categoryId` matches one of GROUP_CATEGORIES below; the
+// four "visible" categories drive the quick-filter chips, while every
+// other facet is reachable through GroupsAdvancedFilterSheet.
 // ==========================================================================
 
 import {
   Moon, Baby, Coffee, BookOpen, HeartHandshake, Briefcase,
-  Stethoscope, Sparkles,
+  Stethoscope, Sparkles, Sun, GraduationCap, Brain,
 } from 'lucide-react';
 import { C } from '../theme';
+
+// ----- filter taxonomies ---------------------------------------------------
+
+// The four categories surfaced as visible chip filters on the See-all view.
+// Everything else lives in the advanced filter.
+export const GROUP_CATEGORIES_VISIBLE = [
+  { id: 'daycare',    label: 'Daycare picks',      icon: BookOpen     },
+  { id: 'postpartum', label: 'Postpartum support', icon: HeartHandshake },
+  { id: 'solo',       label: 'Solo moms',          icon: Sun          },
+  { id: 'teen',       label: 'Teen parenting',     icon: GraduationCap },
+];
+
+// Full topic vocabulary surfaced in the advanced filter sheet. The four
+// visible categories are *included* here so a Plus user can keep them in
+// view alongside the rest of the catalog.
+export const GROUP_TOPICS = [
+  { id: 'sleep',          label: 'Sleep training' },
+  { id: 'daycare',        label: 'Daycare picks' },
+  { id: 'postpartum',     label: 'Postpartum support' },
+  { id: 'solo',           label: 'Solo moms' },
+  { id: 'teen',           label: 'Teen parenting' },
+  { id: 'playdates',      label: 'Playdates' },
+  { id: 'feeding',        label: 'Feeding + picky eaters' },
+  { id: 'working',        label: 'Working moms' },
+  { id: 'mom-mental',     label: 'Mom mental health' },
+  { id: 'kids-mental',    label: 'Kids mental health' },
+  { id: 'pediatrics',     label: 'Pediatrics + healthcare' },
+  { id: 'school',         label: 'School hunting' },
+  { id: 'tweens',         label: 'Tween parenting' },
+  { id: 'special-needs',  label: 'Special needs' },
+];
+
+// Mom-stage filter — what stage of motherhood the group is for. Keyed off
+// the youngest child's life stage so it composes naturally with kidAges.
+export const GROUP_MOM_STAGES = [
+  { id: 'expecting', label: 'Expecting' },
+  { id: 'new',       label: 'New mom' },
+  { id: 'toddler',   label: 'Toddler years' },
+  { id: 'preschool', label: 'Preschool years' },
+  { id: 'school',    label: 'School-age' },
+  { id: 'tween',     label: 'Tween mom' },
+  { id: 'teen',      label: 'Teen mom' },
+];
+
+// Tampa-area neighborhoods most likely to be tagged on a group. Mirrors the
+// dataset in src/data/tampa-bay-areas.js but trimmed to the highest-density
+// mom communities so the chip row stays scannable.
+export const GROUP_NEIGHBORHOODS = [
+  'South Tampa',
+  'Hyde Park',
+  'Westshore',
+  'Bayshore',
+  'Seminole Heights',
+  'Carrollwood',
+  'New Tampa',
+  'Brandon',
+  'Riverview',
+  'Westchase',
+];
+
+// ----- seed posts ----------------------------------------------------------
 
 const AVATARS = {
   sarah:   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&auto=format&fit=crop',
@@ -31,6 +98,8 @@ const post = (id, authorId, authorName, photo, when, text, likes = 0, comments =
 
 const reply = (id, authorName, photo, when, text) => ({ id, authorName, photo, when, text });
 
+// ----- discussions ---------------------------------------------------------
+
 export const GROUP_DISCUSSIONS = [
   {
     id: 'd-sleep',
@@ -40,6 +109,13 @@ export const GROUP_DISCUSSIONS = [
     online: 8,
     Icon: Moon,
     bg: C.lilac, fg: '#5E4A8A',
+    // facets
+    categoryId: null,
+    topics: ['sleep'],
+    kidAges: ['0–1', '1–3'],
+    momStages: ['new', 'toddler'],
+    neighborhoods: ['South Tampa', 'Hyde Park'],
+    hostName: 'Sarah K.',
     posts: [
       post('p1', 'sarah', 'Sarah K.', AVATARS.sarah, '2h',
         'Three nights of Ferber and our 14-month-old slept through 🙏 Took longer than I expected — week 1 was rough. Anyone else hit the sleep regression around 15 months?',
@@ -65,6 +141,12 @@ export const GROUP_DISCUSSIONS = [
     online: 12,
     Icon: BookOpen,
     bg: C.sage, fg: C.sageDark,
+    categoryId: 'daycare',
+    topics: ['daycare'],
+    kidAges: ['0–1', '1–3', '3–5'],
+    momStages: ['new', 'toddler', 'preschool'],
+    neighborhoods: ['South Tampa', 'Hyde Park', 'Westshore'],
+    hostName: 'Amanda R.',
     posts: [
       post('p1', 'amanda', 'Amanda R.', AVATARS.amanda, '1h',
         'Just toured Primrose South Tampa — bright, clean, but openings are limited 😬 Anyone with experience there?',
@@ -90,6 +172,12 @@ export const GROUP_DISCUSSIONS = [
     online: 4,
     Icon: HeartHandshake,
     bg: C.coralSoft, fg: C.coralDeep,
+    categoryId: 'postpartum',
+    topics: ['postpartum', 'mom-mental'],
+    kidAges: ['0–1'],
+    momStages: ['new'],
+    neighborhoods: ['South Tampa', 'Hyde Park', 'Seminole Heights'],
+    hostName: 'Jessica T.',
     posts: [
       post('p1', 'jessica', 'Jessica T.', AVATARS.jessica, '3h',
         "Week 6 and I'm just now realizing I haven't left the house alone in 40 days. Going for coffee tomorrow morning. Anyone want to join?",
@@ -103,6 +191,58 @@ export const GROUP_DISCUSSIONS = [
     ],
   },
   {
+    id: 'd-solo',
+    title: 'Solo moms · Tampa Bay',
+    blurb: 'Co-parenting, schedules, finding our village',
+    members: 78,
+    online: 5,
+    Icon: Sun,
+    bg: '#FDE2D4', fg: '#8A4410',
+    categoryId: 'solo',
+    topics: ['solo'],
+    kidAges: ['1–3', '3–5', '5–8'],
+    momStages: ['toddler', 'preschool', 'school'],
+    neighborhoods: ['South Tampa', 'Carrollwood', 'Brandon', 'Riverview'],
+    hostName: 'Olivia D.',
+    posts: [
+      post('p1', 'olivia', 'Olivia D.', AVATARS.olivia, '2h',
+        'Solo mom of 2 here. Anyone else find weekends harder than weekdays? Looking for moms who get it — no judgment, no fixing.',
+        16, [
+          reply('c1', 'Maya P.', AVATARS.maya, '1h', "Saturday mornings are my hardest. Down for a park hang anytime."),
+          reply('c2', 'Zoe G.', AVATARS.zoe, '40m', "I host a solo-mom coffee at Oxford Exchange every other Sat. DM me."),
+        ]),
+      post('p2', 'ava', 'Ava S.', AVATARS.ava, '7h',
+        "Court-approved parenting coordinator rec in Hillsborough? Ours retired and the search is brutal.",
+        4, []),
+    ],
+  },
+  {
+    id: 'd-teen',
+    title: 'Teen parenting · what nobody warned us about',
+    blurb: 'Phones, friends, boundaries, the long game',
+    members: 134,
+    online: 7,
+    Icon: GraduationCap,
+    bg: C.lilac, fg: '#5E4A8A',
+    categoryId: 'teen',
+    topics: ['teen', 'kids-mental'],
+    kidAges: ['12–18'],
+    momStages: ['teen'],
+    neighborhoods: ['South Tampa', 'New Tampa', 'Westchase', 'Carrollwood'],
+    hostName: 'Hannah F.',
+    posts: [
+      post('p1', 'hannah', 'Hannah F.', AVATARS.hannah, '3h',
+        "My 14yo just asked for her own phone plan and I'm spiraling. Anyone navigated this without it becoming a whole-house thing?",
+        19, [
+          reply('c1', 'Emily B.', AVATARS.emily, '2h', "We did the 'family contract' route — boundaries on paper, no surprises. Worked for us."),
+          reply('c2', 'Sophia M.', AVATARS.sophia, '1h', "BARK app changed my life. Not for spying, for sleeping at night."),
+        ]),
+      post('p2', 'sophia', 'Sophia M.', AVATARS.sophia, '9h',
+        "Anxiety in teens — my 13yo started skipping lunch with friends. Therapist hunt is real. Recs welcome.",
+        11, []),
+    ],
+  },
+  {
     id: 'd-playdates',
     title: 'Toddler playdates · Hyde Park',
     blurb: 'Park hangs + indoor backup plans',
@@ -110,6 +250,12 @@ export const GROUP_DISCUSSIONS = [
     online: 11,
     Icon: Baby,
     bg: '#FFF4D6', fg: '#8A6610',
+    categoryId: null,
+    topics: ['playdates'],
+    kidAges: ['1–3', '3–5'],
+    momStages: ['toddler', 'preschool'],
+    neighborhoods: ['Hyde Park', 'South Tampa'],
+    hostName: 'Mia L.',
     posts: [
       post('p1', 'mia', 'Mia L.', AVATARS.mia, '45m',
         'Hyde Park Village playground tomorrow 10am if anyone wants to come! 18mo-3yr crew. Bringing snacks 🥨',
@@ -129,6 +275,12 @@ export const GROUP_DISCUSSIONS = [
     online: 5,
     Icon: Coffee,
     bg: C.sage, fg: C.sageDark,
+    categoryId: null,
+    topics: ['feeding'],
+    kidAges: ['0–1', '1–3', '3–5'],
+    momStages: ['new', 'toddler', 'preschool'],
+    neighborhoods: ['South Tampa', 'Westshore'],
+    hostName: 'Priya N.',
     posts: [
       post('p1', 'priya', 'Priya N.', AVATARS.priya, '2h',
         "My 2yr old will only eat 5 things. Pediatrician says she'll grow out of it but I'm losing my mind. Anyone been through this?",
@@ -145,6 +297,12 @@ export const GROUP_DISCUSSIONS = [
     online: 9,
     Icon: Briefcase,
     bg: C.lilac, fg: '#5E4A8A',
+    categoryId: null,
+    topics: ['working'],
+    kidAges: ['0–1', '1–3', '3–5', '5–8'],
+    momStages: ['new', 'toddler', 'preschool', 'school'],
+    neighborhoods: ['Westshore', 'South Tampa', 'New Tampa'],
+    hostName: 'Sophia M.',
     posts: [
       post('p1', 'sophia', 'Sophia M.', AVATARS.sophia, '1h',
         "How are y'all handling daycare drop-off + 9am standups? I'm losing my mind on Mondays.",
@@ -161,10 +319,41 @@ export const GROUP_DISCUSSIONS = [
     online: 3,
     Icon: Sparkles,
     bg: C.coralSoft, fg: C.coralDeep,
+    categoryId: null,
+    topics: ['mom-mental'],
+    kidAges: ['0–1', '1–3', '3–5', '5–8', '8–12', '12–18'],
+    momStages: ['new', 'toddler', 'preschool', 'school', 'tween', 'teen'],
+    neighborhoods: ['South Tampa', 'Hyde Park', 'Seminole Heights'],
+    hostName: 'Emily B.',
     posts: [
       post('p1', 'emily', 'Emily B.', AVATARS.emily, '4h',
         "Started seeing a perinatal therapist at 18mo postpartum. Wish I'd done it sooner. DM if you want her info.",
         22, []),
+    ],
+  },
+  {
+    id: 'd-kids-mental',
+    title: "Kids mental health",
+    blurb: 'Anxiety, big feelings, therapists who actually help',
+    members: 102,
+    online: 6,
+    Icon: Brain,
+    bg: C.coralSoft, fg: C.coralDeep,
+    categoryId: null,
+    topics: ['kids-mental'],
+    kidAges: ['3–5', '5–8', '8–12', '12–18'],
+    momStages: ['preschool', 'school', 'tween', 'teen'],
+    neighborhoods: ['South Tampa', 'Carrollwood', 'New Tampa', 'Brandon'],
+    hostName: 'Maya P.',
+    posts: [
+      post('p1', 'maya', 'Maya P.', AVATARS.maya, '3h',
+        "Looking for a child therapist in South Tampa who actually gets sensory kids. We've tried 3 — anyone had luck?",
+        13, [
+          reply('c1', 'Hannah F.', AVATARS.hannah, '2h', 'Dr. Reyes at Bayshore Behavioral Health was a game-changer for us.'),
+        ]),
+      post('p2', 'sophia', 'Sophia M.', AVATARS.sophia, '10h',
+        "How do you talk to a 7yo about school anxiety without making it worse? Pediatrician was kind but vague.",
+        8, []),
     ],
   },
   {
@@ -175,6 +364,12 @@ export const GROUP_DISCUSSIONS = [
     online: 6,
     Icon: Stethoscope,
     bg: C.sage, fg: C.sageDark,
+    categoryId: null,
+    topics: ['pediatrics'],
+    kidAges: ['0–1', '1–3', '3–5', '5–8', '8–12', '12–18'],
+    momStages: ['new', 'toddler', 'preschool', 'school', 'tween', 'teen'],
+    neighborhoods: ['South Tampa', 'Bayshore', 'Westshore'],
+    hostName: 'Hannah F.',
     posts: [
       post('p1', 'hannah', 'Hannah F.', AVATARS.hannah, '6h',
         "Pediatrician rec in South Tampa that takes our insurance — anyone with kids 3+ recently switched?",
@@ -188,3 +383,22 @@ export const GROUP_DISCUSSIONS = [
 // Featured order for ConnectTab's "Popular discussions nearby" — top N
 // most-active threads.
 export const TOP_DISCUSSIONS = GROUP_DISCUSSIONS.slice(0, 4);
+
+// Predicate used by the See-all sheet to filter discussions by the
+// combined active facets. Quick-filter chips populate `categoryIds`;
+// the advanced filter sheet populates the rest. All arrays act as ORs;
+// each non-empty array must produce at least one match.
+export const matchesGroupFilters = (d, {
+  categoryIds = [],
+  topics = [],
+  kidAges = [],
+  momStages = [],
+  neighborhoods = [],
+} = {}) => {
+  if (categoryIds.length && !categoryIds.includes(d.categoryId)) return false;
+  if (topics.length && !topics.some(t => (d.topics || []).includes(t))) return false;
+  if (kidAges.length && !kidAges.some(a => (d.kidAges || []).includes(a))) return false;
+  if (momStages.length && !momStages.some(s => (d.momStages || []).includes(s))) return false;
+  if (neighborhoods.length && !neighborhoods.some(n => (d.neighborhoods || []).includes(n))) return false;
+  return true;
+};

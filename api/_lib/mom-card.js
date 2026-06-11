@@ -12,12 +12,14 @@ const truthyKeys = (obj) =>
 
 // mom_type id → { label, tagBg, tagFg, iconKey }. tagBg/tagFg are abstract keys.
 export const MOM_TYPE_PRESENTATION = {
-  working: { label: 'Working mom',  tagBg: 'lilac',     tagFg: 'plum',      iconKey: 'working' },
-  sahm:    { label: 'Stay-at-home', tagBg: 'sage',      tagFg: 'sageDark',  iconKey: 'home' },
-  solo:    { label: 'Solo mom',     tagBg: 'coralSoft', tagFg: 'coralDeep', iconKey: 'solo' },
-  new:     { label: 'New mom',      tagBg: 'coralSoft', tagFg: 'coralDeep', iconKey: 'new' },
-  multi:   { label: 'Multi-kid',    tagBg: 'lilac',     tagFg: 'plum',      iconKey: 'multi' },
-  hybrid:  { label: 'Hybrid / WFH', tagBg: 'sage',      tagFg: 'sageDark',  iconKey: 'hybrid' },
+  working:      { label: 'Working mom',       tagBg: 'lilac',     tagFg: 'plum',      iconKey: 'working' },
+  sahm:         { label: 'Stay-at-home',      tagBg: 'sage',      tagFg: 'sageDark',  iconKey: 'home' },
+  solo:         { label: 'Solo mom',          tagBg: 'coralSoft', tagFg: 'coralDeep', iconKey: 'solo' },
+  new:          { label: 'New mom',           tagBg: 'coralSoft', tagFg: 'coralDeep', iconKey: 'new' },
+  multi:        { label: 'Multi-kid',         tagBg: 'lilac',     tagFg: 'plum',      iconKey: 'multi' },
+  hybrid:       { label: 'Hybrid / WFH',      tagBg: 'sage',      tagFg: 'sageDark',  iconKey: 'hybrid' },
+  multicultural:{ label: 'Multicultural mom', tagBg: 'peach',     tagFg: 'coralDeep', iconKey: 'multicultural' },
+  new_to_area:  { label: 'New to area',       tagBg: 'sage',      tagFg: 'sageDark',  iconKey: 'new_to_area' },
 };
 const DEFAULT_PRESENTATION = { label: 'Verified', tagBg: 'lilac', tagFg: 'plum', iconKey: 'verified' };
 
