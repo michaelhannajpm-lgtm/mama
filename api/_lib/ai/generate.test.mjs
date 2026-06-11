@@ -33,3 +33,11 @@ test('generateImage decodes b64, uploads via put, stamps generated', async () =>
   assert.equal(putArgs.bytes.toString(), 'img');
   assert.equal(putArgs.opts.access, 'public');
 });
+test('generateImage sanitizes record.id out of the blob path', async () => {
+  const openai = { images: { generate: async () => ({ data: [{ b64_json: Buffer.from('x').toString('base64') }] }) } };
+  let path = null;
+  const put = async (p, _b, _o) => { path = p; return { url: 'https://blob/' + p }; };
+  await generateImage({ openai, put }, 'place', { id: '../../evil' });
+  assert.ok(!path.includes('..'), `path should not contain ..: ${path}`);
+  assert.match(path, /^places\/ai-evil-/);
+});

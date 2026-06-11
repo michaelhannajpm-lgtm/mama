@@ -48,8 +48,8 @@ export const generateImage = async ({ openai, put }, kind, record, { quality = '
   const b64 = res?.data?.[0]?.b64_json;
   if (!b64) throw new Error('image model returned no b64_json');
   const bytes = Buffer.from(b64, 'base64');
-  const id = record?.id || 'new';
+  const id = String(record?.id || 'new').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'new';
   const path = `${KIND_FOLDER[kind] || 'misc'}/ai-${id}-${suffix()}.png`;
-  const blob = await put(path, bytes, { access: 'public', contentType: 'image/png' });
+  const blob = await put(path, bytes, { access: 'public', contentType: 'image/png', token: process.env.BLOB_READ_WRITE_TOKEN });
   return { url: blob.url, generated: true };
 };

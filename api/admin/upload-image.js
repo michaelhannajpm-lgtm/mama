@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   try {
     const id = String(body.id || 'new').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'new';
     const path = `${folder}/up-${id}-${randomHex(6)}.${decoded.ext}`;
-    const blob = await put(path, decoded.bytes, { access: 'public', contentType: decoded.contentType });
+    const blob = await put(path, decoded.bytes, { access: 'public', contentType: decoded.contentType, token: process.env.BLOB_READ_WRITE_TOKEN });
     return json(res, 200, { url: blob.url });
   } catch (e) {
     console.error('upload-image failed', e);
