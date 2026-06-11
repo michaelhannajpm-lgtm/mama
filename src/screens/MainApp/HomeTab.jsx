@@ -481,38 +481,10 @@ export const HomeTab = ({
       }))
     : FUN_THINGS_FALLBACK;
 
-  // Moms — closest first, fall back to seeded set.
-  const liveMoms = [...nearbyMoms]
-    .sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity))
-    .slice(0, 8);
-  const FALLBACK_MOMS = [
-    {
-      id: 'm-fb1', firstName: 'Sarah', name: 'Sarah',
-      kids: '16 month old', tag: 'Working Mom', distanceMi: 1.0,
-      photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb2', firstName: 'Jessica', name: 'Jessica',
-      kids: 'Toddler Mom', tag: 'New to Tampa', distanceMi: 0.8,
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb3', firstName: 'Lima', name: 'Lima',
-      kids: 'Stay-at-home Mom', tag: 'Loves outdoor play', distanceMi: 1.2,
-      photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb4', firstName: 'Priya', name: 'Priya',
-      kids: '2 yr old', tag: 'New mom', distanceMi: 0.9,
-      photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb5', firstName: 'Mia', name: 'Mia',
-      kids: 'Toddler Mom', tag: 'Verified', distanceMi: 1.1,
-      photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop',
-    },
-  ];
-  const moms = liveMoms.length > 0 ? liveMoms : FALLBACK_MOMS;
+  // Moms You May Want To Meet — already match-ranked by the API
+  // (/api/mom-profiles/nearby → scoreMom). Render in that order; do NOT re-sort
+  // by distance (that discarded the match ranking).
+  const moms = [...nearbyMoms];
 
   // Upcoming meetups — synthesized for the home preview. Real list lives in
   // Explore → Meetups; "See all" routes there.
@@ -716,13 +688,34 @@ export const HomeTab = ({
           ))}
         </div>
 
-        {/* Moms You May Want To Meet — 3-up grid of circular avatars */}
+        {/* Moms You May Want To Meet — 3-up grid, match-ranked */}
         <SectionHead title="Moms You May Want To Meet" onLink={goToConnectMoms}/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {moms.slice(0, 3).map(m => (
-            <MomMeetCard key={m.id} item={m} onClick={() => setSelectedMom(m)}/>
-          ))}
-        </div>
+        {moms.length > 0 ? (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {moms.slice(0, 3).map(m => (
+              <MomMeetCard key={m.id} item={m} onClick={() => setSelectedMom(m)}/>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
+            padding: '18px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700, color: C.navy }}>
+              Your <span style={{ fontStyle: 'italic', color: C.coral, fontWeight: 500 }}>village</span> is forming
+            </div>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 4, lineHeight: 1.35 }}>
+              Finishing your profile helps nearby moms find you.
+            </div>
+            <button onClick={onVerify} className="active:scale-[.98] transition-transform" style={{
+              marginTop: 10, background: C.coralDeep, color: '#fff', border: 'none',
+              borderRadius: 999, padding: '7px 16px', fontFamily: 'Albert Sans',
+              fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+            }}>
+              Complete profile
+            </button>
+          </div>
+        )}
 
         {/* Upcoming Meetups */}
         <SectionHead title="Upcoming Meetups" onLink={goToMeetups || goToActivities}/>
