@@ -7,6 +7,7 @@ import {
 import { C } from '../../theme';
 import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
+import { buildAgeRail, childList } from '../../lib/age-rail';
 import { profileCompletion } from '../../lib/profile-completion';
 import { scoreDiscussion, rankByRelevance } from '../../lib/content-score';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
@@ -266,37 +267,48 @@ const GroupChatChip = ({ item, index, onClick }) => (
 
 // -------------------------- Age program card --------------------------
 
-const AgeProgramCard = ({ item, onClick }) => (
-  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, width: 142, background: '#fff', borderRadius: 14,
-    border: `1px solid ${C.line}`, boxShadow: '0 4px 12px -8px rgba(27,42,78,.25)',
-    overflow: 'hidden', padding: 0, cursor: 'pointer',
-  }}>
-    {placePhoto(item)
-      ? <img src={placePhoto(item)} alt="" style={{ width: '100%', height: 88, objectFit: 'cover', display: 'block' }}/>
-      : <div style={{ width: '100%', height: 88, background: C.lilac }}/>}
-    <div style={{ padding: '8px 10px 10px' }}>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800,
-        color: C.navy, lineHeight: 1.15,
-        display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      }}>
-        {item.name}
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3 }}>
-        {item.ageRange}
-      </div>
-      {item.distance && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 2, marginTop: 4,
-          fontFamily: 'Albert Sans', fontSize: 9, color: C.inkSoft,
+const AgeProgramCard = ({ item, onClick }) => {
+  const isEvent = item.type === 'event';
+  return (
+    <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
+      flexShrink: 0, width: 142, background: '#fff', borderRadius: 14,
+      border: `1px solid ${C.line}`, boxShadow: '0 4px 12px -8px rgba(27,42,78,.25)',
+      overflow: 'hidden', padding: 0, cursor: 'pointer',
+    }}>
+      {item.photo
+        ? <img src={item.photo} alt="" style={{ width: '100%', height: 88, objectFit: 'cover', display: 'block' }}/>
+        : <div style={{ width: '100%', height: 88, background: C.lilac }}/>}
+      <div style={{ padding: '8px 10px 10px' }}>
+        <span style={{
+          display: 'inline-block', fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+          letterSpacing: '.04em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 6,
+          background: isEvent ? C.coralSoft : C.sage,
+          color: isEvent ? C.coralDeep : C.sageDark, marginBottom: 5,
         }}>
-          <MapPin size={9} color={C.muted}/> {item.distance}
+          {isEvent ? 'Event' : 'Place'}
+        </span>
+        <div style={{
+          fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800,
+          color: C.navy, lineHeight: 1.15,
+          display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          {item.name}
         </div>
-      )}
-    </div>
-  </button>
-);
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3 }}>
+          {item.reason || (isEvent ? item.when : item.ageLabel)}
+        </div>
+        {(isEvent ? item.when : item.distance) && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 2, marginTop: 4,
+            fontFamily: 'Albert Sans', fontSize: 9, color: C.inkSoft,
+          }}>
+            <MapPin size={9} color={C.muted}/> {isEvent ? item.when : item.distance}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};
 
 // -------------------------- Continue Planning tile --------------------------
 
@@ -421,6 +433,7 @@ export const HomeTab = ({
   const [shareItem, setShareItem] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState({});
   const [proposals, setProposals] = useState({});
+  const [ageChild, setAgeChild] = useState(null); // null = All
 
   void invited; void setInvited;
 
@@ -544,36 +557,12 @@ export const HomeTab = ({
       }))
     : GROUP_CHAT_FALLBACK;
 
-  // Age programs — personalize from the youngest kid bucket if available.
-  // profile.kidsAges is a `{bucket: count}` object; fall back to an array
-  // shape (kidBuckets) for sources that pre-flatten it.
-  const kidsBucketArr = Array.isArray(profile?.kidBuckets)
-    ? profile.kidBuckets
-    : Object.keys(profile?.kidsAges || {}).filter(k => (profile.kidsAges[k] || 0) > 0);
-  const AGE_RANGE_LABEL = {
-    '0–1':  'Perfect for 0–12 months',
-    '1–3':  'Perfect for 1–3 years',
-    '3–5':  'Perfect for 3–5 years',
-    '5–8':  'Perfect for 5–8 years',
-    '8–12': 'Perfect for 8–12 years',
-    '12–18':'Perfect for 12–18 years',
-  };
-  const youngest = ['0–1','1–3','3–5','5–8','8–12','12–18'].find(b => kidsBucketArr.includes(b));
-  const ageSubtitle = AGE_RANGE_LABEL[youngest] || 'Perfect for 6–18 months';
-  const AGE_PROGRAMS = [
-    {
-      id: 'ap-1', name: 'Music Class', ageRange: '0–3 yrs', distance: '0.6 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ap-2', name: 'Baby Gym', ageRange: '6–12 mo', distance: '1.0 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1518107616985-bd48230d3b20?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ap-3', name: 'Sensory Play Class', ageRange: '3–12 mo', distance: '0.8 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
-    },
-  ];
+  // Based On Your Child's Age — real, kid-age-ranked places + events.
+  const ageKids = childList(profile);
+  const ageRailAll = buildAgeRail(profile, places, { thisWeek, events }, { limit: 12 });
+  const ageRail = ageChild == null
+    ? ageRailAll
+    : ageRailAll.filter((it) => it.forChild.includes(ageChild));
 
   // Continue Planning — 4 slots: meetup, place, mom, program. Real saved
   // items from the App would populate this; we synthesize for the home preview.
@@ -751,17 +740,44 @@ export const HomeTab = ({
           ))}
         </div>
 
-        {/* Based On Your Child's Age */}
-        <SectionHead
-          title="Based On Your Child's Age"
-          subtitle={ageSubtitle}
-          onLink={goToKidsPrograms || goToPlaces}
-        />
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-          {AGE_PROGRAMS.map(p => (
-            <AgeProgramCard key={p.id} item={p} onClick={() => openPlace(p)}/>
-          ))}
-        </div>
+        {/* Based On Your Child's Age — per-child filterable, places + events */}
+        {ageKids.length > 0 && ageRailAll.length > 0 && (
+          <>
+            <SectionHead
+              title="Based On Your Child's Age"
+              onLink={goToKidsPrograms || goToPlaces}
+            />
+            {ageKids.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 8 }}>
+                {[{ label: 'All', idx: null }, ...ageKids.map((k, i) => ({ label: k.label, idx: i }))].map((chip) => {
+                  const active = ageChild === chip.idx;
+                  return (
+                    <button key={`${chip.label}-${chip.idx}`} onClick={() => setAgeChild(chip.idx)}
+                      className="active:scale-[.97] transition-transform"
+                      style={{
+                        flexShrink: 0, padding: '6px 13px', borderRadius: 999,
+                        background: active ? C.coral : C.paper,
+                        color: active ? '#fff' : C.navy,
+                        border: `1px solid ${active ? C.coral : C.divider}`,
+                        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+                        whiteSpace: 'nowrap', cursor: 'pointer',
+                      }}>
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {ageRail.map((p) => (
+                <AgeProgramCard key={`${p.type}-${p.id}`} item={p}
+                  onClick={() => (p.type === 'event'
+                    ? openMeetup({ id: p.id, title: p.name, photo: p.photo, when: p.when, mi: null })
+                    : openPlace(p))}/>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Continue Planning — 2x2 grid */}
         <SectionHead title="Continue Planning"/>
