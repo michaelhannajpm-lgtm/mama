@@ -16,7 +16,15 @@ modal.
 ## Decisions (from brainstorming)
 
 - **Sequencing:** admin deep-links first; public sharing is a separate later spec.
-- **Identifier:** pretty `slug` / `username`, with `id` (uuid) fallback.
+- **Identifier:** **canonical = immutable `id` (uuid)** for all four entities.
+  Rationale: `mom_profiles.username` and `places.slug` are both editable
+  (admin `mom-profiles/update.js` and `places/update.js`), so links built on
+  them would break on a rename. Admin URLs are internal, so readability does
+  not outweigh permanence. The resolver still **accepts** slug/username as
+  aliases (typed URLs, the create-event skill's slug link), but every link the
+  system *generates* — copy-link button, URL auto-sync, skill review link —
+  uses `id`. Pretty slug/username URLs return in Spec 2 (public sharing),
+  where renames are handled with an immutable public slug or old→new redirect.
 - **URL auto-sync:** opening a detail modal updates the address bar to the
   record's deep link; closing returns to the bare section URL. (Approved.)
 - **Users:** no dedicated user-detail modal is built. `/admin/users/<id>`
@@ -48,15 +56,17 @@ copy-link affordance, (4) URL auto-sync on open/close.
 
 ## URL scheme
 
-| Entity | Canonical link | Ref → row resolution order |
-|---|---|---|
-| Event | `/admin/events/<slug>` | `slug` → `id` |
-| Place | `/admin/places/<slug>` | `slug` → `id` |
-| Mom profile | `/admin/mom-profiles/<username>` | `username` → `id` |
-| User | `/admin/users/<id>` | `id` |
+| Entity | Canonical link (generated) | Also accepted (typed) | Ref → row resolution order |
+|---|---|---|---|
+| Event | `/admin/events/<id>` | `/admin/events/<slug>` | `id` → `slug` |
+| Place | `/admin/places/<id>` | `/admin/places/<slug>` | `id` → `slug` |
+| Mom profile | `/admin/mom-profiles/<id>` | `/admin/mom-profiles/<username>` | `id` → `username` |
+| User | `/admin/users/<id>` | — | `id` |
 
-`<ref>` is URL-encoded. When a record lacks a slug/username, the link uses its
-uuid; resolution always falls back to `id`.
+`<ref>` is URL-encoded. **The system always generates the `id` form** (stable
+across renames). Slug/username are accepted only as inbound aliases so a
+hand-typed or skill-emitted pretty URL still resolves. Resolution tries `id`
+first, then the alias field for that entity.
 
 ## Components & changes
 
@@ -82,16 +92,17 @@ A single hook/effect mounted in the admin shell:
 - Keeps a module-level "pending ref" so async row arrival still resolves
   (mirrors the existing pending-key behavior).
 
-### 3. Section open-handlers — match by pretty ref (one-line change each)
+### 3. Section open-handlers — accept id or alias (one-line change each)
 In `EventsManager`, `PlacesManager`, `MomProfilesSection`, change the row
 lookup from `r.id === id` to:
 `r.id === ref || r.slug === ref || r.username === ref` (only the fields that
-exist on that entity). They already search the full pre-filter `rows`, so the
-default "Needs review" status filter does not hide a deep-linked record.
+exist on that entity — `id` first). They already search the full pre-filter
+`rows`, so the default "Needs review" status filter does not hide a
+deep-linked record.
 
 ### 4. URL auto-sync on open/close
 - When a detail/edit modal opens (`setEditing(row)` / `setSelectedMom(row)`),
-  call `navigateRecord(section, row.slug || row.username || row.id)`.
+  call `navigateRecord(section, row.id)` — always the immutable id.
 - When it closes, call `navigateSection(section)` to return to the bare URL.
 - Guard against loops: the bridge must no-op when the modal for the current
   ref is already open (compare against the open record).
@@ -101,15 +112,17 @@ default "Needs review" status filter does not hide a deep-linked record.
   `src/screens/admin/components/`, styled with the `AC` admin tokens
   (per the admin-design skill — NOT the phone-app `C` tokens).
 - Placed on each row and in each edit-modal header. Copies
-  `${window.location.origin}${recordPath(section, ref)}` to the clipboard via
-  `navigator.clipboard.writeText`, then shows the section's existing
-  toast/`actionMsg`. Falls back to selecting the text if clipboard is blocked.
+  `${window.location.origin}${recordPath(section, row.id)}` (the id form) to
+  the clipboard via `navigator.clipboard.writeText`, then shows the section's
+  existing toast/`actionMsg`. Falls back to selecting the text if clipboard is
+  blocked.
 
 ### 6. `create-event` skill tie-in
-After a successful insert, the skill reports the admin review deep-link
-`/admin/events/<slug>` (prepend host) so the operator can jump straight to the
-new event. Update `.claude/skills/create-event/SKILL.md` step 8 ("Report")
-accordingly.
+After a successful insert, the skill reports the admin review deep-link using
+the returned row id — `/admin/events/<id>` (prepend host) — so the operator can
+jump straight to the new event. (The `/admin/events/<slug>` form also resolves,
+but id is the stable canonical.) Update `.claude/skills/create-event/SKILL.md`
+step 8 ("Report") accordingly.
 
 ## Data flow
 
@@ -124,10 +137,13 @@ paste /admin/events/evt-fb-coffee-gathering
 
 ```
 click a place row
-  → setEditing(place) → navigateRecord('places', place.slug || place.id)
-  → address bar becomes /admin/places/<slug>  (copy-ready)
+  → setEditing(place) → navigateRecord('places', place.id)
+  → address bar becomes /admin/places/<id>  (copy-ready, rename-proof)
   → close modal → navigateSection('places') → /admin/places
 ```
+
+(The first example uses a typed `slug` to show the alias path still resolves;
+the system itself always writes the `id` form, as in the second example.)
 
 ## Error handling
 
@@ -137,8 +153,12 @@ click a place row
 - **Clipboard blocked (non-HTTPS / permissions):** `CopyLinkButton` falls back
   to a visible, pre-selected URL the operator can copy manually.
 - **Ambiguous ref (slug collides with a uuid-shaped string):** resolution
-  tries `slug`/`username` first, then `id`; first match wins. Slugs are
-  namespaced and never uuid-shaped, so collisions are not expected.
+  tries `id` first, then the alias; first match wins. Slugs/usernames are never
+  uuid-shaped, so collisions are not expected.
+- **Renamed record:** since generated links use the immutable `id`, a
+  slug/username change never breaks an existing link. An old alias-form link
+  stops resolving after a rename (expected) — but those are only ever
+  hand-typed, never system-generated.
 
 ## Testing
 
@@ -148,10 +168,12 @@ existing `node --test` only if pure helpers are added):
 - **Pure helpers (unit-testable):** `recordPath`, `currentRecordRef` parsing,
   and the ref→row matcher — add `*.test.mjs` if extracted as pure functions.
 - **Manual matrix:** for each of events / places / mom-profiles:
-  1. Paste a slug/username deep link in a fresh tab → correct modal opens.
-  2. Paste a uuid deep link → opens.
+  1. Paste an `id` (uuid) deep link in a fresh tab → correct modal opens.
+  2. Paste a slug/username alias deep link → also opens.
   3. Paste a bad ref → toast, no crash.
-  4. Click a row → URL updates to the deep link; refresh re-opens it.
+  4. Click a row → URL updates to the `id` deep link; refresh re-opens it.
+  4b. Rename the record's slug/username, reuse the previously-copied (id) link
+      → still opens.
   5. Close modal → URL returns to `/admin/<section>`; back/forward behave.
   6. Copy-link button copies the canonical URL.
   7. Deep-link a record whose status is filtered out (e.g. an `approved`
