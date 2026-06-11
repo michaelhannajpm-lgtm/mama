@@ -58,6 +58,7 @@ export const MainApp = ({
   goingItems, setGoingItems,
   ratings, setRatings,
   openSchedule, openProfile, openMessage, openPremium,
+  messageHistory = {},
   account, requestAccount, restart, flash,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
   chatAuthor,
@@ -138,14 +139,14 @@ export const MainApp = ({
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
       <StatusBar/>
 
-      {/* Shared top header — non-Home tabs show their headline in Fraunces
-          on the left; the notification bell sits on the right. Home is
-          intentionally bare so its location pill (inside HomeTab) reads as
-          the first content row. */}
-      <div className="px-5" style={{ paddingTop: 14, paddingBottom: isHome ? 0 : 8 }}>
+      {/* Shared top header — Home + Explore are bare on the left (each
+          screen anchors itself with its own in-body content); the other
+          tabs show their headline in Fraunces. The notification bell sits
+          on the right in every tab. */}
+      <div className="px-5" style={{ paddingTop: 14, paddingBottom: (isHome || tab === 'localpicks') ? 0 : 8 }}>
         <div className="flex items-center justify-between">
           <div style={{ minWidth: 0, flex: 1, paddingRight: 10 }}>
-            {!isHome && (
+            {(isHome || tab === 'localpicks') ? null : (
               <div style={{
                 fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
                 color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
@@ -185,10 +186,12 @@ export const MainApp = ({
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
-        profile={profile} flash={flash}
+        profile={profile} account={account} flash={flash}
         openMessage={openMessage} openSchedule={openSchedule}
         goToPlaces={() => goToExploreSeeAll('places')}
         goToActivities={() => goToExploreSeeAll('events')}
+        goToMeetups={() => goToExploreSeeAll('meetups')}
+        goToKidsPrograms={() => goToExploreSeeAll('kids')}
         goToConnectMoms={() => goToConnectSeeAll('moms')}
         goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
@@ -206,6 +209,7 @@ export const MainApp = ({
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
+        messageHistory={messageHistory}
         account={account} requestAccount={requestAccount} flash={flash}
         requireVerify={requireVerify}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
@@ -231,6 +235,9 @@ export const MainApp = ({
         account={account} openPremium={openPremium}
         initialSeeAll={exploreSeeAll}
         onConsumeSeeAll={() => setExploreSeeAll(null)}
+        goToConnectGroups={() => goToConnectSeeAll('topics')}
+        chatAuthor={chatAuthor}
+        myUserId={myUserId}
         onDiscuss={setSubjectThread}/>}
       {tab === 'profile' && <YouTab
         profile={profile} setProfile={setProfile}
