@@ -8,6 +8,7 @@ import { EventsMap } from './EventsMap';
 import { MultiSelect, CollapsibleSearch, TypeaheadSelect, ViewMenu, StatusChips } from './AdminFilters';
 import { hasRealPhoto, statusColor, rowActionsFor } from './adminRows';
 import { DescriptionCell } from './DescriptionCell';
+import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
 
 const EVENT_TYPES = [
   'storytime', 'class', 'workshop', 'stem', 'art-class', 'music-class', 'dance-class',
@@ -59,6 +60,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [editing, setEditing] = useState(null);
+  const [deepLinkMiss, setDeepLinkMiss] = useState(null); // ref we couldn't resolve
   const [busy, setBusy] = useState(false);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
@@ -89,24 +91,36 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   // Deep-link target — Featured manager dispatches this to open an event's
   // edit modal from outside the tab.
   useEffect(() => {
+    const match = (ref) => (rows || []).find(
+      (r) => r.id === ref || r.slug === ref
+    );
     let pendingId = null;
     try { pendingId = sessionStorage.getItem('gm-admin-open-event'); } catch { /* ignore */ }
     if (pendingId && rows?.length) {
-      const target = rows.find((r) => r.id === pendingId);
-      if (target) {
-        setEditing(target);
-        try { sessionStorage.removeItem('gm-admin-open-event'); } catch { /* ignore */ }
-      }
+      const target = match(pendingId);
+      if (target) { setEditing(target); setDeepLinkMiss(null); }
+      else setDeepLinkMiss(pendingId);
+      try { sessionStorage.removeItem('gm-admin-open-event'); } catch { /* ignore */ }
     }
     const onOpen = (ev) => {
-      const id = ev?.detail?.id;
-      if (!id) return;
-      const target = (rows || []).find((r) => r.id === id);
-      if (target) setEditing(target);
+      const ref = ev?.detail?.id;
+      if (!ref) return;
+      const target = match(ref);
+      if (target) { setEditing(target); setDeepLinkMiss(null); }
+      else if (rows?.length) setDeepLinkMiss(ref);
     };
     window.addEventListener('gm-admin-open-event', onOpen);
     return () => window.removeEventListener('gm-admin-open-event', onOpen);
   }, [rows]);
+
+  // Keep the address bar in sync with the open record (canonical id form).
+  useEffect(() => {
+    if (editing && editing.id && !editing.__new) {
+      navigateRecord('events', editing.id);
+    } else if (!editing && currentRecordRef()) {
+      navigateSection('events');
+    }
+  }, [editing]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -336,6 +350,19 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
         <EventsMap events={filtered} onSelect={setEditing} />
       )}
 
+      {deepLinkMiss && (
+        <div style={{
+          margin: '8px 0', padding: '8px 12px', borderRadius: 8,
+          background: AC.warningSoft || '#FBF1E2', color: AC.text,
+          fontFamily: AC.font, fontSize: 12.5,
+        }}>
+          Couldn't find an event for "{deepLinkMiss}". It may be deleted or renamed.
+          <button onClick={() => setDeepLinkMiss(null)} style={{
+            marginLeft: 8, background: 'transparent', border: 'none',
+            color: AC.accent, fontWeight: 600, cursor: 'pointer',
+          }}>Dismiss</button>
+        </div>
+      )}
       {editing && (
         <EventEditModal event={editing} places={places} adminFetch={adminFetch}
           onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await onReload(); }} />
