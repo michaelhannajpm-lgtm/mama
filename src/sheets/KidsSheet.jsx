@@ -78,8 +78,14 @@ export const KidsSheet = ({ profile, onSave, onClose }) => {
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: C.cream, animation: 'slideUp .3s cubic-bezier(.2,.8,.2,1)' }}>
-      {/* Header — back arrow + eyebrow. Full-screen panel, matching the
+    <div className="absolute inset-0 z-40" style={{ background: 'rgba(20,14,16,.45)' }} onClick={onClose}>
+    <div onClick={(e) => e.stopPropagation()} className="absolute left-0 right-0 bottom-0 flex flex-col overflow-hidden"
+      style={{
+        borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        background: C.cream, maxHeight: '90%',
+        animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)',
+      }}>
+      {/* Header — eyebrow + close. Content-sized drawer, matching the
           Interests sheet. */}
       <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${C.divider}` }}>
         <div className="flex items-center justify-between">
@@ -96,8 +102,8 @@ export const KidsSheet = ({ profile, onSave, onClose }) => {
         </div>
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingTop: 14, paddingBottom: 14 }}>
+      {/* Scrollable body — shrink-wraps short content; scrolls only past the cap. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingTop: 14, paddingBottom: 14 }}>
         <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.navy, letterSpacing: '-.02em' }}>
           Your <span style={{ fontStyle: 'italic', color: C.coral }}>kids</span>
         </h3>
@@ -206,6 +212,7 @@ export const KidsSheet = ({ profile, onSave, onClose }) => {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
+    </div>
     </div>
   );
 };

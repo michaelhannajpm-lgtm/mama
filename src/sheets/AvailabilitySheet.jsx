@@ -134,9 +134,15 @@ export const AvailabilitySheet = ({ slots = [], onSave, onClose }) => {
   );
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: C.cream, animation: 'slideUp .3s cubic-bezier(.2,.8,.2,1)' }}>
+    <div className="absolute inset-0 z-40" style={{ background: 'rgba(20,14,16,.45)' }} onClick={onClose}>
+    <div onClick={(e) => e.stopPropagation()} className="absolute left-0 right-0 bottom-0 flex flex-col overflow-hidden"
+      style={{
+        borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        background: C.cream, maxHeight: '90%',
+        animation: 'slideUp .35s cubic-bezier(.2,.8,.2,1)',
+      }}>
       {/* Header — context-aware back arrow (custom → typical, typical → close)
-          + eyebrow. Full-screen panel, matching the Interests sheet. */}
+          + eyebrow. Content-sized drawer, matching the Interests sheet. */}
       <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${C.divider}` }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -161,8 +167,8 @@ export const AvailabilitySheet = ({ slots = [], onSave, onClose }) => {
         </div>
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      {/* Scrollable body — shrink-wraps short content; scrolls only past the cap. */}
+      <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
       {view === 'typical' ? (
         <div className="px-5 pt-3 pb-6">
           <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.navy, letterSpacing: '-.02em' }}>
@@ -289,6 +295,7 @@ export const AvailabilitySheet = ({ slots = [], onSave, onClose }) => {
           Done
         </button>
       </div>
+    </div>
     </div>
   );
 };
