@@ -5,7 +5,6 @@ import {
   Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
-import { PresenceDot } from '../../components/PresenceDot';
 import { ProfilePhotosSheet } from '../../sheets/ProfilePhotosSheet';
 import { EditIdentitySheet } from '../../sheets/EditIdentitySheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
@@ -45,7 +44,10 @@ const StatPill = ({ Icon, children, tone = C.coralDeep, bg = C.coralSoft }) => (
   </span>
 );
 
-const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick }) => (
+// `incomplete` flags a section the mom hasn't filled in yet: an alert dot on
+// the icon, a coral-tinted prompt, and a "Set up" pill — so the row reads as a
+// to-do, not just a setting.
+const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick, incomplete }) => (
   <button
     onClick={onClick}
     className="active:scale-[.99] transition-transform"
@@ -56,15 +58,31 @@ const SettingsRow = ({ Icon, iconBg, iconFg, label, sub, onClick }) => (
     }}
   >
     <div style={{
+      position: 'relative',
       width: 30, height: 30, borderRadius: 9, background: iconBg, color: iconFg,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       <Icon size={14}/>
+      {incomplete && (
+        <span style={{
+          position: 'absolute', top: -3, right: -3, width: 10, height: 10,
+          borderRadius: 999, background: C.coral, border: '2px solid #fff',
+        }}/>
+      )}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>{label}</div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 10, color: C.muted, marginTop: 1 }}>{sub}</div>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 10, marginTop: 1,
+        color: incomplete ? C.coralDeep : C.muted, fontWeight: incomplete ? 700 : 400,
+      }}>{sub}</div>
     </div>
+    {incomplete && (
+      <span style={{
+        flexShrink: 0, background: C.coralSoft, color: C.coralDeep, borderRadius: 999,
+        padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800,
+      }}>Set up</span>
+    )}
     <ChevronRight size={14} color={C.muted}/>
   </button>
 );
@@ -123,13 +141,15 @@ export const YouTab = ({
   const [sheet, setSheet] = useState(null); // 'prefs'|'notif'|'priv'|'location'|'kids'|null
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
+  const [photoIdx, setPhotoIdx] = useState(0); // active photo in the hero carousel
 
   const fullName = account?.firstName
     ? `${account.firstName}${account.lastName ? ' ' + account.lastName : ''}`
     : 'Your profile';
   const kidsCount = Object.values(profile?.kidsAges || {}).reduce((s, n) => s + n, 0);
   const cityLabel = location ? location.split(',')[0] + ', FL' : 'Tampa, FL';
-  const primaryPhoto = profile?.photos?.[0];
+  const photos = profile?.photos || [];
+  const primaryPhoto = photos[0];
   const displayName = profile?.displayName || fullName;
   const handle = profile?.username || account?.username || null;
 
@@ -138,6 +158,21 @@ export const YouTab = ({
   const fbLinked = !!socialLinks.facebook;
   const hasPhoto = !!primaryPhoto;
   const verified = computeVerified({ instagram: igLinked, facebook: fbLinked, photo: hasPhoto });
+
+  // Profile completion — the four sections a mom fills in herself. A section
+  // is "done" once it has content; anything not done gets a "Set up" nudge and
+  // counts against the progress bar.
+  const completionItems = [
+    { key: 'photo',    done: hasPhoto },
+    // "Done" only when every question in the sheet is answered: mom type, values, and interests.
+    { key: 'prefs',    done: (profile?.momTypes?.length || 0) > 0 && (profile?.values?.length || 0) > 0 && (profile?.interests?.length || 0) > 0 },
+    { key: 'location', done: !!location },
+    { key: 'kids',     done: kidsCount > 0 },
+    { key: 'notif',    done: Object.keys(profile?.settings?.notifications || {}).length > 0 },
+  ];
+  const completionDone = completionItems.filter(c => c.done).length;
+  const completionPct = Math.round((completionDone / completionItems.length) * 100);
+  const isDone = (key) => !!completionItems.find(c => c.key === key)?.done;
 
   // Persist a local-shaped patch: merge into profile state + map → API fields.
   const saveProfile = async (localPatch) => {
@@ -223,64 +258,136 @@ export const YouTab = ({
 
   return (
     <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 20 }}>
-      {/* User card */}
+      {/* Photo hero — swipe through your photos; identity sits in the band below */}
       <div style={{
-        background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16,
-        padding: 14, display: 'flex', alignItems: 'center', gap: 12,
+        background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
       }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          {primaryPhoto ? (
-            <img src={primaryPhoto} alt="" onClick={() => setPhotosOpen(true)}
-              style={{ width: 64, height: 64, borderRadius: 32, objectFit: 'cover', cursor: 'pointer' }}/>
+        <div style={{ position: 'relative' }}>
+          {photos.length > 0 ? (
+            <div
+              onScroll={(e) => setPhotoIdx(Math.round(e.currentTarget.scrollLeft / Math.max(1, e.currentTarget.clientWidth)))}
+              style={{
+                display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
+                scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {photos.map((p, i) => (
+                <img key={i} src={p} alt="" onClick={() => setPhotosOpen(true)}
+                  style={{
+                    width: '100%', height: 190, flexShrink: 0, objectFit: 'cover',
+                    scrollSnapAlign: 'center', cursor: 'pointer', display: 'block',
+                  }}/>
+              ))}
+            </div>
           ) : (
-            <div onClick={() => setPhotosOpen(true)} style={{
-              width: 64, height: 64, borderRadius: 32, background: C.coralSoft, color: C.coralDeep,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            }}><UserIcon size={28}/></div>
+            <button onClick={() => setPhotosOpen(true)} aria-label="Add a photo" style={{
+              width: '100%', height: 190, border: 'none', cursor: 'pointer',
+              background: C.coralSoft, color: C.coralDeep,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 26, background: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}><UserIcon size={26}/></div>
+              <div style={{ textAlign: 'center', maxWidth: 250, padding: '0 12px' }}>
+                <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800 }}>Add your first photo</div>
+                <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 600, marginTop: 3, lineHeight: 1.35 }}>
+                  Without a photo, you won't be visible to other moms.
+                </div>
+              </div>
+            </button>
           )}
+
+          {/* Camera / edit, top-right */}
           <button onClick={() => setPhotosOpen(true)} aria-label="Edit photos" style={{
-            position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12,
-            background: C.coral, color: '#fff', border: '2px solid #fff', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 6px -2px rgba(0,0,0,.35)',
+            position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16,
+            background: 'rgba(27,42,78,.55)', color: '#fff', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
           }}>
-            <Camera size={12}/>
+            <Camera size={15}/>
           </button>
-          {/* You're using the app → always online. Camera edit sits bottom-right. */}
-          <PresenceDot status="online" size={15} style={{ top: 0, right: 0, bottom: 'auto' }}/>
+
+          {/* Bottom scrim + paging dots (only with more than one photo) */}
+          {photos.length > 1 && (
+            <>
+              <div style={{
+                position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, pointerEvents: 'none',
+                background: 'linear-gradient(to top, rgba(27,42,78,.30), transparent)',
+              }}/>
+              <div style={{
+                position: 'absolute', left: 0, right: 0, bottom: 10,
+                display: 'flex', justifyContent: 'center', gap: 5,
+              }}>
+                {photos.map((_, i) => (
+                  <span key={i} style={{
+                    width: i === photoIdx ? 16 : 6, height: 6, borderRadius: 999,
+                    background: i === photoIdx ? '#fff' : 'rgba(255,255,255,.6)', transition: 'width .2s',
+                  }}/>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="flex items-center gap-1.5" style={{ flexWrap: 'wrap' }}>
+
+        {/* Identity band */}
+        <div style={{ padding: '12px 14px' }}>
+          <div className="flex items-center justify-between" style={{ gap: 8 }}>
             <button onClick={() => setIdentityOpen(true)} className="active:scale-[.98] transition-transform"
-              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontFamily: 'Fraunces', fontSize: 17, fontWeight: 700, color: C.navy, letterSpacing: '-.01em' }}>
+              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+              <span style={{
+                fontFamily: 'Fraunces', fontSize: 19, fontWeight: 700, color: C.navy, letterSpacing: '-.01em',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
                 {displayName}
               </span>
-              <Pencil size={12} color={C.muted}/>
+              <Pencil size={12} color={C.muted} style={{ flexShrink: 0 }}/>
             </button>
             {verified && (
               <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 3,
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
                 background: `${C.sageDark}1A`, color: C.sageDark, borderRadius: 999,
-                padding: '2px 8px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+                padding: '3px 9px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
               }}>
                 <BadgeCheck size={11}/> Verified
               </span>
             )}
           </div>
-          {handle && (
-            <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.coralDeep, fontWeight: 700, marginTop: 2 }}>
-              @{handle}
-            </div>
-          )}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 4,
+            display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap',
             fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 4,
           }}>
-            {kidsCount ? `Mom of ${kidsCount} · ` : ''}<MapPin size={11} color={C.muted}/> {cityLabel}
+            {handle && <span style={{ color: C.coralDeep, fontWeight: 700 }}>@{handle}</span>}
+            {handle && <span>·</span>}
+            {kidsCount ? <span>Mom of {kidsCount} ·</span> : null}
+            <MapPin size={11} color={C.muted}/> {cityLabel}
           </div>
         </div>
       </div>
+
+      {/* Profile completion — only while there's something left to finish */}
+      {completionPct < 100 && (
+        <div style={{
+          marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: 14,
+        }}>
+          <div className="flex items-center justify-between">
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800, color: C.navy }}>
+              Complete your profile
+            </div>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.coralDeep }}>
+              {completionPct}%
+            </div>
+          </div>
+          <div style={{ marginTop: 10, height: 8, borderRadius: 999, background: C.coralSoft, overflow: 'hidden' }}>
+            <div style={{
+              width: `${completionPct}%`, height: '100%', borderRadius: 999,
+              background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`, transition: 'width .3s ease-out',
+            }}/>
+          </div>
+          <div style={{ marginTop: 8, fontFamily: 'Albert Sans', fontSize: 11, color: C.muted }}>
+            {completionDone} of {completionItems.length} done · finish the highlighted steps to get seen.
+          </div>
+        </div>
+      )}
 
       {/* Bio */}
       <div style={{
@@ -332,13 +439,36 @@ export const YouTab = ({
         )}
       </div>
 
-      {/* Connect social → verification */}
+      {/* Settings */}
+      <div style={{
+        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
+      }}>
+        <div style={{ borderTop: 'none' }}>
+          <SettingsRow Icon={Heart} iconBg={C.coralSoft} iconFg={C.coralDeep}
+            label="Interests & Preferences"
+            sub={isDone('prefs') ? 'Update what matters to you' : 'Add your interests & values'}
+            incomplete={!isDone('prefs')} onClick={() => setSheet('prefs')}/>
+        </div>
+        <SettingsRow Icon={MapPin} iconBg={C.peach} iconFg={C.coralDeep}
+          label="Location" sub={location ? `${cityLabel} · ${distance ?? 5} mi` : 'Set your neighborhood & radius'}
+          incomplete={!isDone('location')} onClick={() => setSheet('location')}/>
+        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
+          label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'}
+          incomplete={!isDone('kids')} onClick={() => setSheet('kids')}/>
+        <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
+          label="Notifications" sub={isDone('notif') ? 'Manage your alerts' : 'Choose what you want to hear about'}
+          incomplete={!isDone('notif')} onClick={() => setSheet('notif')}/>
+        <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
+          label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
+      </div>
+
+      {/* Link social media → verification */}
       <div style={{
         marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
       }}>
         <div style={{ padding: '13px 14px 2px' }}>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>
-            Get verified
+            Link social media
           </div>
           <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 2 }}>
             Link a social account and add a photo to earn your Verified Mom badge.
@@ -346,24 +476,6 @@ export const YouTab = ({
         </div>
         <SocialRow Icon={Instagram} name="Instagram" handle={socialLinks.instagram} linked={igLinked} onConnect={connectInstagram}/>
         <SocialRow Icon={Facebook}  name="Facebook"  handle={socialLinks.facebook}  linked={fbLinked} onConnect={connectFacebook}/>
-      </div>
-
-      {/* Settings */}
-      <div style={{
-        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
-      }}>
-        <div style={{ borderTop: 'none' }}>
-          <SettingsRow Icon={Heart} iconBg={C.coralSoft} iconFg={C.coralDeep}
-            label="Interests & Preferences" sub="Update what matters to you" onClick={() => setSheet('prefs')}/>
-        </div>
-        <SettingsRow Icon={MapPin} iconBg={C.peach} iconFg={C.coralDeep}
-          label="Location" sub={location ? `${cityLabel} · ${distance ?? 5} mi` : 'Set your neighborhood & radius'} onClick={() => setSheet('location')}/>
-        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
-          label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'} onClick={() => setSheet('kids')}/>
-        <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
-          label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
-        <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
-          label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
       </div>
 
       {/* Refer a friend */}

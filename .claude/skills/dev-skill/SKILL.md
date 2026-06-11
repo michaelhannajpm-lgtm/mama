@@ -1,0 +1,1 @@
+when I tell to run the app, you must run the server vercel on port 3000 and don not run the client alone on port 5173 unless vercel is not connected to the vs code then you can run the client alone on port 5173 but if vercel is connected to vs code then you must run the server on port 3000 and do not run the client alone on port 5173.
