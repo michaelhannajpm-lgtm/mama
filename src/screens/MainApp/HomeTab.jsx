@@ -702,7 +702,7 @@ export const HomeTab = ({
                 <AgeProgramCard key={`${p.type}-${p.id}`} item={p}
                   onClick={() => (p.type === 'event'
                     ? openMeetup({ id: p.id, title: p.name, photo: p.photo, when: p.when, mi: null })
-                    : openPlace(p))}/>
+                    : openPlace({ ...p, hero_photo: p.photo }))}/>
               ))}
             </div>
           </>
