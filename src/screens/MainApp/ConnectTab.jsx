@@ -996,6 +996,7 @@ export const ConnectTab = ({
   joinedEvents = [], setJoinedEvents,
   scheduled1to1 = {},
   savedItems = [], setSavedItems,
+  messageHistory = {},
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,

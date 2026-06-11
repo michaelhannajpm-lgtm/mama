@@ -31,11 +31,16 @@ create table public.onboarding_profiles (
   location_lat           numeric,
   location_lng           numeric,
 
-  -- Profile (Screen 4)
+  -- Profile (Screen 4) — legacy columns retained for historical rows.
   kids_ages       jsonb,
   mom_types       text[],
   values          text[],
   interests       text[],
+
+  -- AboutYou v2 (2026-06-10) — 4-step carousel taxonomy.
+  stage           text[],   -- Q1 kid life-stage tags
+  looking_for     text[],   -- Q2 what the mom hopes to find
+  describes       text[],   -- Q3 self-description tags
 
   -- Preferences (Screen 5 + 6)
   slots           text[],

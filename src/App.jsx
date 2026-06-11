@@ -354,6 +354,9 @@ function PrototypeApp({ bare = false }) {
               location_lng:          locationGeo?.lng ?? null,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
+              stage:       profile.stage,
+              looking_for: profile.lookingFor,
+              describes:   profile.describes,
             }); setStep(2); }}
             onBack={()=>{ setSplashShown(false); }}
             profile={profile} setProfile={setProfile}

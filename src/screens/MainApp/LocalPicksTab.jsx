@@ -6,6 +6,7 @@ import {
   ShieldCheck, Palette, BookOpen,
   Tent, Trees, CalendarDays, Clock,
   Bookmark, Check,
+  Search, Calendar, GraduationCap, Heart, Backpack,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
@@ -14,7 +15,9 @@ import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { SeeAllSheet } from '../../sheets/SeeAllSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { RateSheet } from '../../sheets/RateSheet';
+import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
+import { GROUP_DISCUSSIONS } from '../../data/discussions';
 
 // ==========================================================================
 // LocalPicksTab — the "Explore" surface (file kept, exported as
@@ -1122,6 +1125,102 @@ const quickFilterMatch = (item, ids, userCoords) => {
   return ageOk && otherOk;
 };
 
+// -------------------------- explore-only data --------------------------
+
+// Browse-by-category grid. Each entry tap opens the SeeAllSheet for the
+// matching SECTIONS key, so the grid is the primary navigation surface for
+// every category that isn't pinned to the main scroll. `color` drives the
+// filled circle behind a white icon — Mindbody/Classpass-style polished
+// chips. `fillIcon` is set when the icon is a shape (Heart, Star) that
+// looks better as a solid than an outline.
+const CATEGORIES = [
+  { key: 'events',   label: 'Events',              Icon: Calendar,      color: '#E96B7D' },
+  { key: 'meetups',  label: 'Meetups',             Icon: Users,         color: '#8E63CC' },
+  { key: 'kids',     label: 'Kids Activities',     Icon: Backpack,      color: '#F09142' },
+  { key: 'schools',  label: 'Schools & Childcare', Icon: GraduationCap, color: '#4A8A7A' },
+  { key: 'health',   label: 'Wellness & Health',   Icon: Heart,         color: '#D6446A', fillIcon: true },
+  { key: 'places',   label: 'Fun & Entertainment', Icon: Star,          color: '#D9A441', fillIcon: true },
+];
+
+// Trending group chats — surfaced on the Explore tab between the events
+// feed and the places feed. Pulled from the GROUP_DISCUSSIONS catalog so
+// taps open the same GroupDiscussionSheet used by Connect + Mama Hub. We
+// pick the four most-popular groups by member count.
+const TRENDING_GROUPS = [...GROUP_DISCUSSIONS]
+  .sort((a, b) => (b.members || 0) - (a.members || 0))
+  .slice(0, 4);
+
+// -------------------------- explore-only leaf components --------------------------
+
+const CategoryCard = ({ item, onClick }) => {
+  const Icon = item.Icon;
+  return (
+    <button
+      onClick={onClick}
+      className="active:scale-[.97] transition-transform"
+      style={{
+        background: '#fff', borderRadius: 14,
+        border: `1px solid ${C.line}`,
+        padding: '10px 8px',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 6,
+        cursor: 'pointer',
+        textAlign: 'center',
+        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 600, color: C.navy,
+        lineHeight: 1.2, letterSpacing: '-.005em',
+      }}
+    >
+      <Icon
+        size={18}
+        color={item.color}
+        strokeWidth={2.2}
+        fill={item.fillIcon ? item.color : 'none'}
+      />
+      {item.label}
+    </button>
+  );
+};
+
+const GroupChatCard = ({ item, onClick }) => {
+  const Icon = item.Icon || Users;
+  return (
+    <button
+      onClick={onClick}
+      className="text-left active:scale-[.98] transition-transform"
+      style={{
+        flexShrink: 0, width: 168,
+        background: '#fff', borderRadius: 12,
+        border: `1px solid ${C.line}`,
+        boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)',
+        padding: '10px 11px',
+        display: 'flex', flexDirection: 'column', gap: 8,
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{
+        width: 34, height: 34, borderRadius: 999,
+        background: item.bg || C.sage, color: item.fg || C.sageDark,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={16}/>
+      </div>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800, color: C.navy,
+        lineHeight: 1.2,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        overflow: 'hidden', minHeight: 28,
+      }}>
+        {item.title}
+      </div>
+      <div style={{
+        fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 600, color: C.muted,
+      }}>
+        {item.members} members
+      </div>
+    </button>
+  );
+};
+
 // -------------------------- screen --------------------------
 
 export const LocalPicksTab = ({
@@ -1135,8 +1234,11 @@ export const LocalPicksTab = ({
   filterOpen, setFilterOpen,
   account, openPremium,
   initialSeeAll = null, onConsumeSeeAll,
+  goToConnectGroups,
+  chatAuthor, myUserId,
   onDiscuss,
 }) => {
+  void chatAuthor; void myUserId;
   const isPremium = !!account?.isPremium;
   // SeeAll-card action helpers — save, RSVP, rate. Save & rate are direct;
   // RSVP gates through requireVerify so unverified moms see the prompt.
@@ -1263,6 +1365,41 @@ export const LocalPicksTab = ({
   const [seeAll, setSeeAll] = useState(null);
   const seeAllSection = effectiveSections.find(s => s.key === seeAll);
 
+  // Search query — filters card titles across the visible sections. Kept
+  // simple (substring match) so the box is useful without a backend search.
+  const [searchQuery, setSearchQuery] = useState('');
+  const matchesSearch = (title) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return String(title || '').toLowerCase().includes(q);
+  };
+
+  // Trending group chats — group sheet state. Premium-gated request-join
+  // flow mirrors ConnectTab so the sheet behaves the same on Explore.
+  const [selectedDiscussion, setSelectedDiscussion] = useState(null);
+  const [discussionJoinStatus, setDiscussionJoinStatus] = useState({}); // { id: 'pending'|'accepted' }
+  const requestJoinDiscussion = () => {
+    if (!selectedDiscussion) return;
+    const id = selectedDiscussion.id;
+    if (discussionJoinStatus[id]) return;
+    if (requireVerify && !requireVerify('group', selectedDiscussion.title)) return;
+    setDiscussionJoinStatus(prev => ({ ...prev, [id]: 'pending' }));
+    flash?.(`✦ Request to join ${selectedDiscussion.title} sent`);
+    setTimeout(() => {
+      setDiscussionJoinStatus(prev =>
+        prev[id] === 'pending' ? { ...prev, [id]: 'accepted' } : prev);
+      flash?.(`✦ You were accepted into ${selectedDiscussion.title}`);
+    }, 2500);
+  };
+  const leaveDiscussion = () => {
+    if (!selectedDiscussion) return;
+    const id = selectedDiscussion.id;
+    setDiscussionJoinStatus(prev => {
+      const next = { ...prev }; delete next[id]; return next;
+    });
+    flash?.(`Left ${selectedDiscussion.title}`);
+  };
+
   // Cross-tab intent: HomeTab and ConnectTab route their "See all" links
   // here so every "see all" lands on the same Explore SeeAllSheet (same
   // section, same quick filters, same advanced sheet). We accept the key
@@ -1276,54 +1413,152 @@ export const LocalPicksTab = ({
     onConsumeSeeAll?.();
   }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The three sections pinned to the main scroll, mirroring the design:
+  //   • Popular right now (events feed)
+  //   • Trending group chats (new — uses TRENDING_GROUPS)
+  //   • Top local picks (places feed)
+  // Every other category is reachable through the Browse-by-category grid
+  // (each tap opens the matching SeeAllSheet).
+  const eventsSection = effectiveSections.find(s => s.key === 'events');
+  const placesSection = effectiveSections.find(s => s.key === 'places');
+  const eventsItems = (eventsSection?.items || []).filter(i => matchesSearch(i.title));
+  const placesItems = (placesSection?.items || []).filter(i => matchesSearch(i.title));
+  const trendingGroups = TRENDING_GROUPS.filter(g => matchesSearch(g.title));
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 4, paddingBottom: 16 }}>
-        {visibleSections.map(section => (
-          <div key={section.key} id={`explore-section-${section.key}`} className="px-5">
-            <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
-            {/* Horizontal scroll — ~2.2 cards visible to hint there's more */}
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 6, paddingBottom: 16 }}>
+
+        {/* "Explore" title — the location pill lives in MainApp's shared
+            header (it anchors the whole feed). Title sits just below it. */}
+        <div className="px-5" style={{ marginBottom: 10 }}>
+          <div style={{
+            fontFamily: 'Fraunces', fontSize: 32, fontWeight: 700,
+            color: C.navy, letterSpacing: '-.02em', lineHeight: 1,
+          }}>
+            Explore
+          </div>
+        </div>
+
+        {/* Search bar — no Filters button per spec; the search field spans
+            the row. Substring-matches event / group / place titles in the
+            three pinned sections (the SeeAllSheet has its own filters). */}
+        <div className="px-5" style={{ marginBottom: 14 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: C.paper, border: `1px solid ${C.divider}`,
+            borderRadius: 12, padding: '8px 12px',
+          }}>
+            <Search size={15} color={C.muted} strokeWidth={2.2}/>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events, meetups, places and more"
+              style={{
+                flex: 1, minWidth: 0,
+                background: 'transparent', border: 'none', outline: 'none',
+                fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navy,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Browse by category — 2x3 grid. Each tile opens the SeeAllSheet
+            for that section so the grid is the primary nav for every
+            category that isn't pinned to the main scroll. */}
+        <div className="px-5" style={{ marginBottom: 6 }}>
+          <div style={{
+            fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
+            color: C.navy, letterSpacing: '-.01em', marginBottom: 10,
+          }}>
+            Browse by category
+          </div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 8,
+          }}>
+            {CATEGORIES.map(cat => (
+              <CategoryCard key={cat.key} item={cat} onClick={() => setSeeAll(cat.key)}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Popular right now — events feed */}
+        {eventsItems.length > 0 && (
+          <div className="px-5" id="explore-section-events">
+            <SectionHead title="Popular right now" onLink={() => setSeeAll('events')}/>
             <div
               className="flex"
               style={{
                 overflowX: 'auto', overflowY: 'hidden',
                 scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
-                gap: 10,
-                paddingBottom: 4,
+                gap: 10, paddingBottom: 4,
               }}
             >
-              {section.items.map(item => (
-                <div
-                  key={item.id}
-                  style={{
-                    flex: '0 0 45%', scrollSnapAlign: 'start',
-                    display: 'flex',
-                  }}
-                >
-                  {section.kind === 'event' ? (
-                    <EventCard item={item} onClick={() => openEvent(item)}/>
-                  ) : section.kind === 'program' ? (
-                    <ProgramCard item={item} onClick={() => openProgram(item)}/>
-                  ) : section.kind === 'school' ? (
-                    <SchoolCard item={item} onClick={() => openSchool(item)}/>
-                  ) : (
-                    <PhotoCard item={item} onClick={() => openTopPlace(item)}/>
-                  )}
+              {eventsItems.map(item => (
+                <div key={item.id} style={{ flex: '0 0 45%', scrollSnapAlign: 'start', display: 'flex' }}>
+                  <EventCard item={item} onClick={() => openEvent(item)}/>
                 </div>
               ))}
             </div>
           </div>
-        ))}
+        )}
 
-        {visibleSections.length === 0 && (
+        {/* Trending group chats — uses GROUP_DISCUSSIONS via TRENDING_GROUPS.
+            Tap → opens the same GroupDiscussionSheet used elsewhere; "See
+            all" routes to Connect's groups SeeAll so we don't fork the
+            discovery experience. */}
+        {trendingGroups.length > 0 && (
+          <div className="px-5">
+            <SectionHead title="Trending group chats" onLink={goToConnectGroups}/>
+            <div
+              className="flex"
+              style={{
+                overflowX: 'auto', overflowY: 'hidden',
+                scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                gap: 10, paddingBottom: 4,
+              }}
+            >
+              {trendingGroups.map(g => (
+                <GroupChatCard key={g.id} item={g} onClick={() => setSelectedDiscussion(g)}/>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top local picks — places feed */}
+        {placesItems.length > 0 && (
+          <div className="px-5" id="explore-section-places">
+            <SectionHead title="Top local picks" onLink={() => setSeeAll('places')}/>
+            <div
+              className="flex"
+              style={{
+                overflowX: 'auto', overflowY: 'hidden',
+                scrollSnapType: 'x mandatory', scrollbarWidth: 'none',
+                gap: 10, paddingBottom: 4,
+              }}
+            >
+              {placesItems.map(item => (
+                <div key={item.id} style={{ flex: '0 0 45%', scrollSnapAlign: 'start', display: 'flex' }}>
+                  <PhotoCard item={item} onClick={() => openTopPlace(item)}/>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {eventsItems.length === 0 && placesItems.length === 0 && trendingGroups.length === 0 && (
           <div className="px-5" style={{
             marginTop: 40, textAlign: 'center',
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
             lineHeight: 1.5,
           }}>
-            {activeCats.length
-              ? 'No places match your filters right now · try clearing them'
-              : 'No local picks to show here yet · check back soon'}
+            {searchQuery.trim()
+              ? `No matches for "${searchQuery.trim()}" · try a different search`
+              : (activeCats.length
+                ? 'No places match your filters right now · try clearing them'
+                : 'No local picks to show here yet · check back soon')}
           </div>
         )}
 
@@ -1494,6 +1729,21 @@ export const LocalPicksTab = ({
           current={myRating(rateTarget.item.id)}
           onSave={saveRating}
           onClose={() => setRateTarget(null)}
+        />
+      )}
+
+      {selectedDiscussion && (
+        <GroupDiscussionSheet
+          discussion={selectedDiscussion}
+          joinStatus={discussionJoinStatus[selectedDiscussion.id] || 'none'}
+          onRequestJoin={requestJoinDiscussion}
+          onLeave={leaveDiscussion}
+          isPremium={isPremium}
+          openPremium={openPremium}
+          author={chatAuthor}
+          myUserId={myUserId}
+          flash={flash}
+          onClose={() => setSelectedDiscussion(null)}
         />
       )}
     </div>

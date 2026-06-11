@@ -8,6 +8,8 @@ const ALLOWED_PATCH_KEYS = new Set([
   'location_lat', 'location_lng',
   'kids_ages', 'mom_types', 'values', 'interests',
   'slots', 'places',
+  // AboutYou v2 (2026-06-10) — 4-step carousel taxonomy.
+  'stage', 'looking_for', 'describes',
 ]);
 
 const sanitizePatch = (raw) => {

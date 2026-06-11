@@ -30,20 +30,22 @@ const STAGE_OPTS = [
 ];
 
 const LOOKING_FOR_OPTS = [
-  { emoji: '👯', label: 'Mom friends',  sub: 'Real friendships nearby'   },
-  { emoji: '📅', label: 'Things to do', sub: 'Events + meetups'          },
-  { emoji: '📍', label: 'Local picks',  sub: 'Trusted places + services' },
-  { emoji: '🎈', label: 'Kid programs', sub: 'Classes, camps, sports'    },
+  { emoji: '👯', label: 'Mom friends',        sub: 'Real friendships nearby'   },
+  { emoji: '📅', label: 'Things to do',       sub: 'Events + meetups'          },
+  { emoji: '📍', label: 'Local picks',        sub: 'Trusted places + services' },
+  { emoji: '🎈', label: 'Kids activities',    sub: 'Classes, camps, sports'    },
+  { emoji: '🏫', label: 'Schools & daycare',  sub: 'Trusted by other moms'     },
+  { emoji: '🫂', label: 'Support groups',     sub: 'Moms helping moms'         },
 ];
 
 const DESCRIBES_PREFER_NOT_TO_SAY = 'Prefer not to say';
 
 const DESCRIBES_OPTS = [
-  { emoji: '🧭', label: 'New to area',                       sub: 'Recently moved here' },
   { emoji: '💼', label: 'Working Mom',                       sub: 'Balancing career'    },
   { emoji: '🏠', label: 'Stay at home',                      sub: 'Home with kids'      },
   { emoji: '💪', label: 'Solo Mom',                          sub: 'Single parent'       },
   { emoji: '🌎', label: 'Multicultural',                     sub: 'Diverse background'  },
+  { emoji: '🦁', label: 'Fighter mom',                       sub: 'Special care kids'   },
   { emoji: '🤐', label: DESCRIBES_PREFER_NOT_TO_SAY,         sub: null                  },
 ];
 
@@ -353,10 +355,28 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
   // Stage cards support multi-select WITH per-stage counters. Tapping an
   // inactive card adds it with count=1; the inline − / + controls bump
   // the count; decrementing past 1 removes the stage entirely.
+  //
+  // "Expecting" is a current state, not a child count, so it has no counter
+  // and is capped at 1 — but it coexists with any age bucket (a mom who's
+  // pregnant with a 2nd kid taps Expecting AND the existing kid's stage).
+  const EXPECTING = 'Expecting';
   const incStage = (label) => {
     setProfile(p => {
       const cur = p.stage || [];
       const counts = p.stageCounts || {};
+
+      // Expecting is a single-state flag (no counter, capped at 1).
+      // No-op if it's already on.
+      if (label === EXPECTING) {
+        if (cur.includes(EXPECTING)) return p;
+        return {
+          ...p,
+          stage: [...cur, EXPECTING],
+          stageCounts: { ...counts, [EXPECTING]: 1 },
+        };
+      }
+
+      // Real age stage — bump (or add) independently of Expecting.
       const inCur = cur.includes(label);
       return {
         ...p,
@@ -635,20 +655,27 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               </QuestionHeader>
             </div>
             <div className="grid grid-cols-2" style={{ gap: 10, marginTop: 18 }}>
-              {STAGE_OPTS.map((opt, i) => (
-                <OptionCard
-                  key={opt.label}
-                  emoji={opt.emoji}
-                  label={opt.label}
-                  sub={opt.sub}
-                  active={stage.includes(opt.label)}
-                  onClick={() => toggleStage(opt.label)}
-                  count={stage.includes(opt.label) ? (stageCounts[opt.label] || 1) : 0}
-                  onDec={() => decStage(opt.label)}
-                  onInc={() => incStage(opt.label)}
-                  span={i === STAGE_OPTS.length - 1 ? 2 : 1}
-                />
-              ))}
+              {STAGE_OPTS.map((opt, i) => {
+                // Expecting renders without a −/+ counter — it's a current
+                // state, capped at 1. It coexists with any age bucket above.
+                const isExpecting = opt.label === EXPECTING;
+                return (
+                  <OptionCard
+                    key={opt.label}
+                    emoji={opt.emoji}
+                    label={opt.label}
+                    sub={opt.sub}
+                    active={stage.includes(opt.label)}
+                    onClick={() => toggleStage(opt.label)}
+                    count={isExpecting
+                      ? undefined
+                      : (stage.includes(opt.label) ? (stageCounts[opt.label] || 1) : 0)}
+                    onDec={isExpecting ? undefined : () => decStage(opt.label)}
+                    onInc={isExpecting ? undefined : () => incStage(opt.label)}
+                    span={i === STAGE_OPTS.length - 1 ? 2 : 1}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
@@ -658,7 +685,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
           <div className="flex flex-col justify-center" style={{ minHeight: '100%', paddingBottom: 12 }}>
             <div style={{ textAlign: 'center' }}>
               <QuestionHeader why="Pick a few. We'll tune your feed around it.">
-                What do you <Emph>need most</Emph>?
+                What are you <Emph>hoping</Emph> to find?
               </QuestionHeader>
             </div>
             <div className="grid grid-cols-2" style={{ gap: 12, marginTop: 18 }}>
