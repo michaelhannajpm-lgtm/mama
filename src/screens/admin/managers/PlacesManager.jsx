@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AC } from '../admin-theme';
+import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
 import { BusyOverlay } from '../components/primitives';
 import { useConfirm } from '../components/ConfirmDialog';
 import { Check, EyeOff, X, Pencil, MapPin, Eye, Archive, Trash2, Download, Plus } from 'lucide-react';
@@ -53,6 +54,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [editing, setEditing] = useState(null);
+  const [deepLinkMiss, setDeepLinkMiss] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
@@ -87,24 +89,35 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
   // Deep-link target — the Featured manager dispatches this to open a place's
   // edit modal from outside the tab. Mirrors the Users → Mom-profiles flow.
   useEffect(() => {
+    const match = (ref) => (rows || []).find(
+      (r) => r.id === ref || r.slug === ref
+    );
     let pendingId = null;
     try { pendingId = sessionStorage.getItem('gm-admin-open-place'); } catch { /* ignore */ }
     if (pendingId && rows?.length) {
-      const target = rows.find((r) => r.id === pendingId);
-      if (target) {
-        setEditing(target);
-        try { sessionStorage.removeItem('gm-admin-open-place'); } catch { /* ignore */ }
-      }
+      const target = match(pendingId);
+      if (target) { setEditing(target); setDeepLinkMiss(null); }
+      else setDeepLinkMiss(pendingId);
+      try { sessionStorage.removeItem('gm-admin-open-place'); } catch { /* ignore */ }
     }
     const onOpen = (ev) => {
-      const id = ev?.detail?.id;
-      if (!id) return;
-      const target = (rows || []).find((r) => r.id === id);
-      if (target) setEditing(target);
+      const ref = ev?.detail?.id;
+      if (!ref) return;
+      const target = match(ref);
+      if (target) { setEditing(target); setDeepLinkMiss(null); }
+      else if (rows?.length) setDeepLinkMiss(ref);
     };
     window.addEventListener('gm-admin-open-place', onOpen);
     return () => window.removeEventListener('gm-admin-open-place', onOpen);
   }, [rows]);
+
+  useEffect(() => {
+    if (editing && editing.id && !editing.__new) {
+      navigateRecord('places', editing.id);
+    } else if (!editing && currentRecordRef()) {
+      navigateSection('places');
+    }
+  }, [editing]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -355,6 +368,19 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
         <PlacesMap places={filtered} onSelect={setEditing} />
       )}
 
+      {deepLinkMiss && (
+        <div style={{
+          margin: '8px 0', padding: '8px 12px', borderRadius: 8,
+          background: AC.warningSoft || '#FBF1E2', color: AC.text,
+          fontFamily: AC.font, fontSize: 12.5,
+        }}>
+          Couldn't find a place for "{deepLinkMiss}". It may be deleted or renamed.
+          <button onClick={() => setDeepLinkMiss(null)} style={{
+            marginLeft: 8, background: 'transparent', border: 'none',
+            color: AC.accent, fontWeight: 600, cursor: 'pointer',
+          }}>Dismiss</button>
+        </div>
+      )}
       {editing && (
         <PlaceEditModal place={editing} adminFetch={adminFetch}
           onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await onReload(); }} />
