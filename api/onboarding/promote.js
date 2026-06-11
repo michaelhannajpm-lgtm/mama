@@ -263,13 +263,18 @@ export default async function handler(req, res) {
   );
   if (!row) return json(res, 500, { error: error || 'Could not save profile' });
 
-  // Side effect: ensure the mom is in the discoverable directory.
-  await ensureMomProfile(creds, row, username);
-
-  // Now read the (possibly edited) mom_profiles row so the response carries
-  // the latest user-edited fields (bio, photos, etc.) — not just the
-  // onboarding snapshot.
-  const momProfile = await fetchMomProfileByAuthUser(creds, user.id);
+  // Side effect: ensure the mom is in the discoverable directory — but ONLY
+  // create the row when it doesn't exist yet. ensureMomProfile upserts with
+  // merge-duplicates, so calling it on an EXISTING row overwrites every
+  // user-editable field (bio, photos, values, interests, settings, …) with the
+  // empty onboarding snapshot from buildMomProfilePayload. Since promote runs
+  // on every app load, doing that unconditionally silently wiped a returning
+  // mom's profile edits on her next visit. Read first; only seed if missing.
+  let momProfile = await fetchMomProfileByAuthUser(creds, user.id);
+  if (!momProfile) {
+    await ensureMomProfile(creds, row, username);
+    momProfile = await fetchMomProfileByAuthUser(creds, user.id);
+  }
 
   // Referral attribution (best-effort, never blocks signup). Only fires when a
   // `?ref=` code was captured for this signup; idempotent at the DB level.
