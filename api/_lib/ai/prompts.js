@@ -53,7 +53,9 @@ export const REVIEW_FIELDS = {
   mom: ['bio', 'mom_types', 'values', 'interests'],
 };
 
-export const reviewSchema = (kind) => ({
+export const reviewSchema = (kind) => {
+  if (!REVIEW_FIELDS[kind]) throw new Error(`unknown kind: ${kind}`);
+  return {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -72,18 +74,22 @@ export const reviewSchema = (kind) => ({
     },
   },
   required: ['suggestions'],
-});
+  };
+};
 
 const fieldLines = (kind, r) => REVIEW_FIELDS[kind]
   .map((f) => `- ${f}: ${Array.isArray(r[f]) ? joined(r[f]) : (r[f] ?? '(empty)')}`)
   .join('\n');
 
-export const reviewPrompt = (kind, record = {}) => `You are a careful editor reviewing ONE ${kind} record in a Tampa family/mom app admin tool.
+export const reviewPrompt = (kind, record = {}) => {
+  if (!REVIEW_FIELDS[kind]) throw new Error(`unknown kind: ${kind}`);
+  return `You are a careful editor reviewing ONE ${kind} record in a Tampa family/mom app admin tool.
 
 Current fields:
 ${fieldLines(kind, record)}
 
 Suggest improvements ONLY for fields that are genuinely wrong, empty, or clearly improvable. Skip fields that are already good (return them NOT at all). For each suggestion give: the field, the full replacement value (as a string), and a one-line reason. Do not invent facts. Only use these field names: ${REVIEW_FIELDS[kind].join(', ')}.`;
+};
 
 export const toReviewSuggestions = (kind, out) => {
   const allowed = new Set(REVIEW_FIELDS[kind] || []);

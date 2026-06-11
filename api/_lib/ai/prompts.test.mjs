@@ -57,6 +57,13 @@ test('toReviewSuggestions drops unknown fields and empty values', () => {
   ]);
 });
 
+test('reviewSchema throws on unknown kind', () => {
+  assert.throws(() => reviewSchema('nope'), /unknown kind/);
+});
+test('reviewPrompt throws on unknown kind', () => {
+  assert.throws(() => reviewPrompt('nope', {}), /unknown kind/);
+});
+
 // Task 3 — decodeDataUrl helper
 import { decodeDataUrl } from './prompts.js';
 
