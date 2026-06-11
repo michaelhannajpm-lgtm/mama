@@ -168,7 +168,6 @@ export const YouTab = ({
     { key: 'prefs',    done: (profile?.momTypes?.length || 0) > 0 && (profile?.values?.length || 0) > 0 && (profile?.interests?.length || 0) > 0 },
     { key: 'location', done: !!location },
     { key: 'kids',     done: kidsCount > 0 },
-    { key: 'notif',    done: Object.keys(profile?.settings?.notifications || {}).length > 0 },
   ];
   const completionDone = completionItems.filter(c => c.done).length;
   const completionPct = Math.round((completionDone / completionItems.length) * 100);
@@ -456,8 +455,7 @@ export const YouTab = ({
           label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'}
           incomplete={!isDone('kids')} onClick={() => setSheet('kids')}/>
         <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
-          label="Notifications" sub={isDone('notif') ? 'Manage your alerts' : 'Choose what you want to hear about'}
-          incomplete={!isDone('notif')} onClick={() => setSheet('notif')}/>
+          label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
         <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
           label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
       </div>
