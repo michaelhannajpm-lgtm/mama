@@ -63,7 +63,6 @@ export const MainApp = ({
   openSchedule, openProfile, openMessage, openPremium,
   account, requestAccount, restart, flash,
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
-  onlineOnly = false, onSetOnlineOnly,
   chatAuthor,
   myUserId,
 }) => {
@@ -180,8 +179,6 @@ export const MainApp = ({
         city={locationGeo?.city || location || 'Tampa'}
         openVillage={() => setVillageOpen(true)}
         onDiscuss={setSubjectThread}
-        onlineOnly={onlineOnly}
-        onSetOnlineOnly={onSetOnlineOnly}
         chatAuthor={chatAuthor}
         myUserId={myUserId}/>}
       {tab === 'connect' && <ConnectTab
@@ -196,8 +193,6 @@ export const MainApp = ({
         nearbyMoms={nearbyMoms}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
-        onlineOnly={onlineOnly}
-        onSetOnlineOnly={onSetOnlineOnly}
         initialSeeAll={connectSeeAll}
         onConsumeSeeAll={() => setConnectSeeAll(null)}
         chatAuthor={chatAuthor}

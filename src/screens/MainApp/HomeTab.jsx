@@ -6,7 +6,6 @@ import {
 import { C } from '../../theme';
 import { youngestStageLabel } from '../../data/taxonomy';
 import { PresenceDot } from '../../components/PresenceDot';
-import { OnlineFilterToggle } from '../../components/OnlineFilterToggle';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
@@ -264,7 +263,6 @@ export const HomeTab = ({
   goToPlaces, goToConnectMoms, goToConnectGroups, onVerify, openVillage,
   city = 'Tampa',
   onDiscuss,
-  onlineOnly = false, onSetOnlineOnly,
   chatAuthor, myUserId,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -338,23 +336,13 @@ export const HomeTab = ({
         )}
 
         {/* Moms near you — tap a mom to open her profile; See all → Connect's
-            "Your best matches" drawer (with filters). Stays visible when the
-            online filter is on so the toggle is always reachable. */}
-        {(moms.length > 0 || onlineOnly) && (
+            "Your best matches" drawer (with filters). */}
+        {moms.length > 0 && (
           <>
             <SectionHead title="Moms near you" onLink={goToConnectMoms}/>
-            <div className="flex" style={{ marginBottom: 8 }}>
-              <OnlineFilterToggle active={onlineOnly} onToggle={() => onSetOnlineOnly?.(!onlineOnly)}/>
+            <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
             </div>
-            {moms.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-                {moms.map(m => <MomChip key={m.id} item={m} onClick={() => setSelectedMom(m)}/>)}
-              </div>
-            ) : (
-              <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, padding: '4px 2px' }}>
-                No moms online right now.
-              </div>
-            )}
           </>
         )}
 

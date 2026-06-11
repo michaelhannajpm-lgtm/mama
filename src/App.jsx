@@ -57,7 +57,6 @@ function PrototypeApp({ bare = false }) {
   const [seededMoms, setSeededMoms] = useState([]);
   const [nearbyMoms, setNearbyMoms] = useState([]);
   const [nearbyVerifiedOnly, setNearbyVerifiedOnly] = useState(true);
-  const [onlineOnly, setOnlineOnly] = useState(false); // client-side presence filter
   const nearbyReqId = useRef(0);
   const [seededLoginLoading, setSeededLoginLoading] = useState(false);
   const [seededLoginError, setSeededLoginError] = useState(null);
@@ -241,8 +240,7 @@ function PrototypeApp({ bare = false }) {
   // excludes self by auth_user_id / seed_mom_id, but anonymous sessions can leave
   // the browsing identity out of sync with how the profile row is stored — so we
   // also exclude client-side by every identity signal we have (uid, seed id,
-  // @handle). Then apply the "Online only" filter. Centralized so Home + Connect
-  // (which both read nearbyMoms) stay consistent.
+  // @handle). Centralized so Home + Connect (which both read nearbyMoms) agree.
   const selfUid = account?.auth_user_id || null;
   const selfSeedId = account?.seedMomId || null;
   const selfHandle = (account?.username || '').toLowerCase() || null;
@@ -251,10 +249,8 @@ function PrototypeApp({ bare = false }) {
       (selfUid && m.auth_user_id && m.auth_user_id === selfUid) ||
       (selfSeedId && m.id === selfSeedId) ||
       (selfHandle && m.username && m.username.toLowerCase() === selfHandle);
-    let list = nearbyMomsLive.filter((m) => !isSelf(m));
-    if (onlineOnly) list = list.filter((m) => m.presence === 'online');
-    return list;
-  }, [nearbyMomsLive, onlineOnly, selfUid, selfSeedId, selfHandle]);
+    return nearbyMomsLive.filter((m) => !isSelf(m));
+  }, [nearbyMomsLive, selfUid, selfSeedId, selfHandle]);
 
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
@@ -438,8 +434,6 @@ function PrototypeApp({ bare = false }) {
             nearbyMoms={nearbyMomsShown}
             nearbyVerifiedOnly={nearbyVerifiedOnly}
             onSetVerifiedOnly={loadNearbyMoms}
-            onlineOnly={onlineOnly}
-            onSetOnlineOnly={setOnlineOnly}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}
             openMessage={setMessageMom}

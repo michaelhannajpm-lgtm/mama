@@ -74,15 +74,11 @@ with profiles).
 
 ---
 
-## Addendum (2026-06-10) — "Online only" filter + self-exclusion
+## Addendum (2026-06-10) — self-exclusion
 
-**Online-only filter.** A shared `<OnlineFilterToggle>` chip appears on every
-mom-listing surface (Home "Moms near you", Connect "Your best matches", and the
-Connect See-all filter bar). A single app-level `onlineOnly` boolean is applied
-**centrally** in `App.jsx` (filter `presence === 'online'`), so toggling it on
-any surface filters them all consistently. When the filter empties a list, the
-section + toggle stay visible with a "No moms online right now" hint so it's
-always reversible.
+> Note: an "Online only" filter toggle was briefly added on the Home/Connect mom
+> lists, then **removed** per product decision. The presence *dots* remain; there
+> is no online-only filter UI. The self-exclusion below stays.
 
 **Exclude the current user from mom results.** The nearby API already excludes
 self by `auth_user_id` / `seed_mom_id`, but anonymous sessions can leave the
