@@ -50,7 +50,9 @@ export const toDescribePatch = (out) => ({ description: String(out?.description 
 export const REVIEW_FIELDS = {
   place: ['name', 'description', 'category', 'tags', 'good_for', 'age_min', 'age_max'],
   event: ['name', 'description', 'event_type', 'tags', 'kid_ages', 'age_min', 'age_max', 'price_summary'],
-  mom: ['bio', 'mom_types', 'values', 'interests'],
+  // bio only: mom_types/values/interests are controlled-vocab string[] chips —
+  // unsafe to set from the AI's free-text string suggestions (use chip pickers instead).
+  mom: ['bio'],
 };
 
 export const reviewSchema = (kind) => {

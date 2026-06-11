@@ -35,6 +35,9 @@ test('REVIEW_FIELDS lists suggestable fields per kind', () => {
   assert.ok(REVIEW_FIELDS.place.includes('description'));
   assert.ok(REVIEW_FIELDS.event.includes('event_type'));
   assert.ok(REVIEW_FIELDS.mom.includes('bio'));
+  // mom review is bio-only: the taxonomy fields are controlled-vocab arrays,
+  // unsafe to set from the AI's free-text string suggestions.
+  assert.deepEqual(REVIEW_FIELDS.mom, ['bio']);
 });
 test('reviewSchema(kind) enum-constrains field to that kind', () => {
   const s = reviewSchema('place');
