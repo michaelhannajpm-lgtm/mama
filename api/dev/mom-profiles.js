@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     'kids_ages', 'mom_types', 'values', 'interests', 'free_slots', 'places',
     'preferred_event_ids', 'city', 'neighborhood', 'county', 'place_id',
     'home_lat', 'home_lng', 'distance_miles', 'visible', 'verified',
-    'blocked_global', 'social_links', 'source', 'last_active_at', 'created_at',
+    'blocked_global', 'social_links', 'settings', 'source', 'last_active_at', 'created_at',
   ].join(',');
   const url =
     `${creds.supabaseUrl}/rest/v1/mom_profiles` +

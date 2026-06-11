@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, Check, X,
-  User as UserIcon, LogOut, BadgeCheck, ShieldCheck, Camera, Link2,
+  User as UserIcon, LogOut, BadgeCheck, Camera,
   Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
@@ -16,62 +16,11 @@ import { signOut as signOutSession, updateMomProfile } from '../../lib/onboardin
 import { linkFacebook, linkInstagram, getLinkedProviders, computeVerified } from '../../lib/social-verify';
 
 // ==========================================================================
-// YouTab — "My Profile". User card (+ verified chip) · bio · badges · connect
+// YouTab — "My Profile". User card (+ verified badge at top) · bio · connect
 // social (drives verification) · settings drawers (Interests & Preferences /
-// Notifications / Privacy, all persisted) · refer · sign out.
+// Location & radius / Kids / Notifications / Privacy, all persisted) · refer ·
+// sign out.
 // ==========================================================================
-
-// Starburst/sunburst seal outline — the universal "award sticker" shape. N
-// outer spikes alternating with inner valleys around a center point.
-const sealPoints = (cx, cy, outer, inner, spikes) => {
-  const pts = [];
-  for (let i = 0; i < spikes * 2; i++) {
-    const r = i % 2 === 0 ? outer : inner;
-    const a = (Math.PI / spikes) * i - Math.PI / 2;
-    pts.push(`${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`);
-  }
-  return pts.join(' ');
-};
-
-const SEAL_POINTS = sealPoints(25, 25, 24, 19.5, 12);
-
-// An earned achievement seal (gradient sunburst + white icon) or a locked,
-// dashed-outline version. Reads as a medal, never as a button.
-const BadgeSeal = ({ id, Icon, earned }) => (
-  <div style={{ position: 'relative', width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <svg width="50" height="50" viewBox="0 0 50 50" style={{
-      position: 'absolute', inset: 0,
-      filter: earned ? 'drop-shadow(0 4px 7px rgba(94,122,59,.45))' : 'none',
-    }}>
-      <defs>
-        <linearGradient id={`seal-${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={C.sage}/>
-          <stop offset="100%" stopColor={C.sageDark}/>
-        </linearGradient>
-      </defs>
-      <polygon
-        points={SEAL_POINTS}
-        fill={earned ? `url(#seal-${id})` : C.cream}
-        stroke={earned ? '#fff' : C.divider}
-        strokeWidth={earned ? 2 : 1.2}
-        strokeLinejoin="round"
-        strokeDasharray={earned ? undefined : '3 2.5'}
-      />
-      {earned && <circle cx="25" cy="25" r="15.5" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth="1"/>}
-    </svg>
-    <Icon size={17} color={earned ? '#fff' : C.muted} style={{ position: 'relative' }}/>
-    {earned && (
-      <div style={{
-        position: 'absolute', right: 1, bottom: 1,
-        width: 17, height: 17, borderRadius: 9, background: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 1px 3px rgba(27,42,78,.3)',
-      }}>
-        <Check size={11} color={C.sageDark} strokeWidth={3.5}/>
-      </div>
-    )}
-  </div>
-);
 
 const NOTIFICATION_ITEMS = [
   { key: 'meetups',  label: 'Meetup reminders',   sub: 'Upcoming 1:1s and events',        default: true },
@@ -83,7 +32,7 @@ const NOTIFICATION_ITEMS = [
 const PRIVACY_ITEMS = [
   { key: 'discoverable',     label: 'Discoverable',          sub: 'Appear in nearby-mom matching',     default: true },
   { key: 'show_last_active', label: 'Show last active',      sub: 'Let others see when you were on',    default: true },
-  { key: 'verified_only_dms',label: 'Verified-only messages',sub: 'Only verified moms can DM you',      default: false },
+  { key: 'verified_only_dms',label: 'Verified-only messages',sub: 'Only verified moms can DM you',      default: true },
 ];
 
 const StatPill = ({ Icon, children, tone = C.coralDeep, bg = C.coralSoft }) => (
@@ -272,13 +221,6 @@ export const YouTab = ({
     restart?.();
   };
 
-  const badges = [
-    { id: 'verified', label: 'Verified Mom', Icon: ShieldCheck, earned: verified,            hint: 'Link a social + add a photo' },
-    { id: 'photo',    label: 'Photo added',  Icon: Camera,      earned: hasPhoto,            hint: 'Add a profile photo' },
-    { id: 'social',   label: 'Social linked',Icon: Link2,       earned: igLinked || fbLinked, hint: 'Connect Instagram or Facebook' },
-    { id: 'bio',      label: 'Bio written',  Icon: Pencil,      earned: !!profile?.bio,      hint: 'Write a short bio' },
-  ];
-
   return (
     <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 20 }}>
       {/* User card */}
@@ -390,30 +332,6 @@ export const YouTab = ({
         )}
       </div>
 
-      {/* Badges */}
-      <div style={{
-        marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, padding: 14,
-      }}>
-        <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, marginBottom: 10 }}>
-          Your badges
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {badges.map(b => (
-            <div key={b.id} title={b.earned ? b.label : b.hint} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center',
-            }}>
-              <BadgeSeal id={b.id} Icon={b.Icon} earned={b.earned}/>
-              <div style={{
-                fontFamily: 'Albert Sans', fontSize: 9.5, fontWeight: 700, lineHeight: 1.15,
-                color: b.earned ? C.navy : C.muted,
-              }}>
-                {b.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Connect social → verification */}
       <div style={{
         marginTop: 12, background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden',
@@ -483,12 +401,6 @@ export const YouTab = ({
           <LogOut size={13}/> Sign out
         </button>
       )}
-      <button onClick={restart} style={{
-        marginTop: 8, width: '100%', background: 'transparent', border: 'none', padding: '6px 0',
-        color: C.muted, fontFamily: 'Albert Sans', fontSize: 11, cursor: 'pointer',
-      }}>
-        ↺ Restart prototype tour
-      </button>
 
       {/* Drawers */}
       {photosOpen && <ProfilePhotosSheet

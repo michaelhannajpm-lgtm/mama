@@ -173,12 +173,15 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
 
   const distance_miles = [5, 10, 20, 30, 50][Math.floor(rand() * 5)];
 
-  const verified  = rand() < 0.6;
+  // Every seeded mom is a verified mom with a linked Facebook profile, so the
+  // demo directory reads as fully vetted. Instagram/TikTok stay random for
+  // variety; Facebook + verified are guaranteed.
+  const verified  = true;
   const visible   = rand() < 0.95;
   const lastActive = rand() < 0.9
     ? new Date(Date.now() - Math.floor(rand() * 30) * 86400000).toISOString()
     : new Date(Date.now() - (30 + Math.floor(rand() * 60)) * 86400000).toISOString();
-  const socialLinks = {};
+  const socialLinks = { facebook: `https://facebook.com/${username}` };
   if (rand() < 0.55) socialLinks.instagram = `@${username}`;
   if (rand() < 0.2) socialLinks.tiktok = `@${username}mama`;
 
@@ -207,6 +210,7 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
     verified,
     blocked_global: false,
     social_links: socialLinks,
+    settings: { privacy: { verified_only_dms: true } },
     source: 'seed',
     last_active_at: lastActive,
   };

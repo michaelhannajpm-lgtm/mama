@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Crown, MessageCircle } from 'lucide-react';
+import { Crown, MessageCircle, ShieldCheck } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 import { getOrCreateDM, listMessages, sendMessage, subscribe } from '../lib/chat';
@@ -9,13 +9,15 @@ import { dmFreeState, DM_FREE_LIMIT } from '../lib/chat-helpers';
 // Plus conversion harder. Premium still unlocks unlimited.
 // DM_FREE_LIMIT = 3 is the protected lever — do not raise without product sign-off.
 
-export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPremium, flash }) => {
+export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified = false, onClose, openPremium, flash }) => {
   const [messages, setMessages] = useState([]);
   const [convId, setConvId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const firstName = mom?.name?.split(' ')[0] || 'her';
   const unavailable = !mom?.auth_user_id;
+  // Privacy: she only accepts DMs from verified moms, and the sender isn't one.
+  const dmBlocked = !!mom?.verifiedOnlyDms && !senderVerified;
 
   // Icebreaker text only for brand-new conversations
   const icebreaker = (() => {
@@ -76,7 +78,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
     }
   }, [loading, messages.length, icebreaker]);
 
-  const canSend = !loading && convId && text.trim().length > 0 && !limitReached;
+  const canSend = !loading && convId && text.trim().length > 0 && !limitReached && !dmBlocked;
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -188,8 +190,21 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
           </div>
         )}
 
-        {/* Input OR upsell */}
-        {limitReached ? (
+        {/* Verified-only gate · message limit upsell · or the composer */}
+        {dmBlocked ? (
+          <div className="mt-4 rounded-2xl p-4" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <ShieldCheck size={16} style={{ color: C.sageDark }}/>
+              <div style={{ fontFamily: 'Fraunces', fontSize: 15.5, fontWeight: 500, color: C.ink }}>
+                Verified moms only
+              </div>
+            </div>
+            <p style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft, lineHeight: 1.5 }}>
+              {firstName} only accepts messages from verified moms. Verify your profile
+              (link Instagram or Facebook + add a real photo) to message her.
+            </p>
+          </div>
+        ) : limitReached ? (
           <div className="mt-4 rounded-2xl p-4" style={{ background: C.ink, color: C.cream }}>
             <div className="flex items-center gap-2 mb-2">
               <Crown size={16} style={{ color: C.saffron }}/>

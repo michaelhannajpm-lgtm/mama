@@ -71,6 +71,11 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
   const pres = MOM_TYPE_PRESENTATION[primaryType] || DEFAULT_PRESENTATION;
   const nextSlot = asArray(row.free_slots).map(formatSlot).find(Boolean) || null;
 
+  // Privacy settings (mom_profiles.settings.privacy). Undefined ⇒ default on.
+  const privacy = (row.settings && row.settings.privacy) || {};
+  const showLastActive = privacy.show_last_active !== false;   // default true
+  const verifiedOnlyDms = privacy.verified_only_dms !== false;  // default true
+
   return {
     id: row.id,
     auth_user_id: row.auth_user_id || null,
@@ -100,6 +105,10 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     freeSlots: asArray(row.free_slots),
     places: asArray(row.places),
     verified: !!row.verified,
-    last_seen_at: row.last_seen_at || null,  // presence heartbeat; status derived client-side
+    // Presence: hidden entirely when she turned off "Show last active".
+    last_seen_at: showLastActive ? (row.last_seen_at || null) : null,
+    presenceHidden: !showLastActive,
+    // DM gate: when on, only verified senders may message her.
+    verifiedOnlyDms,
   };
 };

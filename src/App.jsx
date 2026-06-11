@@ -33,6 +33,7 @@ import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
 import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat } from './lib/onboarding';
 import { derivePresence } from './lib/presence';
+import { computeVerified } from './lib/social-verify';
 import { ensureSession } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces, fetchConfig } from './lib/places-api';
@@ -230,7 +231,8 @@ function PrototypeApp({ bare = false }) {
   const nearbyMomsLive = useMemo(
     () => nearbyMoms.map((m) => ({
       ...m,
-      presence: derivePresence(m.last_seen_at, presenceOnlineMaxS, presenceAwayMaxS),
+      // null presence (she hid her active status) ⇒ no dot rendered.
+      presence: m.presenceHidden ? null : derivePresence(m.last_seen_at, presenceOnlineMaxS, presenceAwayMaxS),
     })),
     // presenceTick forces a recompute on the 60s cadence.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -371,6 +373,12 @@ function PrototypeApp({ bare = false }) {
   };
 
   const chatAuthor = { name: account?.firstName || 'Mama', photo: profile?.photos?.[0] || null };
+  // Whether the current user is a verified mom — gates DMs to "verified-only" moms.
+  const selfVerified = computeVerified({
+    instagram: !!profile?.socialLinks?.instagram,
+    facebook: !!profile?.socialLinks?.facebook,
+    photo: !!profile?.photos?.[0],
+  });
 
   const inner = (
     <div className="w-full h-full relative">
@@ -470,6 +478,7 @@ function PrototypeApp({ bare = false }) {
             isPremium={!!account?.isPremium}
             author={chatAuthor}
             myUserId={myUserId}
+            senderVerified={selfVerified}
             flash={flash}
             onClose={() => setMessageMom(null)}
             openPremium={() => { setMessageMom(null); setPremiumOpen(true); }}/>}

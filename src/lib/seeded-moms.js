@@ -42,6 +42,7 @@ export const appStateFromMomProfile = (row) => {
       photos: cleanArray(row.photos),
       bio: row.bio || '',
       socialLinks,
+      settings: cleanObject(row.settings),
       verified: {
         instagram: !!socialLinks.instagram,
         facebook: !!socialLinks.facebook,

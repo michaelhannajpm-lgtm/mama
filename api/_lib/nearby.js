@@ -52,6 +52,9 @@ export const rankAndShape = (rows, user = {}, { limit = 24 } = {}) => {
   for (const row of Array.isArray(rows) ? rows : []) {
     if (selfAuth && row.auth_user_id === selfAuth) continue;
     if (selfSeed && row.id === selfSeed) continue;
+    // Privacy: a mom who turned OFF "Discoverable" never appears in discovery
+    // results (nearby / recommended). Default (undefined) = discoverable.
+    if (row.settings?.privacy?.discoverable === false) continue;
 
     let distanceMi = null;
     if (hasGeo && Number.isFinite(row.home_lat) && Number.isFinite(row.home_lng)) {

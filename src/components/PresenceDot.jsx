@@ -10,7 +10,9 @@ const COLORS = {
 };
 const LABELS = { online: 'Online', away: 'Away', offline: 'Offline' };
 
-export const PresenceDot = ({ status = 'offline', size = 11, ring = '#fff', style }) => {
+export const PresenceDot = ({ status, size = 11, ring = '#fff', style }) => {
+  // No status (e.g. the mom hid her active state) ⇒ render no dot at all.
+  if (!status || status === 'hidden') return null;
   const color = COLORS[status] || C.muted;
   return (
     <span

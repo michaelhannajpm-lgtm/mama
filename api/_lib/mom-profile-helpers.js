@@ -87,6 +87,9 @@ export const buildMomProfilePayload = (onboardingRow, username) => {
     verified: !!onboardingRow.contact_method,
     blocked_global: false,
     social_links: onboardingRow.social_links || {},
+    // New moms default to verified-only DMs (a safety-first default for the
+    // verified-only community). They can turn it off in Profile → Privacy.
+    settings: { privacy: { verified_only_dms: true } },
     source: 'onboarding',
     last_active_at: new Date().toISOString(),
   };
