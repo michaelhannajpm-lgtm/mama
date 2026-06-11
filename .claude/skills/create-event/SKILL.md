@@ -74,8 +74,11 @@ For a batch (several links/events): extract each, build all drafts, confirm once
 6. **Show the complete draft** — every field, with explicit ⚠️ flags for:
    unlinked place, will-be-published-live, low source_confidence, any guessed
    field. Ask for **one yes/no** (per event, or one OK for the batch).
-7. **Write** (see below). 8. **Report** the new `id`, the publish state, and —
-   if hidden — that it's reviewable/publishable at `/admin` → Events.
+7. **Write** (see below). 8. **Report** the new `id`, the publish state, and a
+   direct admin review deep-link: `<host>/admin/events/<id>` (the id is in the
+   insert's `returning` clause). The link opens the event's edit modal straight
+   away — regardless of the current review-status filter. `<host>` is the dev
+   server or deployed admin origin.
 
 ## Writing the event
 
