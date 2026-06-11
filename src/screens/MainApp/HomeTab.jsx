@@ -85,6 +85,20 @@ const MomMeetCardSkeleton = () => (
   </div>
 );
 
+// Empty state for a horizontal rail — shown when the live API returns no rows
+// for that section (mirrors the Moms section's bordered empty card so every
+// section reads as live-and-loading, never blank or hidden).
+const RailEmpty = ({ text }) => (
+  <div style={{
+    flex: 1, background: '#fff', border: `1px solid ${C.line}`,
+    borderRadius: 14, padding: '16px 14px', textAlign: 'center',
+  }}>
+    <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, lineHeight: 1.4 }}>
+      {text}
+    </div>
+  </div>
+);
+
 // -------------------------- shared bits --------------------------
 
 const SectionHead = ({ title, subtitle, link = 'See all', onLink }) => (
@@ -624,20 +638,19 @@ export const HomeTab = ({
           </button>
         )}
 
-        {/* Local Events Nearby — live events only. Skeleton while loading;
-            section hidden entirely when there's nothing live to show. */}
-        {(eventsLoading || funThings.length > 0) && (
-          <>
-            <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
-            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
-              {eventsLoading
-                ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
-                : funThings.map(it => (
-                    <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
-                  ))}
-            </div>
-          </>
-        )}
+        {/* Local Events Nearby — live events from /api/events (ranked by
+            bucketActivities → rankActivitiesForUser). Always visible: skeleton
+            while loading → cards → empty state, mirroring the Moms section. */}
+        <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
+          {eventsLoading
+            ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
+            : funThings.length > 0
+              ? funThings.map(it => (
+                  <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
+                ))
+              : <RailEmpty text="No events nearby yet — new ones show up here as they're added."/>}
+        </div>
 
         {/* Moms You May Want To Meet — 3-up grid, match-ranked */}
         <SectionHead title="Moms You May Want To Meet" onLink={goToConnectMoms}/>
@@ -672,20 +685,19 @@ export const HomeTab = ({
           </div>
         )}
 
-        {/* Upcoming Meetups — live mom-led meetups only. Skeleton while
-            loading; section hidden when there are none. */}
-        {(eventsLoading || UPCOMING_MEETUPS.length > 0) && (
-          <>
-            <SectionHead title="Upcoming Meetups" onLink={goToMeetups || goToActivities}/>
-            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
-              {eventsLoading
-                ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
-                : UPCOMING_MEETUPS.map(m => (
-                    <MeetupCard key={m.id} item={m} onClick={() => openMeetup(m)}/>
-                  ))}
-            </div>
-          </>
-        )}
+        {/* Upcoming Meetups — live mom-led meetups (eventType==='meetup') from
+            /api/events, ranked via rankEvents. Always visible: skeleton →
+            cards → empty state, mirroring the Moms section. */}
+        <SectionHead title="Upcoming Meetups" onLink={goToMeetups || goToActivities}/>
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
+          {eventsLoading
+            ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
+            : UPCOMING_MEETUPS.length > 0
+              ? UPCOMING_MEETUPS.map(m => (
+                  <MeetupCard key={m.id} item={m} onClick={() => openMeetup(m)}/>
+                ))
+              : <RailEmpty text="No meetups scheduled nearby yet — check back soon."/>}
+        </div>
 
         {/* Based On Your Child's Age — per-child filterable, places + events */}
         {ageKids.length > 0 && ageRailAll.length > 0 && (
