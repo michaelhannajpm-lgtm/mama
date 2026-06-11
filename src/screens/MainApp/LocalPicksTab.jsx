@@ -19,6 +19,8 @@ import { RateSheet } from '../../sheets/RateSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { TAMPA_BAY_AREAS } from '../../data/tampa-bay-areas';
 import { GROUP_DISCUSSIONS } from '../../data/discussions';
+import { eventToExploreCard, rankEvents } from '../../lib/event-cards';
+import { scorePlace } from '../../lib/content-score';
 
 // ==========================================================================
 // LocalPicksTab — the "Explore" surface (file kept, exported as
@@ -37,425 +39,27 @@ import { GROUP_DISCUSSIONS } from '../../data/discussions';
 //   CTA at the bottom opens PlacesFilterSheet.
 // ==========================================================================
 
-// 0a. Events — large/recurring group activities.
-const EVENTS_EXPLORE = [
-  {
-    id: 'ev_stroll', title: 'Stroller Walk + Coffee',
-    when: 'Tue · 9:00 AM', going: 8, distance: '1.2 mi away',
-    photo: 'https://images.unsplash.com/photo-1483721310020-03333e577078?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'ev_storytime', title: 'Storytime + Coffee',
-    when: 'Wed · 10:00 AM', going: 6, distance: '2.8 mi away',
-    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'ev_brunch', title: 'Saturday Mom Brunch',
-    when: 'Sat · 12:30 PM', going: 7, distance: '1.6 mi away',
-    photo: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop',
-  },
-];
-
-const EVENTS_EXPLORE_ALL = [
-  ...EVENTS_EXPLORE,
-  {
-    id: 'ev_playgroup', title: 'Saturday Playgroup',
-    when: 'Sat · 10:30 AM', going: 12, distance: '2.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'ev_yoga', title: 'Mom + Baby Yoga',
-    when: 'Fri · 9:30 AM', going: 4, distance: '0.9 mi away',
-    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'ev_picnic', title: 'Sunday Park Picnic',
-    when: 'Sun · 1:00 PM', going: 9, distance: '1.0 mi away',
-    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'ev_kidsfair', title: 'Tampa Kids & Family Fair',
-    when: 'Sat · 11:00 AM', going: 41, distance: '3.2 mi away',
-    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-  },
-];
-
-// 0b. Meetups — small, informal, mom-led.
-const MEETUPS_EXPLORE = [
-  {
-    id: 'mt_coffee', title: 'Coffee Hour at Buddy Brew',
-    when: 'Thu · 10:00 AM', going: 5, distance: '0.8 mi away',
-    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'mt_sunset', title: 'Sunset Stroll · Bayshore',
-    when: 'Mon · 6:00 PM', going: 5, distance: '1.3 mi away',
-    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'mt_libplay', title: 'Library Playdate',
-    when: 'Wed · 11:00 AM', going: 4, distance: '1.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&auto=format&fit=crop',
-  },
-];
-
-const MEETUPS_EXPLORE_ALL = [
-  ...MEETUPS_EXPLORE,
-  {
-    id: 'mt_dadpark', title: 'Davis Islands Park Hang',
-    when: 'Sat · 9:30 AM', going: 6, distance: '1.1 mi away',
-    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'mt_armtre', title: 'Armature Works Breakfast',
-    when: 'Fri · 8:30 AM', going: 3, distance: '0.8 mi away',
-    photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'mt_hydekids', title: 'Hyde Park Toddler Run',
-    when: 'Tue · 10:00 AM', going: 5, distance: '0.5 mi away',
-    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'mt_curtisfair', title: 'Curtis Hixon Splash Hangout',
-    when: 'Thu · 11:00 AM', going: 7, distance: '0.6 mi away',
-    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
-  },
-];
-
-// 1. Top places nearby — curated nearby family-friendly spots.
-const TOP_PLACES_NEARBY = [
-  {
-    id: 'tp1', title: 'Tampa Riverwalk Splash Pad',
-    rating: 4.8, distance: '0.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'tp5', title: 'Curtis Hixon Waterfront Park',
-    rating: 4.7, distance: '0.6 mi away',
-    photo: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'tp6', title: 'Hyde Park Village',
-    rating: 4.6, distance: '0.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1552083375-1447ce886485?w=400&auto=format&fit=crop',
-  },
-];
-
-const TOP_PLACES_NEARBY_ALL = [
-  ...TOP_PLACES_NEARBY,
-  {
-    id: 'tp7', title: 'Little Explorers Play Cafe',
-    rating: 4.9, distance: '2.1 mi away',
-    photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'tp9', title: 'The Yard · Tampa',
-    rating: 4.5, distance: '0.7 mi away',
-    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'tp10', title: 'Davis Islands Dog & Kid Park',
-    rating: 4.6, distance: '1.1 mi away',
-    photo: 'https://images.unsplash.com/photo-1502301197179-65228ab57f78?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'tp11', title: 'Armature Works Riverfront',
-    rating: 4.7, distance: '0.8 mi away',
-    photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&auto=format&fit=crop',
-  },
-];
-
-// 2. Fun & entertainment — destinations for a fun day out.
-const FUN_ENTERTAINMENT = [
-  {
-    id: 'fe1', title: 'ZooTampa at Lowry Park',
-    rating: 4.7, distance: '2.1 mi away',
-    photo: 'https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'fe2', title: "Glazer Children's Museum",
-    rating: 4.9, distance: '1.5 mi away',
-    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'fe3', title: 'Florida Aquarium',
-    rating: 4.8, distance: '1.3 mi away',
-    photo: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&auto=format&fit=crop',
-  },
-];
-
-const FUN_ENTERTAINMENT_ALL = [
-  ...FUN_ENTERTAINMENT,
-  {
-    id: 'fe4', title: 'Tampa Bay History Center',
-    rating: 4.6, distance: '1.2 mi away',
-    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'fe5', title: 'Adventure Island Water Park',
-    rating: 4.5, distance: '8.6 mi away',
-    photo: 'https://images.unsplash.com/photo-1572883454114-1cf0031ede2a?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'fe6', title: 'Sky Zone Trampoline Park',
-    rating: 4.4, distance: '3.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'fe7', title: 'Big Cat Rescue',
-    rating: 4.7, distance: '10.2 mi away',
-    photo: 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=400&auto=format&fit=crop',
-  },
-];
-
-// 3. Schools & childcare — preschools, daycares, K-8.
-const SCHOOLS_CHILDCARE = [
-  {
-    id: 's1', title: 'Bright Horizons at Harbour Island',
-    rating: 4.7, distance: '0.7 mi away', tag: 'Open enrollment',
-    tagBg: C.sage, tagFg: C.sageDark,
-    photo: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's2', title: 'Primrose School of South Tampa',
-    rating: 4.8, distance: '2.1 mi away', tag: 'Availability varies',
-    tagBg: '#FFF4D6', tagFg: '#8A6610',
-    photo: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's3', title: 'Sunshine Preschool & VPK',
-    rating: 4.6, distance: '1.5 mi away', tag: 'VPK',
-    tagBg: C.lilac, tagFg: '#5E4A8A',
-    photo: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=400&auto=format&fit=crop',
-  },
-];
-
-const SCHOOLS_CHILDCARE_ALL = [
-  ...SCHOOLS_CHILDCARE,
-  {
-    id: 's4', title: 'Goddard School Westshore',
-    rating: 4.7, distance: '1.0 mi away', tag: 'Open enrollment',
-    tagBg: C.sage, tagFg: C.sageDark,
-    photo: 'https://images.unsplash.com/photo-1587653263995-422546a7a569?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's5', title: 'Kiddie Academy of Tampa Palms',
-    rating: 4.5, distance: '4.2 mi away', tag: 'Tour available',
-    tagBg: C.lilac, tagFg: '#5E4A8A',
-    photo: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's6', title: 'KinderCare South Tampa',
-    rating: 4.6, distance: '1.8 mi away', tag: 'Availability varies',
-    tagBg: '#FFF4D6', tagFg: '#8A6610',
-    photo: 'https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's7', title: 'St. Mary\'s Episcopal Day School',
-    rating: 4.9, distance: '0.9 mi away', tag: 'Open enrollment',
-    tagBg: C.sage, tagFg: C.sageDark,
-    photo: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's8', title: 'Children\'s Board Family Resource',
-    rating: 4.7, distance: '1.4 mi away', tag: 'Subsidized',
-    tagBg: C.coralSoft, tagFg: C.coralDeep,
-    photo: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 's9', title: 'Tampa Day School',
-    rating: 4.8, distance: '2.6 mi away', tag: 'K-8',
-    tagBg: C.lilac, tagFg: '#5E4A8A',
-    photo: 'https://images.unsplash.com/photo-1581726690015-c9861fa5057f?w=400&auto=format&fit=crop',
-  },
-];
-
-// 4. Extracurricular & camps — classes, camps, programs.
-const EXTRACURRICULAR_CAMPS = [
-  {
-    id: 'pr1', title: 'Music Together', ages: 'Ages 0–5',
-    distance: '0.6 mi away', Icon: Music,
-    bg: C.coralSoft, fg: C.coralDeep,
-  },
-  {
-    id: 'ec_camp1', title: 'Summer Adventure Camp', ages: 'Ages 5–12',
-    distance: '1.2 mi away', Icon: Tent,
-    bg: C.sage, fg: C.sageDark,
-  },
-  {
-    id: 'pr4', title: 'Toddler Art Studio', ages: 'Ages 1–4',
-    distance: '0.8 mi away', Icon: Palette,
-    bg: '#FFF4D6', fg: '#8A6610',
-  },
-];
-
-const EXTRACURRICULAR_CAMPS_ALL = [
-  ...EXTRACURRICULAR_CAMPS,
-  {
-    id: 'pr6', title: 'Story Time Spanish', ages: 'Ages 2–5',
-    distance: '1.0 mi away', Icon: BookOpen,
-    bg: C.lilac, fg: '#5E4A8A',
-  },
-  {
-    id: 'pr7', title: 'Mini Chefs Cooking', ages: 'Ages 4–8',
-    distance: '1.6 mi away', Icon: Sparkles,
-    bg: C.sage, fg: C.sageDark,
-  },
-  {
-    id: 'pr8', title: 'Baby Sign Class', ages: 'Ages 0–2',
-    distance: '0.7 mi away', Icon: HeartHandshake,
-    bg: '#FFF4D6', fg: '#8A6610',
-  },
-  {
-    id: 'pr9', title: 'STEM for Toddlers', ages: 'Ages 2–4',
-    distance: '1.9 mi away', Icon: Brain,
-    bg: C.coralSoft, fg: C.coralDeep,
-  },
-  {
-    id: 'ec_camp2', title: 'Nature Day Camp', ages: 'Ages 4–10',
-    distance: '2.4 mi away', Icon: Trees,
-    bg: C.sage, fg: C.sageDark,
-  },
-  {
-    id: 'ec_camp3', title: 'Coding Kids Camp', ages: 'Ages 6–12',
-    distance: '2.0 mi away', Icon: Brain,
-    bg: C.lilac, fg: '#5E4A8A',
-  },
-];
-
-// 5. Health & wellness — pediatric, mental, postpartum, OT, sleep.
-const HEALTH_WELLNESS = [
-  {
-    id: 'hw_ped', title: 'Tampa Pediatric Care',
-    rating: 4.8, distance: '0.9 mi away',
-    photo: 'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_men', title: 'Brightside Mental Health',
-    rating: 4.7, distance: '1.2 mi away',
-    photo: 'https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_pp', title: 'Postpartum Wellness Center',
-    rating: 4.9, distance: '1.6 mi away',
-    photo: 'https://images.unsplash.com/photo-1556139943-4bdca53adf1e?w=400&auto=format&fit=crop',
-  },
-];
-
-const HEALTH_WELLNESS_ALL = [
-  ...HEALTH_WELLNESS,
-  {
-    id: 'hw_lac', title: 'Lactation Consultant Co.',
-    rating: 4.9, distance: '0.8 mi away',
-    photo: 'https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_sle', title: 'Tampa Sleep Consultants',
-    rating: 4.8, distance: '1.4 mi away',
-    photo: 'https://images.unsplash.com/photo-1566275529824-cca6d008f3da?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_ot', title: 'OT & Speech Therapy Clinic',
-    rating: 4.7, distance: '1.9 mi away',
-    photo: 'https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_doc', title: 'Bay Area Doula Collective',
-    rating: 4.8, distance: '2.1 mi away',
-    photo: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_yog', title: 'Mom & Baby Yoga Studio',
-    rating: 4.7, distance: '1.0 mi away',
-    photo: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&auto=format&fit=crop',
-  },
-  {
-    id: 'hw_dent', title: 'Little Smiles Pediatric Dental',
-    rating: 4.8, distance: '1.7 mi away',
-    photo: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=400&auto=format&fit=crop',
-  },
-];
-
-// Tag events vs. meetups so the combined events SeeAll can split them with
-// the "Meetups" quick-filter chip, and the meetups SeeAll can stay scoped.
-const tagSource = (arr, src) => arr.map(it => ({ ...it, _source: src }));
-const EVENTS_TAGGED        = tagSource(EVENTS_EXPLORE,        'event');
-const EVENTS_ALL_TAGGED    = tagSource(EVENTS_EXPLORE_ALL,    'event');
-const MEETUPS_TAGGED       = tagSource(MEETUPS_EXPLORE,       'meetup');
-const MEETUPS_ALL_TAGGED   = tagSource(MEETUPS_EXPLORE_ALL,   'meetup');
-// Events SeeAll surfaces both; the homepage section keeps showing just events.
-const EVENTS_PLUS_MEETUPS_ALL = [...EVENTS_ALL_TAGGED, ...MEETUPS_ALL_TAGGED];
-
-// Sub-category tag per Health & wellness item — drives the visible chip row
-// (Wellness / Pediatricians / Therapists / Dentists). Each item belongs to one.
-const HEALTH_CAT_BY_ID = {
-  hw_ped: 'pediatricians',
-  hw_men: 'therapists',
-  hw_pp:  'wellness',
-  hw_lac: 'wellness',
-  hw_sle: 'wellness',
-  hw_ot:  'therapists',
-  hw_doc: 'wellness',
-  hw_yog: 'wellness',
-  hw_dent:'dentists',
-};
-const tagHealth = (arr) => arr.map(it => ({ ...it, _health: HEALTH_CAT_BY_ID[it.id] || 'wellness' }));
-const HEALTH_WELLNESS_TAGGED     = tagHealth(HEALTH_WELLNESS);
-const HEALTH_WELLNESS_ALL_TAGGED = tagHealth(HEALTH_WELLNESS_ALL);
-
-// Section metadata — keeps the rendering loop declarative and lets the
-// Category filter map titles to data sources without a giant switch.
+// Section metadata — declarative list driving the render loop and the Category
+// filter. `items`/`allItems` are filled at render time from LIVE data only
+// (events from /api/events, places from /api/places). No hardcoded catalogs.
 const SECTIONS = [
-  {
-    key: 'events',
-    title: 'Events',
-    kind: 'event',
-    items: EVENTS_TAGGED,
-    allItems: EVENTS_PLUS_MEETUPS_ALL,
-    seeAllSubtitle: 'Events + meetups · this week',
-  },
-  {
-    key: 'meetups',
-    title: 'Meetups',
-    kind: 'event',
-    items: MEETUPS_TAGGED,
-    allItems: MEETUPS_ALL_TAGGED,
-    seeAllSubtitle: 'Small, informal, mom-led',
-  },
-  {
-    key: 'places',
-    title: 'Top local picks',
-    kind: 'photo',
-    items: TOP_PLACES_NEARBY,
-    allItems: TOP_PLACES_NEARBY_ALL,
-    seeAllSubtitle: 'Top rated near you',
-  },
-  {
-    key: 'kids',
-    title: 'Kids programs',
-    kind: 'program',
-    items: EXTRACURRICULAR_CAMPS,
-    allItems: EXTRACURRICULAR_CAMPS_ALL,
-    seeAllSubtitle: `${EXTRACURRICULAR_CAMPS_ALL.length} programs & camps`,
-  },
-  {
-    key: 'schools',
-    title: 'Schools & childcare',
-    kind: 'school',
-    items: SCHOOLS_CHILDCARE,
-    allItems: SCHOOLS_CHILDCARE_ALL,
-    seeAllSubtitle: `${SCHOOLS_CHILDCARE_ALL.length} options within 5 mi`,
-  },
-  {
-    key: 'health',
-    title: 'Health & wellness',
-    kind: 'photo',
-    items: HEALTH_WELLNESS_TAGGED,
-    allItems: HEALTH_WELLNESS_ALL_TAGGED,
-    seeAllSubtitle: 'Pediatric, mental, postpartum',
-  },
+  { key: 'events',  title: 'Events',              kind: 'event',   seeAllSubtitle: 'Events + meetups · this week' },
+  { key: 'meetups', title: 'Meetups',             kind: 'event',   seeAllSubtitle: 'Small, informal, mom-led' },
+  { key: 'places',  title: 'Top local picks',     kind: 'photo',   seeAllSubtitle: 'Top rated near you' },
+  { key: 'kids',    title: 'Kids programs',       kind: 'program', seeAllSubtitle: 'Programs & camps' },
+  { key: 'schools', title: 'Schools & childcare', kind: 'school',  seeAllSubtitle: 'Options within 5 mi' },
+  { key: 'health',  title: 'Health & wellness',   kind: 'photo',   seeAllSubtitle: 'Pediatric, mental, postpartum' },
 ];
+
+// Section key → the key buildLiveSections() returns its rows under. Kids
+// programs live under `extras` (extracurricular + camps); the rest match 1:1.
+// Events/meetups are sourced separately (from /api/events), not from here.
+const LIVE_SECTION_KEY = {
+  places:  'places',
+  kids:    'extras',
+  schools: 'schools',
+  health:  'health',
+};
 
 // Map section keys to filter Category labels for filtering visibility.
 const SECTION_CATEGORY = {
@@ -1027,8 +631,11 @@ export const countMatchingPlaces = (places, filters, userCoords) => {
 const topScore = (r) => (r.rating || 0) * Math.log10((r.review_count || 0) + 1);
 
 // "Top places": admin-featured (by top_rank) first, then auto-top (rating ≥ 4.3
-// & ≥ 50 reviews by score), all within `radiusMiles` of the user (when known).
-const topPlacesFrom = (rows, userCoords, radiusMiles) => {
+// & ≥ 50 reviews), all within `radiusMiles` of the user (when known). The
+// auto-top tier is ordered by relevance to the user's kids/interests (scorePlace,
+// same engine as Home) when a profile is supplied, falling back to quality ×
+// review-volume — featured/top_rank rows stay pinned regardless.
+const topPlacesFrom = (rows, userCoords, radiusMiles, profile = null) => {
   const within = (userCoords && radiusMiles)
     ? rows.filter(r => r.lat != null && r.lng != null &&
         haversineMi(userCoords.lat, userCoords.lng, r.lat, r.lng) <= radiusMiles)
@@ -1038,13 +645,15 @@ const topPlacesFrom = (rows, userCoords, radiusMiles) => {
   const featuredIds = new Set(featured.map(r => r.id));
   const autoTop = within
     .filter(r => !featuredIds.has(r.id) && (r.rating || 0) >= 4.3 && (r.review_count || 0) >= 50)
-    .sort((a, b) => topScore(b) - topScore(a));
+    .sort(profile
+      ? (a, b) => (scorePlace(profile, b).score - scorePlace(profile, a).score) || (topScore(b) - topScore(a))
+      : (a, b) => topScore(b) - topScore(a));
   return [...featured, ...autoTop];
 };
 
 // Build per-section card lists from the grouped live payload, applying the
 // advanced (non-category) filters to each row first.
-const buildLiveSections = (places, filters, userCoords, radiusMiles) => {
+const buildLiveSections = (places, filters, userCoords, radiusMiles, profile = null) => {
   const f = filters || {};
   const g = (k) => (Array.isArray(places?.[k]) ? places[k] : []).filter(r => matchesFilters(r, f, userCoords));
   const everything = [
@@ -1052,7 +661,7 @@ const buildLiveSections = (places, filters, userCoords, radiusMiles) => {
     ...g('childcare'), ...g('extracurricular'), ...g('camps'), ...g('health'),
   ];
   return {
-    places:  topPlacesFrom(everything, userCoords, radiusMiles).map(r => livePhotoCard(r, userCoords)),
+    places:  topPlacesFrom(everything, userCoords, radiusMiles, profile).map(r => livePhotoCard(r, userCoords)),
     fun:     g('fun').map(r => livePhotoCard(r, userCoords)),
     schools: [...g('schools'), ...g('childcare')].map(r => liveSchoolCard(r, userCoords)),
     extras:  [...g('extracurricular'), ...g('camps')].map(r => liveProgramCard(r, userCoords)),
@@ -1089,30 +698,43 @@ const parseAgeRange = (ages) => {
 };
 const rangesOverlap = (aMin, aMax, bMin, bMax) => aMax >= bMin && aMin <= bMax;
 
+// True when a live API event falls on a weekend — dated rows by startsAt,
+// recurring rows by their day-of-week label.
+const isWeekendEvent = (ev) => {
+  if (ev?.kind === 'dated' && ev.startsAt) {
+    const g = new Date(ev.startsAt).getDay();
+    return g === 0 || g === 6;
+  }
+  return typeof ev?.day === 'string' && ['sat', 'sun'].includes(ev.day.slice(0, 3).toLowerCase());
+};
+
 // (item, activeIds[]) => boolean. Age buckets OR together; the rest AND.
 const quickFilterMatch = (item, ids, userCoords) => {
+  // Event / meetup cards carry _source + the live API event in `_live` — match
+  // on real fields (going / mi / startsAt / eventType), never display strings.
+  if (item._source === 'event' || item._source === 'meetup') {
+    const ev = item._live || {};
+    return ids.every(id => {
+      switch (id) {
+        case 'thisweek':    return true; // already inside the API's upcoming window
+        case 'thisweekend': return isWeekendEvent(ev) || startsWithDay(item.when, ['Sat', 'Sun']);
+        case 'free':        return true; // events carry no price signal yet
+        case 'meetups':     return item._source === 'meetup';
+        case 'small':       return (ev.going ?? item.going ?? 99) <= 6;
+        case 'near5': {
+          const mi = typeof ev.mi === 'number' ? ev.mi : parseMiles(item.distance);
+          return mi == null || mi <= 5;
+        }
+        default: return true;
+      }
+    });
+  }
+
   const row = item._live;
 
-  // Event/meetup items have no `_live` row — match against parsed fields.
+  // Defensive: a place/program/school card without a live row. Stage chips OR
+  // together against item.ages; health chips map to the _health sub-category.
   if (!row) {
-    if (item._source === 'event' || item._source === 'meetup') {
-      return ids.every(id => {
-        switch (id) {
-          case 'thisweek':    return true; // all hardcoded events are within this week
-          case 'thisweekend': return startsWithDay(item.when, ['Sat', 'Sun']);
-          case 'free':        return true; // prototype items have no price
-          case 'meetups':     return item._source === 'meetup';
-          case 'small':       return (item.going ?? 99) <= 6;
-          case 'near5': {
-            const mi = parseMiles(item.distance);
-            return mi == null || mi <= 5;
-          }
-          default: return true;
-        }
-      });
-    }
-
-    // Kids programs (no _live) — stage chips OR together against item.ages.
     if (item.ages) {
       const stageIds = ids.filter(id => STAGE_AGE[id]);
       if (stageIds.length) {
@@ -1141,7 +763,14 @@ const quickFilterMatch = (item, ids, userCoords) => {
     const [lo, hi] = QUICK_AGE[id]; const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
     return rmax >= lo && rmin <= hi;
   });
-  const otherOk = ids.filter(id => !QUICK_AGE[id]).every(id => {
+  // Kids stage chips (school-age / tween / teen) OR together against the live
+  // row's age range, mirroring the bucket-age handling above.
+  const stageIds = ids.filter(id => STAGE_AGE[id]);
+  const stageOk = stageIds.length === 0 || stageIds.some(id => {
+    const [lo, hi] = STAGE_AGE[id]; const rmin = row.age_min ?? 0, rmax = row.age_max ?? 18;
+    return rangesOverlap(rmin, rmax, lo, hi);
+  });
+  const otherOk = ids.filter(id => !QUICK_AGE[id] && !STAGE_AGE[id]).every(id => {
     switch (id) {
       case 'top': return (row.rating || 0) >= 4.5;
       case 'free': return row.price_level === 0;
@@ -1154,7 +783,7 @@ const quickFilterMatch = (item, ids, userCoords) => {
       default: return true;
     }
   });
-  return ageOk && otherOk;
+  return ageOk && stageOk && otherOk;
 };
 
 // -------------------------- explore-only data --------------------------
@@ -1257,6 +886,7 @@ const GroupChatCard = ({ item, onClick }) => {
 
 export const LocalPicksTab = ({
   places,
+  events = [], thisWeek = [], profile = null,
   placesLoading = false, eventsLoading = false,
   location, locationGeo,
   placesRadius = 50,
@@ -1318,25 +948,42 @@ export const LocalPicksTab = ({
     [locationGeo, location]
   );
 
-  // Live-or-curated sections. With live data, show live (filtered) rows; a
-  // section with no live results falls back to its curated list ONLY when no
-  // advanced filter is active (a filter may legitimately empty a section).
-  // The "Top places" section is radius-bounded (featured + auto-top).
+  // Live events (recurring + this-week dated) → Explore card shape, ranked
+  // through the recommendation engine (relevance to the user's kids/interests,
+  // then soonest/nearest). Split into the Events feed and the Meetups feed by
+  // the API's event type. No hardcoded events anywhere.
+  const liveEventCards = useMemo(() => {
+    const now = new Date();
+    return rankEvents([...thisWeek, ...events], profile).map(ev => eventToExploreCard(ev, now));
+  }, [thisWeek, events, profile]);
+  const eventOnly  = useMemo(() => liveEventCards.filter(c => c._source !== 'meetup'), [liveEventCards]);
+  const meetupOnly = useMemo(() => liveEventCards.filter(c => c._source === 'meetup'), [liveEventCards]);
+
+  // Per-section card lists, built ENTIRELY from live data (events from
+  // /api/events, places from /api/places). A section with no live rows renders
+  // empty (the row is hidden + an empty state shows) — never a static fallback.
+  // The "Top places" section is radius-bounded (featured + relevance-ranked).
   const effectiveSections = useMemo(() => {
-    if (!anyLive(places)) return SECTIONS;
-    const live = buildLiveSections(places, filters, userCoords, placesRadius);
-    const filtersOn = advancedFiltersActive(filters);
+    const live = anyLive(places)
+      ? buildLiveSections(places, filters, userCoords, placesRadius, profile)
+      : null;
     return SECTIONS.map(s => {
-      const items = live[s.key] || [];
+      // Events pinned row shows events-only; the combined "See all" surfaces
+      // events + meetups (preserving the prior behavior). Meetups is its own feed.
+      if (s.key === 'events') {
+        return { ...s, items: eventOnly.slice(0, 4), allItems: [...eventOnly, ...meetupOnly] };
+      }
+      if (s.key === 'meetups') {
+        return { ...s, items: meetupOnly.slice(0, 4), allItems: meetupOnly };
+      }
+      const liveKey = LIVE_SECTION_KEY[s.key] || s.key;
+      const items = live?.[liveKey] || [];
       const subtitle = s.key === 'places'
         ? `Top rated within ${placesRadius} mi`
-        : (liveSubtitle(s.key, items.length) || s.seeAllSubtitle);
-      if (items.length) {
-        return { ...s, items: items.slice(0, 4), allItems: items, seeAllSubtitle: subtitle };
-      }
-      return filtersOn ? { ...s, items: [], allItems: [], seeAllSubtitle: subtitle } : s;
+        : (liveSubtitle(liveKey, items.length) || s.seeAllSubtitle);
+      return { ...s, items: items.slice(0, 4), allItems: items, seeAllSubtitle: subtitle };
     });
-  }, [places, filters, userCoords, placesRadius]);
+  }, [places, filters, userCoords, placesRadius, profile, eventOnly, meetupOnly]);
 
   // Live count for the filter sheet's "Show N places" CTA.
   const placeMatchCount = useMemo(
