@@ -197,6 +197,26 @@ export const updateMomProfile = async (patch, { seedMomId } = {}) => {
   return body.profile || null;
 };
 
+// Presence heartbeat — best-effort, fire-and-forget. Sets the current user's
+// mom_profiles.last_seen_at server-side (server clock). Soft no-op when neither
+// signed in nor a seeded dev user.
+export const sendHeartbeat = async ({ seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  let payload;
+  if (access_token) payload = { access_token };
+  else if (seedMomId) payload = { seed_mom_id: seedMomId };
+  else return;
+  try {
+    await fetch('/api/mom-profiles/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch { /* best-effort */ }
+};
+
 // Subscribe to Supabase auth state changes (SIGNED_IN, SIGNED_OUT, …).
 // Returns an unsubscribe function. No-op (returns () => {}) when supabase
 // isn't configured. The hash-token detection on a fresh OAuth callback

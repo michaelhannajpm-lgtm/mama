@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { PresenceDot } from '../components/PresenceDot';
 
 // ==========================================================================
 // MomDetailSheet — lightweight profile card for the Connect tab's
@@ -90,6 +91,8 @@ export const MomDetailSheet = ({
                 <ShieldCheck size={13}/>
               </div>
             )}
+            {/* Presence dot — top-right (verified shield is bottom-right). */}
+            <PresenceDot status={mom.presence} size={20} ring="#fff" style={{ top: 2, right: 2, bottom: 'auto' }}/>
           </div>
           <div className="mt-3" style={{
             fontFamily: 'Fraunces', fontSize: 24, fontWeight: 600,

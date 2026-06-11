@@ -5,6 +5,7 @@ import {
   Instagram, Facebook,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { PresenceDot } from '../../components/PresenceDot';
 import { ProfilePhotosSheet } from '../../sheets/ProfilePhotosSheet';
 import { EditIdentitySheet } from '../../sheets/EditIdentitySheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
@@ -303,6 +304,8 @@ export const YouTab = ({
           }}>
             <Camera size={12}/>
           </button>
+          {/* You're using the app → always online. Camera edit sits bottom-right. */}
+          <PresenceDot status="online" size={15} style={{ top: 0, right: 0, bottom: 'auto' }}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center gap-1.5" style={{ flexWrap: 'wrap' }}>

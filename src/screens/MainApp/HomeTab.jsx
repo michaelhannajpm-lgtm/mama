@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { C } from '../../theme';
 import { youngestStageLabel } from '../../data/taxonomy';
+import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
@@ -187,6 +188,8 @@ const MomChip = ({ item, onClick }) => {
                 {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
               </span>}
         </div>
+        {/* Presence dot — top-right so it never collides with the distance pill. */}
+        <PresenceDot status={item.presence} size={12} style={{ top: 0, right: 0, bottom: 'auto' }}/>
         {/* Distance marker pill — matches the Connect card. */}
         {hasDistance && (
           <div style={{

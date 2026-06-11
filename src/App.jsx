@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
 import { AdminPage } from './AdminPage';
@@ -31,7 +31,8 @@ import { AboutYou }       from './screens/onboarding/AboutYou';
 import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
 import { MainApp } from './screens/MainApp';
-import { recordStep, promoteSession, signOut, onAuthChange } from './lib/onboarding';
+import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat } from './lib/onboarding';
+import { derivePresence } from './lib/presence';
 import { ensureSession } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces, fetchConfig } from './lib/places-api';
@@ -203,6 +204,38 @@ function PrototypeApp({ bare = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, account?.auth_user_id, account?.seedMomId, locationGeo?.id,
       JSON.stringify(profile?.interests), JSON.stringify(profile?.kidsAges)]);
+
+  // --- Presence ---------------------------------------------------------
+  // (a) Heartbeat so *we* show as online to others: ping on entering the app,
+  //     every 60s, and on tab focus. Best-effort; no-ops without an identity.
+  // (b) A 60s tick re-derives every nearby mom's status so dots age
+  //     online→away→offline without a refetch. Coming back online needs a
+  //     fresh last_seen_at, so we also reload the nearby list on tab focus.
+  const [presenceTick, setPresenceTick] = useState(0);
+  useEffect(() => {
+    if (step < 3) return undefined;
+    const beat = () => sendHeartbeat({ seedMomId: account?.seedMomId });
+    beat();
+    const hb = setInterval(beat, 60_000);
+    const tick = setInterval(() => setPresenceTick((n) => n + 1), 60_000);
+    const onFocus = () => { beat(); setPresenceTick((n) => n + 1); loadNearbyMoms(nearbyVerifiedOnly); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(hb); clearInterval(tick); window.removeEventListener('focus', onFocus); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, account?.seedMomId, account?.auth_user_id]);
+
+  // Nearby moms decorated with a live presence status (recomputed each tick).
+  const presenceOnlineMaxS = appConfig.presenceOnlineMaxSeconds ?? 300;
+  const presenceAwayMaxS = appConfig.presenceAwayMaxSeconds ?? 1800;
+  const nearbyMomsLive = useMemo(
+    () => nearbyMoms.map((m) => ({
+      ...m,
+      presence: derivePresence(m.last_seen_at, presenceOnlineMaxS, presenceAwayMaxS),
+    })),
+    // presenceTick forces a recompute on the 60s cadence.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nearbyMoms, presenceTick, presenceOnlineMaxS, presenceAwayMaxS],
+  );
 
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
@@ -383,7 +416,7 @@ function PrototypeApp({ bare = false }) {
             goingItems={goingItems} setGoingItems={setGoingItems}
             ratings={ratings} setRatings={setRatings}
             account={account} requestAccount={requestAccount}
-            nearbyMoms={nearbyMoms}
+            nearbyMoms={nearbyMomsLive}
             nearbyVerifiedOnly={nearbyVerifiedOnly}
             onSetVerifiedOnly={loadNearbyMoms}
             openSchedule={setScheduleMom}

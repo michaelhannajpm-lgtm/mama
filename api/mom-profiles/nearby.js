@@ -12,6 +12,7 @@ const SELECT = [
   'id', 'auth_user_id', 'display_name', 'username', 'age', 'bio', 'photos',
   'kids_ages', 'mom_types', 'values', 'interests', 'free_slots', 'places',
   'city', 'neighborhood', 'county', 'home_lat', 'home_lng', 'distance_miles', 'verified',
+  'last_seen_at',
 ].join(',');
 
 export default async function handler(req, res) {

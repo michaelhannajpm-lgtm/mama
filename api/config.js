@@ -6,6 +6,8 @@ import { json, supabaseCreds, sbHeaders } from './_lib/supabase.js';
 // app_config.key (snake) → response key (camel) + coercion.
 const KEYS = {
   default_places_radius_miles: { out: 'defaultPlacesRadiusMiles', num: true },
+  presence_online_max_seconds: { out: 'presenceOnlineMaxSeconds', num: true },
+  presence_away_max_seconds:   { out: 'presenceAwayMaxSeconds',   num: true },
 };
 
 export default async function handler(req, res) {

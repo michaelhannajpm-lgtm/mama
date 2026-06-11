@@ -14,6 +14,7 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
+import { PresenceDot } from '../../components/PresenceDot';
 
 // ==========================================================================
 // ConnectTab — V5 "Connect" surface.
@@ -168,6 +169,8 @@ const MomCard = ({ item, onClick }) => {
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
+        {/* Presence dot — top-right, clear of the bottom distance pill. */}
+        <PresenceDot status={item.presence} size={13} style={{ top: 1, right: 1, bottom: 'auto' }}/>
         {/* Distance marker — sits on the avatar like a map pin, so it never
             wraps onto its own awkward line. Hidden when distance is unknown. */}
         {item.distanceMi != null && (
@@ -274,6 +277,8 @@ const MomListCard = ({
           }}>
             <ShieldCheck size={11}/>
           </div>
+          {/* Presence dot — top-right (verified shield occupies bottom-right). */}
+          <PresenceDot status={item.presence} size={14} style={{ top: -1, right: -1, bottom: 'auto' }}/>
         </button>
         <div className="flex-1 min-w-0">
           <div style={{

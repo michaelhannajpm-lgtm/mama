@@ -11,6 +11,17 @@ const VALIDATORS = {
     if (!Number.isFinite(n) || n < 1 || n > 500) return { error: 'radius must be 1–500 miles' };
     return { value: Math.round(n) };
   },
+  // Presence recency windows (seconds). online window must be shorter than away.
+  presence_online_max_seconds: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 30 || n > 3600) return { error: 'online window must be 30–3600 seconds' };
+    return { value: Math.round(n) };
+  },
+  presence_away_max_seconds: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 60 || n > 86400) return { error: 'away window must be 60–86400 seconds' };
+    return { value: Math.round(n) };
+  },
 };
 
 export default async function handler(req, res) {

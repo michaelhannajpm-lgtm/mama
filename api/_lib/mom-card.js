@@ -99,5 +99,6 @@ export const momCardFromRow = (row, user = {}, distanceMi = null) => {
     freeSlots: asArray(row.free_slots),
     places: asArray(row.places),
     verified: !!row.verified,
+    last_seen_at: row.last_seen_at || null,  // presence heartbeat; status derived client-side
   };
 };
