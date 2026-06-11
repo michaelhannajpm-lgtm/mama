@@ -146,6 +146,78 @@ export const TypeaheadSelect = ({ label, value, onChange, options, accent = AC.a
   );
 };
 
+// Date-range filter. `value` is { preset, from, to } where preset is
+// 'any' | 'today' | '7d' | '30d' | 'custom'; from/to are 'YYYY-MM-DD' (custom).
+// Pairs with dateInRange() in eventFilters.js for the matching logic.
+const DATE_PRESETS = [
+  { value: 'any', label: 'Any time' },
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: 'custom', label: 'Custom range' },
+];
+
+export const DateRangeFilter = ({ label, value = { preset: 'any' }, onChange, accent = AC.accent }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const preset = value.preset || 'any';
+  const active = preset !== 'any';
+  const presetLabel = (DATE_PRESETS.find(p => p.value === preset) || DATE_PRESETS[0]).label;
+  const buttonText = preset === 'custom' ? `${value.from || '…'} → ${value.to || '…'}` : presetLabel;
+
+  const pickPreset = (p) => {
+    if (p === 'custom') onChange({ preset: 'custom', from: value.from || '', to: value.to || '' });
+    else { onChange({ preset: p }); setOpen(false); }
+  };
+  const dateInput = {
+    display: 'block', marginTop: 2, border: `1px solid ${AC.border}`, borderRadius: 6,
+    padding: '4px 6px', fontFamily: 'Albert Sans', fontSize: 12.5, background: AC.surface, color: AC.text,
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ ...fieldStyle, borderColor: active ? accent : AC.border, color: active ? accent : AC.text, fontWeight: active ? 600 : 400 }}>
+        {label}: {buttonText} <ChevronDown size={13} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', zIndex: 40, marginTop: 4, minWidth: 200, background: AC.surface,
+          border: `1px solid ${AC.border}`, borderRadius: 10, boxShadow: '0 8px 24px -8px rgba(27,42,78,.28)', padding: 6,
+        }}>
+          {DATE_PRESETS.map(p => (
+            <button key={p.value} onClick={() => pickPreset(p.value)}
+              style={{
+                width: '100%', textAlign: 'left', padding: '4px 8px', borderRadius: 6,
+                background: p.value === preset ? `${accent}15` : 'transparent', color: AC.text,
+                border: 'none', cursor: 'pointer', fontFamily: 'Albert Sans', fontSize: 12.5,
+              }}>{p.label}</button>
+          ))}
+          {preset === 'custom' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 6px 4px', borderTop: `1px solid ${AC.border}`, marginTop: 4 }}>
+              <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft }}>From
+                <input type="date" value={value.from || ''}
+                  onChange={(e) => onChange({ preset: 'custom', from: e.target.value, to: value.to || '' })} style={dateInput} />
+              </label>
+              <label style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft }}>To
+                <input type="date" value={value.to || ''}
+                  onChange={(e) => onChange({ preset: 'custom', from: value.from || '', to: e.target.value })} style={dateInput} />
+              </label>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Search icon that expands to an input on click; collapses on blur when empty.
 export const CollapsibleSearch = ({ value, onChange, accent = AC.accent }) => {
   const [open, setOpen] = useState(!!value);
