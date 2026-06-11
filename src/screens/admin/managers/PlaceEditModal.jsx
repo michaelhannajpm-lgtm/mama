@@ -3,6 +3,9 @@ import { AC } from '../admin-theme';
 import { X, Star, ExternalLink } from 'lucide-react';
 import { BusyOverlay } from '../components/primitives';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
+import { AiWriteButton } from '../components/AiWriteButton.jsx';
+import { AiImageControl } from '../components/AiImageControl.jsx';
+import { AiReviewButton } from '../components/AiReviewButton.jsx';
 import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
 import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
 
@@ -240,7 +243,10 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         {/* 2. Photo gallery (only shown for existing places) */}
         {!isNew && (
         <>
-        <div style={sectionHeader}>Photos</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...sectionHeader }}>
+          Photos
+          <AiImageControl kind="place" record={form} onImage={(url) => set('hero_photo', url)} />
+        </div>
         {photos.length === 0 ? (
           <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No photos</div>
         ) : (
@@ -278,6 +284,11 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
         </>
         )}
 
+        {/* AI assist — record-level review across all fields */}
+        <div style={{ marginBottom: 12 }}>
+          <AiReviewButton kind="place" record={form} onApply={(field, value) => set(field, value)} />
+        </div>
+
         {/* 3. Basics */}
         <div style={sectionHeader}>Basics</div>
         <div className="grid grid-cols-3 gap-2">
@@ -292,7 +303,11 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           {Text('age_max', 'Age max', 'number')}
           {isNew && Text('slug', 'Slug (auto from name if blank)')}
         </div>
-        <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Description
+        <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Description
+            <AiWriteButton kind="place" record={form} onWrite={(text) => set('description', text)} />
+          </span>
           <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} style={inputStyle} />
         </label>
         <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Tags (comma-separated)
