@@ -40,6 +40,7 @@ import { fetchPlaces, fetchConfig } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
 import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-moms';
 import { fetchNearbyMoms } from './lib/nearby-moms';
+import { fetchLocalFavorite } from './lib/local-favorite-api';
 import { decorateMom } from './lib/mom-card';
 import { SUGGESTED_EVENTS as FALLBACK_EVENTS } from './data/events';
 
@@ -57,8 +58,10 @@ function PrototypeApp({ bare = false }) {
   const [seededLoginOpen, setSeededLoginOpen] = useState(false);
   const [seededMoms, setSeededMoms] = useState([]);
   const [nearbyMoms, setNearbyMoms] = useState([]);
+  const [localFavorite, setLocalFavorite] = useState(null);
   const [nearbyVerifiedOnly, setNearbyVerifiedOnly] = useState(true);
   const nearbyReqId = useRef(0);
+  const verifiedOnlyTouched = useRef(false); // true once the user manually toggles it
   const [seededLoginLoading, setSeededLoginLoading] = useState(false);
   const [seededLoginError, setSeededLoginError] = useState(null);
   const [profile, setProfile] = useState({ kidsAges:{}, momTypes:[], values:[], interests:[], photos:[], bio:'', verified:{ instagram:false, facebook:false, photo:false } });
@@ -101,9 +104,23 @@ function PrototypeApp({ bare = false }) {
   // App-level config + the user's top-places radius override. Effective radius
   // is the user's choice, else the app default, else 50 mi.
   const [appConfig, setAppConfig] = useState({});
-  useEffect(() => { fetchConfig().then(setAppConfig); }, []);
+  useEffect(() => {
+    fetchConfig().then((cfg) => {
+      setAppConfig(cfg);
+      // Apply the admin's default discovery filter unless the user already chose.
+      if (!verifiedOnlyTouched.current && typeof cfg.defaultVerifiedOnlyDiscovery === 'boolean') {
+        setNearbyVerifiedOnly(cfg.defaultVerifiedOnlyDiscovery);
+      }
+    });
+  }, []);
   const [placesRadius, setPlacesRadius] = useState(null); // null = use app default
   const effectivePlacesRadius = placesRadius ?? appConfig.defaultPlacesRadiusMiles ?? 50;
+  // Admin-configurable monetization knobs (with safe fallbacks).
+  const dmFreeLimit = appConfig.dmFreeMessageLimit ?? 3;
+  const plusPrice = appConfig.plusPriceMonthly ?? 7.99;
+  const plusTrialDays = appConfig.plusTrialDays ?? 7;
+  // User-driven verified-only toggle — marks the choice so config won't override it.
+  const handleSetVerifiedOnly = (v) => { verifiedOnlyTouched.current = true; loadNearbyMoms(v); };
   // Set + persist the user's radius override to onboarding_profiles.
   const changePlacesRadius = (r) => { setPlacesRadius(r); recordStep(3, { places_radius_miles: r }); };
 
@@ -114,6 +131,14 @@ function PrototypeApp({ bare = false }) {
     fetchEvents()
       .then(data => { if (alive) setLiveEvents(data); })
       .catch(() => { if (alive) setLiveEvents(null); });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetchLocalFavorite('Tampa')
+      .then((fav) => { if (alive) setLocalFavorite(fav); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -172,6 +197,7 @@ function PrototypeApp({ bare = false }) {
     interests: profile?.interests || [],
     values: profile?.values || [],
     mom_types: profile?.momTypes || [],
+    familyTags: profile?.settings?.familyTags || [],
     places: prefs?.places || [],
     free_slots: prefs?.slots || [],
     lat: locationGeo?.lat ?? null,
@@ -204,7 +230,8 @@ function PrototypeApp({ bare = false }) {
     loadNearbyMoms(nearbyVerifiedOnly);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, account?.auth_user_id, account?.seedMomId, locationGeo?.id,
-      JSON.stringify(profile?.interests), JSON.stringify(profile?.kidsAges)]);
+      JSON.stringify(profile?.interests), JSON.stringify(profile?.kidsAges),
+      JSON.stringify(profile?.values), (profile?.settings?.familyTags || []).join(',')]);
 
   // --- Presence ---------------------------------------------------------
   // (a) Heartbeat so *we* show as online to others: ping on entering the app,
@@ -439,9 +466,11 @@ function PrototypeApp({ bare = false }) {
             goingItems={goingItems} setGoingItems={setGoingItems}
             ratings={ratings} setRatings={setRatings}
             account={account} requestAccount={requestAccount}
+            verifiedRequiresSocial={appConfig.verifiedRequiresSocial !== false}
             nearbyMoms={nearbyMomsShown}
+            localFavorite={localFavorite}
             nearbyVerifiedOnly={nearbyVerifiedOnly}
-            onSetVerifiedOnly={loadNearbyMoms}
+            onSetVerifiedOnly={handleSetVerifiedOnly}
             openSchedule={setScheduleMom}
             openProfile={setProfileMom}
             openMessage={setMessageMom}
@@ -471,6 +500,7 @@ function PrototypeApp({ bare = false }) {
           {profileMom && <ProfileSheet mom={profileMom}
             profile={profile}
             isPremium={!!account?.isPremium}
+            plusPrice={plusPrice} plusTrialDays={plusTrialDays}
             onClose={()=>setProfileMom(null)}
             openPremium={()=>{ setProfileMom(null); setPremiumOpen(true); }}/>}
           {messageMom && <MessageSheet
@@ -479,14 +509,17 @@ function PrototypeApp({ bare = false }) {
             author={chatAuthor}
             myUserId={myUserId}
             senderVerified={selfVerified}
+            freeLimit={dmFreeLimit}
+            plusPrice={plusPrice} plusTrialDays={plusTrialDays}
             flash={flash}
             onClose={() => setMessageMom(null)}
             openPremium={() => { setMessageMom(null); setPremiumOpen(true); }}/>}
           {premiumOpen && <PremiumSheet
+            plusPrice={plusPrice} plusTrialDays={plusTrialDays} freeLimit={dmFreeLimit}
             onClose={()=>setPremiumOpen(false)}
             onActivate={()=>{
-              setAccount(a => ({ ...(a || { firstName: 'Mama' }), isPremium: true, trialEndsAt: Date.now() + 7*24*3600*1000 }));
-              flash('✦ Welcome to Go Mama Plus · 7-day trial started');
+              setAccount(a => ({ ...(a || { firstName: 'Mama' }), isPremium: true, trialEndsAt: Date.now() + plusTrialDays*24*3600*1000 }));
+              flash(`✦ Welcome to Go Mama Plus · ${plusTrialDays}-day trial started`);
             }}/>}
           </>)}
 

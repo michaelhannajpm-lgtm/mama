@@ -7,6 +7,8 @@ import {
 import { C } from '../../theme';
 import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
+import { profileCompletion } from '../../lib/profile-completion';
+import { scoreDiscussion, rankByRelevance } from '../../lib/content-score';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { MomDetailSheet } from '../../sheets/MomDetailSheet';
@@ -403,8 +405,10 @@ export const HomeTab = ({
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToActivities, goToMeetups, goToKidsPrograms,
   goToConnectMoms, goToConnectGroups, onVerify, openVillage,
+  location,
   city = 'Tampa',
   locationLabel, openLocation,
+  localFavorite = null,
   onDiscuss,
   chatAuthor, myUserId,
 }) => {
@@ -423,7 +427,7 @@ export const HomeTab = ({
   // ---- data assembly ----
 
   // Activities — dated + recurring, deduped. Used by hero + meetup data.
-  const buckets = bucketActivities(thisWeek, events, new Date());
+  const buckets = bucketActivities(thisWeek, events, new Date(), profile);
   const seenActivity = new Set();
   const activities = [...buckets.month, ...buckets.others].filter((a) => {
     if (seenActivity.has(a.id)) return false;
@@ -532,7 +536,7 @@ export const HomeTab = ({
     { id: 'gc-4', title: 'Weekend Adventures',   members: 65  },
   ];
   const groupChats = groups.length > 0
-    ? groups.slice(0, 6).map(g => ({
+    ? rankByRelevance(groups, profile, scoreDiscussion).slice(0, 6).map(g => ({
         id: g.id,
         title: g.title,
         members: g.members ?? GROUP_CHAT_FALLBACK[0].members,
@@ -580,21 +584,29 @@ export const HomeTab = ({
     { id: 'cp-4', type: 'program', title: 'Music Together' },
   ];
 
-  // Local Favorite — pick the top-rated trending place, else fallback.
-  const liveTrending = pickTrendingPlaces(places, 8);
+  // Local Favorite — admin-curated for the week (via /api/local-favorite),
+  // falling back to the top trending place only when the API has nothing yet.
+  const liveTrending = pickTrendingPlaces(places, 8, profile);
   const LOCAL_FAVORITE_FALLBACK = {
     id: 'lf-1', name: "Glazer Children's Museum",
     rating: 4.8, review_count: 450, distance: '1.4 miles',
     hero_photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=600&auto=format&fit=crop',
     tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
   };
-  const localFavorite = liveTrending[0]
+  const favoriteCard = localFavorite
     ? {
-        ...liveTrending[0],
-        distance: liveTrending[0].distance || '1.4 miles',
-        tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
+        id: `wf-${localFavorite.place_id}`,
+        name: localFavorite.name,
+        rating: localFavorite.rating,
+        review_count: localFavorite.review_count,
+        hero_photo: localFavorite.hero_photo,
+        distance: localFavorite.area || '',
+        tagline: `Most loved place by ${localFavorite.city || city || 'Tampa'} moms this week`,
       }
-    : LOCAL_FAVORITE_FALLBACK;
+    : liveTrending[0]
+      ? { ...liveTrending[0], distance: liveTrending[0].distance || '1.4 miles',
+          tagline: `Most loved place by ${city || 'Tampa'} moms this week` }
+      : LOCAL_FAVORITE_FALLBACK;
 
   // Verified gate
   const v = profile?.verified || {};
@@ -634,6 +646,9 @@ export const HomeTab = ({
     }
   };
 
+  // Profile completion — same source of truth as YouTab's progress bar.
+  const completion = profileCompletion(profile, location);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingTop: 4, paddingBottom: 16 }}>
@@ -666,6 +681,42 @@ export const HomeTab = ({
           </span>
           <ChevronDown size={17} color={C.inkSoft} strokeWidth={2}/>
         </button>
+
+        {/* Complete-your-profile pull card — only while there's something
+            left to finish. Tapping jumps to the Profile tab to finish.
+            Shares the completion source of truth with YouTab's bar. */}
+        {completion.pct < 100 && (
+          <button
+            onClick={onVerify}
+            className="active:scale-[.99] transition-transform"
+            style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer',
+              marginTop: 10, background: C.paper, border: `1px solid ${C.line}`,
+              borderRadius: 16, padding: 14,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800, color: C.navy }}>
+                Complete your profile
+              </div>
+              <div className="flex items-center" style={{ gap: 4 }}>
+                <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.coralDeep }}>
+                  {completion.pct}%
+                </span>
+                <ChevronRight size={15} color={C.coralDeep}/>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, height: 8, borderRadius: 999, background: C.coralSoft, overflow: 'hidden' }}>
+              <div style={{
+                width: `${completion.pct}%`, height: '100%', borderRadius: 999,
+                background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`, transition: 'width .3s ease-out',
+              }}/>
+            </div>
+            <div style={{ marginTop: 8, fontFamily: 'Albert Sans', fontSize: 11, color: C.muted }}>
+              {completion.done} of {completion.total} done · finish so moms can find you.
+            </div>
+          </button>
+        )}
 
         {/* 3 fun things happening near you — same MeetupCard shape as the
             Upcoming Meetups row below, just 3 cards. */}
@@ -722,7 +773,7 @@ export const HomeTab = ({
 
         {/* Local Favorite This Week */}
         <SectionHead title="Local Favorite This Week"/>
-        <LocalFavoriteCard item={localFavorite} onClick={() => openPlace(localFavorite)}/>
+        <LocalFavoriteCard item={favoriteCard} onClick={() => openPlace(favoriteCard)}/>
 
         {/* Verify banner — only when not yet verified */}
         {!isVerified && <VerifyBanner onVerify={onVerify}/>}
