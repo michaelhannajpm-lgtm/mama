@@ -6,6 +6,7 @@ import { StatusBadge, VisibilityBadge } from './AdminFilters';
 import { AiWriteButton } from '../components/AiWriteButton.jsx';
 import { AiImageControl } from '../components/AiImageControl.jsx';
 import { AiReviewButton } from '../components/AiReviewButton.jsx';
+import { CopyLinkButton } from '../components/CopyLinkButton';
 import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
 import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
 
@@ -231,6 +232,7 @@ export const PlaceEditModal = ({ place, adminFetch, onClose, onSaved }) => {
           {isNew && (
             <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 600, color: AC.accent, background: `color-mix(in srgb, ${AC.accent} 8%, transparent)`, borderRadius: 999, padding: '3px 10px' }}>Create</span>
           )}
+          {!place.__new && place.id && <CopyLinkButton section="places" id={place.id} />}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
         </div>
 

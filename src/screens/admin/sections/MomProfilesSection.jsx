@@ -26,6 +26,7 @@ import { MOM_TYPES, VALUES, INTERESTS, KID_AGES, DAYS, TIME_WINDOWS } from '../.
 import { AiWriteButton } from '../components/AiWriteButton.jsx';
 import { AiImageControl } from '../components/AiImageControl.jsx';
 import { AiReviewButton } from '../components/AiReviewButton.jsx';
+import { CopyLinkButton } from '../components/CopyLinkButton';
 
 // Stable chip palettes for read-only displays.
 const CHIP_TONES = {
@@ -644,6 +645,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
           ) : (
             <Button size="sm" onClick={() => setEditing(true)}>Edit</Button>
           )}
+          {mom?.id && <CopyLinkButton section="mom-profiles" id={mom.id} />}
           <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close" icon={X}>{null}</Button>
         </div>
 
