@@ -880,6 +880,10 @@ const IdentityTab = ({ mom, draft, setDraft, editing, onOpenPhoto }) => (
         <AiReviewButton
           kind="mom"
           record={draft}
+          // Safe to set [field] generically only because the server constrains
+          // mom suggestions to REVIEW_FIELDS.mom = ['bio'] (a string). Do NOT add
+          // array taxonomy fields (mom_types/values/interests) there — they're
+          // string[] chips and a free-text suggestion would corrupt them.
           onApply={(field, value) => setDraft((d) => ({ ...d, [field]: value }))}
         />
       </div>
