@@ -9,7 +9,7 @@ import {
 } from './writer.js';
 import { loadSource, ensureSource } from './source-store.js';
 import { storeEventImage } from './image-blob.js';
-import { parseEventbrite, fetchRaw as ebFetch } from './connectors/eventbrite.js';
+import { fetchRaw as ebFetch } from './connectors/eventbrite.js';
 import { fetchRaw as icsFetch } from './connectors/ics.js';
 import { fetchRaw as jsonLdFetch } from './connectors/json-ld.js';
 import { fetchRaw as fbFetch } from './connectors/facebook-graph.js';

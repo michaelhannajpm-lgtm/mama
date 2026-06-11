@@ -3,7 +3,6 @@ import { ChevronLeft, X, Mail, Phone, Lock } from 'lucide-react';
 import { C } from '../theme';
 import { CodeVerify } from '../components/CodeVerify';
 import { requestContactChange, confirmContactChange } from '../lib/onboarding';
-import { isSupabaseReady } from '../lib/supabase';
 
 // ==========================================================================
 // ContactVerifySheet — add/change the signed-in mom's phone or email, verified

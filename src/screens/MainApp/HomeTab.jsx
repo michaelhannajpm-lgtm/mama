@@ -32,16 +32,6 @@ import { ShareSheet } from '../../sheets/ShareSheet';
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// Label a single activity — dated events show their day, recurring ones
-// show their cadence.
-const whenLabel = (item) => {
-  if (item.startsAt) {
-    const d = new Date(item.startsAt);
-    return `${DOW[d.getDay()]} ${d.getDate()}${item.time ? ` · ${item.time}` : ''}`;
-  }
-  return item.recurring || item.time || 'Ongoing';
-};
-
 const longDateLabel = (item) => {
   if (item.startsAt) {
     const d = new Date(item.startsAt);

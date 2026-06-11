@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   MapPin, Heart, Bookmark, Share2, MessageCircle,
   ShieldCheck, Sparkles, Check, Briefcase, Baby, Calendar,
-  Crown, User, UserPlus, Coffee, Smile, Moon, Send,
+  Crown, UserPlus, Coffee, Smile, Moon, Send,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';

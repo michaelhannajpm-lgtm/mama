@@ -13,7 +13,7 @@ import { LocationSheet } from '../../sheets/LocationSheet';
 import { SubjectThreadSheet } from '../../sheets/SubjectThreadSheet';
 import { NotificationsSheet } from '../../sheets/NotificationsSheet';
 import { VerifyPromptSheet } from '../../sheets/VerifyPromptSheet';
-import { GROUP_DISCUSSIONS, TOP_DISCUSSIONS } from '../../data/discussions';
+import { GROUP_DISCUSSIONS } from '../../data/discussions';
 import { updateMomProfile } from '../../lib/onboarding';
 
 // ====================================================================

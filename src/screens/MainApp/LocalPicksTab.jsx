@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   MapPin, School, Brain, Star,
-  Music, Activity, Sparkles, ChevronRight,
+  Sparkles, ChevronRight,
   HeartHandshake, Stethoscope, Users,
   ShieldCheck, Palette, BookOpen,
-  Tent, Trees, CalendarDays, Clock,
+  Tent, CalendarDays, Clock,
   Bookmark, Check,
   Search, Calendar, GraduationCap, Heart, Backpack,
 } from 'lucide-react';

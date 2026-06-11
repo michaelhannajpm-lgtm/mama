@@ -337,6 +337,3 @@ const ChannelRow = ({ channels, onChannel, copiedId }) => (
     })}
   </div>
 );
-
-// Convenience re-export so default imports don't break.
-export default ShareSheet;

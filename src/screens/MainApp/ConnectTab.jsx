@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Heart, Briefcase, MapPin, Users,
-  ChevronRight, Sparkles, Moon, Baby, Coffee, Smile, BookOpen,
-  SlidersHorizontal, ShieldCheck, Home, Sprout, Calendar,
+  ChevronRight, Sparkles, Moon, Baby, Coffee, Smile,
+  ShieldCheck, Home, Calendar,
   User, MessageCircle, Crown, Check, UserPlus,
 } from 'lucide-react';
 import { C } from '../../theme';
@@ -22,7 +22,6 @@ import {
   GROUP_DISCUSSIONS, TOP_DISCUSSIONS,
   GROUP_CATEGORIES_VISIBLE, matchesGroupFilters,
 } from '../../data/discussions';
-import { youngestStageLabel } from '../../data/taxonomy';
 import { PresenceDot } from '../../components/PresenceDot';
 import { eventToMeetupCard, sourceOf, rankEvents } from '../../lib/event-cards';
 
@@ -34,26 +33,6 @@ import { eventToMeetupCard, sourceOf, rankEvents } from '../../lib/event-cards';
 //   • "Upcoming meetups" — 3 live event cards (mom-led meetups from /api/events)
 //   • "Popular topics" — coloured chip row
 // ==========================================================================
-
-const TOPICS_ALL_EXTRA = [
-  { id: 'feeding', label: 'Feeding',          icon: Heart,    bg: C.sage,    fg: C.sageDark  },
-  { id: 'maternal',label: 'Maternal Health',  icon: ShieldCheck,bg: C.lilac, fg: '#5E4A8A'   },
-  { id: 'screen',  label: 'Screen Time',      icon: BookOpen, bg: C.coralSoft, fg: C.coralDeep },
-  { id: 'tantrum', label: 'Tantrums',         icon: Sparkles, bg: '#FFF4D6', fg: '#8A6610'   },
-  { id: 'partner', label: 'Partner Support',  icon: Smile,    bg: C.sage,    fg: C.sageDark  },
-  { id: 'school',  label: 'School Hunting',   icon: BookOpen, bg: C.lilac,   fg: '#5E4A8A'   },
-];
-
-const TOPICS = [
-  { id: 'sleep',    label: 'Sleep',             icon: Moon,      bg: C.lilac,   fg: '#5E4A8A'   },
-  { id: 'playd',    label: 'Playdates',         icon: Users,     bg: C.sage,    fg: C.sageDark  },
-  { id: 'dayc',     label: 'Daycare',           icon: BookOpen,  bg: '#FFF4D6', fg: '#8A6610'   },
-  { id: 'toddler',  label: 'Toddler Activities', icon: Sparkles, bg: C.coralSoft, fg: C.coralDeep },
-  { id: 'working',  label: 'Working Moms',      icon: Briefcase, bg: C.lilac,   fg: '#5E4A8A'   },
-  { id: 'potty',    label: 'Potty Training',    icon: Baby,      bg: C.sage,    fg: C.sageDark  },
-  { id: 'coffee',   label: 'Coffee Meetups',    icon: Coffee,    bg: '#FFF4D6', fg: '#8A6610'   },
-  { id: 'self',     label: 'Self-care',         icon: Smile,     bg: C.coralSoft, fg: C.coralDeep },
-];
 
 // -------------------------- shared --------------------------
 
@@ -80,15 +59,6 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
     </button>
   </div>
 );
-
-// Kid ages → "Mom of a toddler" (youngest child's life stage). Prefer raw
-// buckets; fall back to parsing the preformatted "0–1 · 3–5 yrs" string.
-const kidAgesLabel = (item) => {
-  const buckets = Array.isArray(item.kidBuckets) && item.kidBuckets.length
-    ? item.kidBuckets
-    : (item.kids && item.kids !== 'Kids' ? item.kids.replace(/\s*yrs$/, '').split(' · ') : []);
-  return youngestStageLabel(buckets);
-};
 
 // Bump the Unsplash w= param so the rendered circle (~88px @ 2× = 176px)
 // has enough pixels to look sharp instead of soft. Non-Unsplash URLs pass
@@ -897,26 +867,6 @@ const MeetupCard = ({ item, onClick }) => (
     </div>
   </button>
 );
-
-const TopicChip = ({ item, onClick }) => {
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 5,
-        padding: '8px 12px', borderRadius: 18,
-        background: item.bg, color: item.fg,
-        border: 'none', cursor: 'pointer',
-        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
-      }}
-    >
-      <Icon size={12}/>
-      {item.label}
-    </button>
-  );
-};
 
 // Card surface for "Popular discussions nearby" — surfaces a topic, member
 // count + online indicator, and a 1-line preview of the latest post. The
