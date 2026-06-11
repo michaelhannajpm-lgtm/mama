@@ -5,7 +5,8 @@ import { useConfirm } from '../components/ConfirmDialog';
 import { Check, EyeOff, X, Pencil, Calendar, Eye, Archive, Trash2, Download, Plus } from 'lucide-react';
 import { EventEditModal } from './EventEditModal';
 import { EventsMap } from './EventsMap';
-import { MultiSelect, CollapsibleSearch, TypeaheadSelect, ViewMenu, StatusChips } from './AdminFilters';
+import { MultiSelect, CollapsibleSearch, TypeaheadSelect, ViewMenu, StatusChips, DateRangeFilter } from './AdminFilters';
+import { isSkillCreated, dateInRange, matchesSource, eventComparator } from './eventFilters';
 import { hasRealPhoto, statusColor, rowActionsFor } from './adminRows';
 import { DescriptionCell } from './DescriptionCell';
 import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
@@ -34,7 +35,7 @@ const searchableOf = (r) => {
 };
 
 // Apply every filter EXCEPT status. Shared by `filtered` and the per-status counts.
-const matchesNonStatus = (r, { types, kinds, cities, hasPlace, photo, q }) => {
+const matchesNonStatus = (r, { types, kinds, cities, hasPlace, photo, q, createdRange, modifiedRange, source }) => {
   if (types.length && !types.includes(r.event_type)) return false;
   if (kinds.length && !kinds.includes(r.kind)) return false;
   if (cities.length && !cities.includes(r.city || '')) return false;
@@ -44,6 +45,9 @@ const matchesNonStatus = (r, { types, kinds, cities, hasPlace, photo, q }) => {
     if (photo === 'has' && !has) return false;
     if (photo === 'none' && has) return false;
   }
+  if (!dateInRange(r.created_at, createdRange)) return false;
+  if (!dateInRange(r.updated_at, modifiedRange)) return false;
+  if (!matchesSource(r, source)) return false;
   if (q && !searchableOf(r).includes(q.toLowerCase())) return false;
   return true;
 };
@@ -51,13 +55,17 @@ const matchesNonStatus = (r, { types, kinds, cities, hasPlace, photo, q }) => {
 export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const confirm = useConfirm();
   const [view, setView] = useState('grid');
-  const [status, setStatus] = useState('needs_review');
+  const [status, setStatus] = useState('all');
   const [types, setTypes] = useState([]);
   const [kinds, setKinds] = useState([]);
   const [citySel, setCitySel] = useState([]);
   const [hasPlace, setHasPlace] = useState(false);
   const [photo, setPhoto] = useState('any');
   const [q, setQ] = useState('');
+  const [sort, setSort] = useState('created_desc');
+  const [createdRange, setCreatedRange] = useState({ preset: 'any' });
+  const [modifiedRange, setModifiedRange] = useState({ preset: 'any' });
+  const [source, setSource] = useState('any');
   const [selected, setSelected] = useState(() => new Set());
   const [editing, setEditing] = useState(null);
   const [deepLinkMiss, setDeepLinkMiss] = useState(null); // ref we couldn't resolve
@@ -65,7 +73,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
-  const nonStatusFilters = { types, kinds, cities: citySel, hasPlace, photo, q };
+  const nonStatusFilters = { types, kinds, cities: citySel, hasPlace, photo, q, createdRange, modifiedRange, source };
 
   const cityOptions = useMemo(
     () => [...new Set((rows || []).map(r => r.city).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -75,7 +83,7 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
   const filtered = useMemo(() => (rows || []).filter(r => {
     if (status !== 'all' && r.review_status !== status) return false;
     return matchesNonStatus(r, nonStatusFilters);
-  }), [rows, status, types, kinds, citySel, hasPlace, photo, q]);
+  }).sort(eventComparator(sort)), [rows, status, types, kinds, citySel, hasPlace, photo, q, createdRange, modifiedRange, source, sort]);
 
   // Per-status counts: rows matching every active filter EXCEPT status.
   const statusCounts = useMemo(() => {
@@ -83,10 +91,10 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
     const counts = { all: base.length };
     for (const s of ['needs_review', 'approved', 'rejected', 'archived']) counts[s] = base.filter(r => r.review_status === s).length;
     return counts;
-  }, [rows, types, kinds, citySel, hasPlace, photo, q]);
+  }, [rows, types, kinds, citySel, hasPlace, photo, q, createdRange, modifiedRange, source]);
 
   // Reset pagination when filters or page size change.
-  useEffect(() => { setPage(1); }, [status, types, kinds, citySel, hasPlace, photo, q, pageSize]);
+  useEffect(() => { setPage(1); }, [status, types, kinds, citySel, hasPlace, photo, q, createdRange, modifiedRange, source, sort, pageSize]);
 
   // Deep-link target — Featured manager dispatches this to open an event's
   // edit modal from outside the tab.
@@ -242,6 +250,21 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
             { value: 'has', label: 'Has photo' },
             { value: 'none', label: 'No photo' },
           ]} />
+        <TypeaheadSelect label="Source" value={source} onChange={setSource} accent={AC.success}
+          options={[
+            { value: 'any', label: 'Any source' },
+            { value: 'skill', label: 'Skill-created' },
+            { value: 'manual', label: 'Manual' },
+          ]} />
+        <DateRangeFilter label="Created" value={createdRange} onChange={setCreatedRange} accent={AC.success} />
+        <DateRangeFilter label="Modified" value={modifiedRange} onChange={setModifiedRange} accent={AC.success} />
+        <TypeaheadSelect label="Sort" value={sort} onChange={setSort} accent={AC.success}
+          options={[
+            { value: 'created_desc', label: 'Created (newest)' },
+            { value: 'created_asc', label: 'Created (oldest)' },
+            { value: 'modified_desc', label: 'Modified (newest)' },
+            { value: 'modified_asc', label: 'Modified (oldest)' },
+          ]} />
       </div>
 
       {/* Bulk action bar */}
@@ -282,11 +305,16 @@ export const EventsManager = ({ rows, places = [], adminFetch, onReload }) => {
               return (
                 <div key={r.id} className="flex items-center gap-3 px-3 py-2" style={{ borderBottom: `1px solid ${AC.border}` }}>
                   <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-                  <div onClick={() => setEditing(r)} style={{ width: 36, height: 36, borderRadius: 8, background: r.hue || AC.successSoft, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <Calendar size={15} style={{ color: '#fff' }} />
+                  <div onClick={() => setEditing(r)} title="Edit" style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', background: hasRealPhoto(r) ? `center/cover url(${r.hero_photo})` : (r.hue || AC.successSoft), flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    {!hasRealPhoto(r) && <Calendar size={15} style={{ color: '#fff' }} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div onClick={() => setEditing(r)} style={{ fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 600, color: AC.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{r.name}</div>
+                    <div onClick={() => setEditing(r)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <span style={{ fontFamily: 'Albert Sans', fontSize: 13.5, fontWeight: 600, color: AC.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+                      {isSkillCreated(r) && (
+                        <span title="Created by the create-event skill" style={{ flexShrink: 0, fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700, color: AC.success, background: AC.successSoft, border: `1px solid ${AC.successBorder}`, borderRadius: 999, padding: '1px 7px' }}>✨ Skill</span>
+                      )}
+                    </div>
                     <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textMuted }}>
                       {r.event_type} · {r.kind} · {r.place_name || (r.place_id ? 'linked place' : 'no place')} · {r.day_of_week || ''} {r.time_label || ''} · <span style={{ color: statusColor(r.review_status), fontWeight: 600 }}>{r.review_status}</span>
                       {r.review_status === 'approved' && !r.visible && <span style={{ color: AC.textMuted }}> · hidden</span>}

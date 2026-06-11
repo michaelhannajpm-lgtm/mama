@@ -207,6 +207,19 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           <VisibilityBadge visible={form.visible} />
         </div>
 
+        {/* Status — placed above the image so review state is set first */}
+        <div style={sectionHeader}>Status</div>
+        <div className="grid grid-cols-3 gap-2">
+          <label style={labelStyle}>Review status
+            <select value={form.review_status} onChange={e => set('review_status', e.target.value)} style={inputStyle}>
+              {REVIEW_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6, paddingTop: 18 }}>
+            <input type="checkbox" checked={form.visible} onChange={e => set('visible', e.target.checked)} /> visible in app
+          </label>
+        </div>
+
         {/* 2. Image */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...sectionHeader }}>
           Image
@@ -357,20 +370,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           <input value={form.neighborhoods} onChange={e => set('neighborhoods', e.target.value)} style={inputStyle} />
         </label>
 
-        {/* 7. Status */}
-        <div style={sectionHeader}>Status</div>
-        <div className="grid grid-cols-3 gap-2">
-          <label style={labelStyle}>Review status
-            <select value={form.review_status} onChange={e => set('review_status', e.target.value)} style={inputStyle}>
-              {REVIEW_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-          <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6, paddingTop: 18 }}>
-            <input type="checkbox" checked={form.visible} onChange={e => set('visible', e.target.checked)} /> visible in app
-          </label>
-        </div>
-
-        {/* 8. Provenance (read-only — hidden for create mode) */}
+        {/* Provenance (read-only — hidden for create mode) */}
         {!isNew && (
         <>
         <div style={sectionHeader}>Provenance</div>
