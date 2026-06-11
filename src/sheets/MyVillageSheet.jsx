@@ -1,9 +1,6 @@
 import { Bookmark, MapPin, Calendar, Users, MessageCircle, Heart, ChevronRight, X } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
-import { findPlace } from '../data/places';
-import { SUGGESTED_EVENTS } from '../data/events';
-import { SAMPLE_MOMS } from '../data/moms';
 import { findResource, RESOURCE_CATEGORIES } from '../data/resources';
 
 // ==========================================================================
@@ -15,7 +12,7 @@ import { findResource, RESOURCE_CATEGORIES } from '../data/resources';
 
 // Resolve a saved/interested id into a display shape. Mirrors MyPlansSheet
 // but lifted here so we don't double-import a private helper.
-const resolve = (id, moms = []) => {
+const resolve = (id, { moms = [], events = [], places = [] } = {}) => {
   if (typeof id === 'string' && id.startsWith('mom-')) {
     const m = moms.find(x => String(x.id) === id.slice(4));
     if (!m) return null;
@@ -29,7 +26,8 @@ const resolve = (id, moms = []) => {
     };
   }
 
-  const ev = SUGGESTED_EVENTS.find(e => e.id === id);
+  const evId = typeof id === 'string' && id.startsWith('int-') ? id.slice(4) : id;
+  const ev = events.find(e => String(e.id) === String(evId));
   if (ev) return {
     kind: 'event',
     photo: ev.photo,
@@ -39,13 +37,13 @@ const resolve = (id, moms = []) => {
     accent: C.sageDark,
   };
 
-  const place = findPlace(id);
+  const place = places.find(p => String(p.id) === String(id) || p.slug === id);
   if (place) return {
     kind: 'place',
-    photo: null,
+    photo: place.hero_photo || null,
     title: place.name,
     sub:   place.area,
-    meta:  `${place.dist} mi`,
+    meta:  place.city || '',
     accent: C.coralDeep,
   };
 
@@ -61,17 +59,6 @@ const resolve = (id, moms = []) => {
       accent: C.navy,
     };
   }
-
-  const numericId = typeof id === 'string' && id.startsWith('s') ? Number(id.slice(1)) : Number(id);
-  const mom = SAMPLE_MOMS.find(m => m.id === numericId);
-  if (mom) return {
-    kind: 'mom',
-    photo: mom.photo,
-    title: mom.name,
-    sub:   `${mom.type} · ${mom.kids}`,
-    meta:  `${mom.distance} · ${mom.overlap}% match`,
-    accent: C.coralDeep,
-  };
 
   return null;
 };
@@ -198,14 +185,21 @@ export const MyVillageSheet = ({
   goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents,
   moms = [],
+  events = [], thisWeek = [], places = {},
   openMessage,
   flash,
   onClose,
 }) => {
-  const savedResolved   = savedItems.map(id   => ({ id, item: resolve(id, moms) })).filter(x => x.item);
-  const interestedResolved = goingItems.map(id => ({ id, item: resolve(id, moms) })).filter(x => x.item);
+  // Live lookup pools: events (recurring + dated) and places (flattened from
+  // the category-grouped object the parent passes).
+  const allEvents = [...events, ...thisWeek];
+  const allPlaces = Object.values(places || {}).flat();
+  const pools = { moms, events: allEvents, places: allPlaces };
+
+  const savedResolved   = savedItems.map(id   => ({ id, item: resolve(id, pools) })).filter(x => x.item);
+  const interestedResolved = goingItems.map(id => ({ id, item: resolve(id, pools) })).filter(x => x.item);
   const joiningResolved = joinedEvents
-    .map(id => SUGGESTED_EVENTS.find(e => e.id === id))
+    .map(id => allEvents.find(e => String(e.id) === String(id)))
     .filter(Boolean);
 
   // Group chats: one per joined event. Tap opens a flash placeholder for now.

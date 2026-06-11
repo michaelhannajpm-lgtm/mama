@@ -5,22 +5,23 @@ import {
   Music, Calendar,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Skeleton } from '../../components/Skeleton';
+import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
+import { buildAgeRail, childList } from '../../lib/age-rail';
+import { profileCompletion } from '../../lib/profile-completion';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { MomDetailSheet } from '../../sheets/MomDetailSheet';
-import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 
 // ==========================================================================
 // HomeTab — editorial landing feed.
 //
 //   • Greeting + "Here's what's happening near you"
-//   • 3 fun things happening near you (horizontal scroll of 3 cards,
-//     same shape as Upcoming Meetups)
+//   • Local Events Nearby (horizontal scroll of 3 cards)
 //   • Moms You May Want To Meet (horizontal preview cards)
 //   • Upcoming Meetups (cards with host avatar overlay)
-//   • Active Group Chats (colored-dot chips)
 //   • Based On Your Child's Age (age-personalized programs)
 //   • Continue Planning (2x2 saved-items grid)
 //   • Local Favorite This Week (featured card)
@@ -49,6 +50,39 @@ const longDateLabel = (item) => {
 };
 
 const placePhoto = (p) => p.hero_photo || p.blob_url || p.url || null;
+
+// -------------------------- loading skeletons --------------------------
+// Each mirrors the exact footprint of the real card it stands in for, so live
+// data swaps in with zero layout shift. Neutral by design (see Skeleton).
+
+// Matches MeetupCard (width 168, 100px media + text block).
+const MeetupCardSkeleton = () => (
+  <div style={{
+    flexShrink: 0, width: 168, background: '#fff', borderRadius: 14,
+    border: `1px solid ${C.line}`, overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
+  }}>
+    <Skeleton w="100%" h={100} radius={0}/>
+    <div style={{ padding: '12px 10px 10px' }}>
+      <Skeleton w="85%" h={12} radius={6}/>
+      <Skeleton w="55%" h={9} radius={5} style={{ marginTop: 7 }}/>
+      <Skeleton w="70%" h={9} radius={5} style={{ marginTop: 7 }}/>
+    </div>
+  </div>
+);
+
+// Matches MomMeetCard (3-up grid cell: 72px avatar + name + sub).
+const MomMeetCardSkeleton = () => (
+  <div style={{
+    flex: 1, minWidth: 0, background: '#fff', borderRadius: 14,
+    border: `1px solid ${C.line}`, padding: '12px 8px 12px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+  }}>
+    <Skeleton w={72} h={72} radius={36}/>
+    <Skeleton w="62%" h={12} radius={6} style={{ marginTop: 8 }}/>
+    <Skeleton w="84%" h={9} radius={5} style={{ marginTop: 7 }}/>
+  </div>
+);
 
 // -------------------------- shared bits --------------------------
 
@@ -136,6 +170,7 @@ const MomMeetCard = ({ item, onClick }) => {
       display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
     }}>
       <div style={{
+        position: 'relative',
         width: 72, height: 72, borderRadius: '50%',
         overflow: 'hidden', flexShrink: 0,
         border: `2px solid ${C.coralSoft}`,
@@ -149,6 +184,7 @@ const MomMeetCard = ({ item, onClick }) => {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#fff', fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
             }}>{(item.firstName || item.name || '?').charAt(0).toUpperCase()}</div>}
+        <PresenceDot status={item.presence} size={12} style={{ top: 0, right: 0, bottom: 'auto' }}/>
       </div>
       <div style={{
         fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800,
@@ -232,66 +268,50 @@ const MeetupCard = ({ item, onClick }) => (
   </button>
 );
 
-// -------------------------- Group chat chip --------------------------
-
-const GROUP_DOT = [C.coralDeep, '#3F8AC8', C.sageDark, C.saffron];
-
-const GroupChatChip = ({ item, index, onClick }) => (
-  <button onClick={onClick} className="active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
-    background: '#fff', border: `1px solid ${C.line}`,
-    borderRadius: 999, padding: '8px 13px 8px 11px',
-    boxShadow: '0 3px 9px -7px rgba(27,42,78,.25)',
-    cursor: 'pointer',
-  }}>
-    <span style={{
-      width: 9, height: 9, borderRadius: 5,
-      background: GROUP_DOT[index % GROUP_DOT.length], flexShrink: 0,
-    }}/>
-    <div style={{ textAlign: 'left' }}>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800, color: C.navy, lineHeight: 1 }}>
-        {item.title}
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 2 }}>
-        {item.members} members
-      </div>
-    </div>
-  </button>
-);
-
 // -------------------------- Age program card --------------------------
 
-const AgeProgramCard = ({ item, onClick }) => (
-  <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
-    flexShrink: 0, width: 142, background: '#fff', borderRadius: 14,
-    border: `1px solid ${C.line}`, boxShadow: '0 4px 12px -8px rgba(27,42,78,.25)',
-    overflow: 'hidden', padding: 0, cursor: 'pointer',
-  }}>
-    {placePhoto(item)
-      ? <img src={placePhoto(item)} alt="" style={{ width: '100%', height: 88, objectFit: 'cover', display: 'block' }}/>
-      : <div style={{ width: '100%', height: 88, background: C.lilac }}/>}
-    <div style={{ padding: '8px 10px 10px' }}>
-      <div style={{
-        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800,
-        color: C.navy, lineHeight: 1.15,
-        display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      }}>
-        {item.name}
-      </div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3 }}>
-        {item.ageRange}
-      </div>
-      {item.distance && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 2, marginTop: 4,
-          fontFamily: 'Albert Sans', fontSize: 9, color: C.inkSoft,
+const AgeProgramCard = ({ item, onClick }) => {
+  const isEvent = item.type === 'event';
+  return (
+    <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
+      flexShrink: 0, width: 142, background: '#fff', borderRadius: 14,
+      border: `1px solid ${C.line}`, boxShadow: '0 4px 12px -8px rgba(27,42,78,.25)',
+      overflow: 'hidden', padding: 0, cursor: 'pointer',
+    }}>
+      {item.photo
+        ? <img src={item.photo} alt="" style={{ width: '100%', height: 88, objectFit: 'cover', display: 'block' }}/>
+        : <div style={{ width: '100%', height: 88, background: C.lilac }}/>}
+      <div style={{ padding: '8px 10px 10px' }}>
+        <span style={{
+          display: 'inline-block', fontFamily: 'Albert Sans', fontSize: 8.5, fontWeight: 800,
+          letterSpacing: '.04em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 6,
+          background: isEvent ? C.coralSoft : C.sage,
+          color: isEvent ? C.coralDeep : C.sageDark, marginBottom: 5,
         }}>
-          <MapPin size={9} color={C.muted}/> {item.distance}
+          {isEvent ? 'Event' : 'Place'}
+        </span>
+        <div style={{
+          fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 800,
+          color: C.navy, lineHeight: 1.15,
+          display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          {item.name}
         </div>
-      )}
-    </div>
-  </button>
-);
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 9, color: C.muted, marginTop: 3 }}>
+          {item.reason || (isEvent ? item.when : item.ageLabel)}
+        </div>
+        {(isEvent ? item.when : item.distance) && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 2, marginTop: 4,
+            fontFamily: 'Albert Sans', fontSize: 9, color: C.inkSoft,
+          }}>
+            <MapPin size={9} color={C.muted}/> {isEvent ? item.when : item.distance}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};
 
 // -------------------------- Continue Planning tile --------------------------
 
@@ -394,33 +414,34 @@ const LocalFavoriteCard = ({ item, onClick }) => (
 
 export const HomeTab = ({
   thisWeek = [], events = [],
-  places = null, nearbyMoms = [], groups = [],
+  places = null, nearbyMoms = [],
+  nearbyLoading = false, eventsLoading = false,
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
   goToPlaces, goToActivities, goToMeetups, goToKidsPrograms,
-  goToConnectMoms, goToConnectGroups, onVerify, openVillage,
+  goToConnectMoms, onVerify, openVillage,
+  location,
   city = 'Tampa',
   locationLabel, openLocation,
+  localFavorite = null,
   onDiscuss,
-  chatAuthor, myUserId,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [selectedMom, setSelectedMom] = useState(null);
-  const [selectedDiscussion, setSelectedDiscussion] = useState(null);
-  const [joinedDiscussions, setJoinedDiscussions] = useState(new Set());
   const [invited, setInvited] = useState({});
   const [shareItem, setShareItem] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState({});
   const [proposals, setProposals] = useState({});
+  const [ageChild, setAgeChild] = useState(null); // null = All
 
   void invited; void setInvited;
 
   // ---- data assembly ----
 
   // Activities — dated + recurring, deduped. Used by hero + meetup data.
-  const buckets = bucketActivities(thisWeek, events, new Date());
+  const buckets = bucketActivities(thisWeek, events, new Date(), profile);
   const seenActivity = new Set();
   const activities = [...buckets.month, ...buckets.others].filter((a) => {
     if (seenActivity.has(a.id)) return false;
@@ -461,38 +482,10 @@ export const HomeTab = ({
       }))
     : FUN_THINGS_FALLBACK;
 
-  // Moms — closest first, fall back to seeded set.
-  const liveMoms = [...nearbyMoms]
-    .sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity))
-    .slice(0, 8);
-  const FALLBACK_MOMS = [
-    {
-      id: 'm-fb1', firstName: 'Sarah', name: 'Sarah',
-      kids: '16 month old', tag: 'Working Mom', distanceMi: 1.0,
-      photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb2', firstName: 'Jessica', name: 'Jessica',
-      kids: 'Toddler Mom', tag: 'New to Tampa', distanceMi: 0.8,
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb3', firstName: 'Lima', name: 'Lima',
-      kids: 'Stay-at-home Mom', tag: 'Loves outdoor play', distanceMi: 1.2,
-      photo: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb4', firstName: 'Priya', name: 'Priya',
-      kids: '2 yr old', tag: 'New mom', distanceMi: 0.9,
-      photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop',
-    },
-    {
-      id: 'm-fb5', firstName: 'Mia', name: 'Mia',
-      kids: 'Toddler Mom', tag: 'Verified', distanceMi: 1.1,
-      photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop',
-    },
-  ];
-  const moms = liveMoms.length > 0 ? liveMoms : FALLBACK_MOMS;
+  // Moms You May Want To Meet — already match-ranked by the API
+  // (/api/mom-profiles/nearby → scoreMom). Render in that order; do NOT re-sort
+  // by distance (that discarded the match ranking).
+  const moms = [...nearbyMoms];
 
   // Upcoming meetups — synthesized for the home preview. Real list lives in
   // Explore → Meetups; "See all" routes there.
@@ -520,53 +513,12 @@ export const HomeTab = ({
     },
   ];
 
-  // Active Group Chats — pull from `groups` (TOP_DISCUSSIONS) when present,
-  // else use a curated fallback.
-  const GROUP_CHAT_FALLBACK = [
-    { id: 'gc-1', title: 'SouthShore Moms',      members: 156 },
-    { id: 'gc-2', title: 'Toddler Moms',         members: 200 },
-    { id: 'gc-3', title: 'Tampa Working Moms',   members: 98  },
-    { id: 'gc-4', title: 'Weekend Adventures',   members: 65  },
-  ];
-  const groupChats = groups.length > 0
-    ? groups.slice(0, 6).map(g => ({
-        id: g.id,
-        title: g.title,
-        members: g.members ?? GROUP_CHAT_FALLBACK[0].members,
-        raw: g,
-      }))
-    : GROUP_CHAT_FALLBACK;
-
-  // Age programs — personalize from the youngest kid bucket if available.
-  // profile.kidsAges is a `{bucket: count}` object; fall back to an array
-  // shape (kidBuckets) for sources that pre-flatten it.
-  const kidsBucketArr = Array.isArray(profile?.kidBuckets)
-    ? profile.kidBuckets
-    : Object.keys(profile?.kidsAges || {}).filter(k => (profile.kidsAges[k] || 0) > 0);
-  const AGE_RANGE_LABEL = {
-    '0–1':  'Perfect for 0–12 months',
-    '1–3':  'Perfect for 1–3 years',
-    '3–5':  'Perfect for 3–5 years',
-    '5–8':  'Perfect for 5–8 years',
-    '8–12': 'Perfect for 8–12 years',
-    '12–18':'Perfect for 12–18 years',
-  };
-  const youngest = ['0–1','1–3','3–5','5–8','8–12','12–18'].find(b => kidsBucketArr.includes(b));
-  const ageSubtitle = AGE_RANGE_LABEL[youngest] || 'Perfect for 6–18 months';
-  const AGE_PROGRAMS = [
-    {
-      id: 'ap-1', name: 'Music Class', ageRange: '0–3 yrs', distance: '0.6 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ap-2', name: 'Baby Gym', ageRange: '6–12 mo', distance: '1.0 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1518107616985-bd48230d3b20?w=400&auto=format&fit=crop',
-    },
-    {
-      id: 'ap-3', name: 'Sensory Play Class', ageRange: '3–12 mo', distance: '0.8 mi away',
-      hero_photo: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&auto=format&fit=crop',
-    },
-  ];
+  // Based On Your Child's Age — real, kid-age-ranked places + events.
+  const ageKids = childList(profile);
+  const ageRailAll = buildAgeRail(profile, places, { thisWeek, events }, { limit: 12 });
+  const ageRail = ageChild == null
+    ? ageRailAll
+    : ageRailAll.filter((it) => it.forChild.includes(ageChild));
 
   // Continue Planning — 4 slots: meetup, place, mom, program. Real saved
   // items from the App would populate this; we synthesize for the home preview.
@@ -577,21 +529,29 @@ export const HomeTab = ({
     { id: 'cp-4', type: 'program', title: 'Music Together' },
   ];
 
-  // Local Favorite — pick the top-rated trending place, else fallback.
-  const liveTrending = pickTrendingPlaces(places, 8);
+  // Local Favorite — admin-curated for the week (via /api/local-favorite),
+  // falling back to the top trending place only when the API has nothing yet.
+  const liveTrending = pickTrendingPlaces(places, 8, profile);
   const LOCAL_FAVORITE_FALLBACK = {
     id: 'lf-1', name: "Glazer Children's Museum",
     rating: 4.8, review_count: 450, distance: '1.4 miles',
     hero_photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=600&auto=format&fit=crop',
     tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
   };
-  const localFavorite = liveTrending[0]
+  const favoriteCard = localFavorite
     ? {
-        ...liveTrending[0],
-        distance: liveTrending[0].distance || '1.4 miles',
-        tagline: `Most loved place by ${city || 'Tampa'} moms this week`,
+        id: `wf-${localFavorite.place_id}`,
+        name: localFavorite.name,
+        rating: localFavorite.rating,
+        review_count: localFavorite.review_count,
+        hero_photo: localFavorite.hero_photo,
+        distance: localFavorite.area || '',
+        tagline: `Most loved place by ${localFavorite.city || city || 'Tampa'} moms this week`,
       }
-    : LOCAL_FAVORITE_FALLBACK;
+    : liveTrending[0]
+      ? { ...liveTrending[0], distance: liveTrending[0].distance || '1.4 miles',
+          tagline: `Most loved place by ${city || 'Tampa'} moms this week` }
+      : LOCAL_FAVORITE_FALLBACK;
 
   // Verified gate
   const v = profile?.verified || {};
@@ -615,11 +575,6 @@ export const HomeTab = ({
     rating: p.rating, reviews: p.review_count,
     tag: p.area || p.city, distance: p.distance || 'Near you', kind: 'Place',
   });
-  const openGroup = (g) => {
-    if (g.raw) setSelectedDiscussion(g.raw);
-    else setSelectedDiscussion({ id: g.id, title: g.title, members: g.members });
-  };
-
   const continueRoute = (item) => {
     if (item.type === 'meetup' && goToMeetups)       goToMeetups();
     else if (item.type === 'place' && goToPlaces)    goToPlaces();
@@ -630,6 +585,9 @@ export const HomeTab = ({
       openVillage();
     }
   };
+
+  // Profile completion — same source of truth as YouTab's progress bar.
+  const completion = profileCompletion(profile, location);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -664,22 +622,85 @@ export const HomeTab = ({
           <ChevronDown size={17} color={C.inkSoft} strokeWidth={2}/>
         </button>
 
-        {/* 3 fun things happening near you — same MeetupCard shape as the
-            Upcoming Meetups row below, just 3 cards. */}
-        <SectionHead title="3 fun things happening near you" onLink={goToActivities}/>
+        {/* Complete-your-profile pull card — only while there's something
+            left to finish. Tapping jumps to the Profile tab to finish.
+            Shares the completion source of truth with YouTab's bar. */}
+        {completion.pct < 100 && (
+          <button
+            onClick={onVerify}
+            className="active:scale-[.99] transition-transform"
+            style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer',
+              marginTop: 10, background: C.paper, border: `1px solid ${C.line}`,
+              borderRadius: 16, padding: 14,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 800, color: C.navy }}>
+                Complete your profile
+              </div>
+              <div className="flex items-center" style={{ gap: 4 }}>
+                <span style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.coralDeep }}>
+                  {completion.pct}%
+                </span>
+                <ChevronRight size={15} color={C.coralDeep}/>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, height: 8, borderRadius: 999, background: C.coralSoft, overflow: 'hidden' }}>
+              <div style={{
+                width: `${completion.pct}%`, height: '100%', borderRadius: 999,
+                background: `linear-gradient(90deg, ${C.coral}, ${C.coralDeep})`, transition: 'width .3s ease-out',
+              }}/>
+            </div>
+            <div style={{ marginTop: 8, fontFamily: 'Albert Sans', fontSize: 11, color: C.muted }}>
+              {completion.done} of {completion.total} done · finish so moms can find you.
+            </div>
+          </button>
+        )}
+
+        {/* Local Events Nearby — live dated events (fallback only when empty);
+            same MeetupCard shape as the Upcoming Meetups row below. */}
+        <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
-          {funThings.map(it => (
-            <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
-          ))}
+          {eventsLoading
+            ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
+            : funThings.map(it => (
+                <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
+              ))}
         </div>
 
-        {/* Moms You May Want To Meet — 3-up grid of circular avatars */}
+        {/* Moms You May Want To Meet — 3-up grid, match-ranked */}
         <SectionHead title="Moms You May Want To Meet" onLink={goToConnectMoms}/>
-        <div className="grid grid-cols-3" style={{ gap: 8 }}>
-          {moms.slice(0, 3).map(m => (
-            <MomMeetCard key={m.id} item={m} onClick={() => setSelectedMom(m)}/>
-          ))}
-        </div>
+        {nearbyLoading ? (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {[0, 1, 2].map(i => <MomMeetCardSkeleton key={i}/>)}
+          </div>
+        ) : moms.length > 0 ? (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {moms.slice(0, 3).map(m => (
+              <MomMeetCard key={m.id} item={m} onClick={() => setSelectedMom(m)}/>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            background: '#fff', border: `1px solid ${C.line}`, borderRadius: 14,
+            padding: '18px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700, color: C.navy }}>
+              Your <span style={{ fontStyle: 'italic', color: C.coral, fontWeight: 500 }}>village</span> is forming
+            </div>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 4, lineHeight: 1.35 }}>
+              Finishing your profile helps nearby moms find you.
+            </div>
+            <button onClick={onVerify} className="active:scale-[.98] transition-transform" style={{
+              marginTop: 10, background: C.coralDeep, color: '#fff', border: 'none',
+              borderRadius: 999, padding: '7px 16px', fontFamily: 'Albert Sans',
+              fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+            }}>
+              Complete profile
+            </button>
+          </div>
+        )}
 
         {/* Upcoming Meetups */}
         <SectionHead title="Upcoming Meetups" onLink={goToMeetups || goToActivities}/>
@@ -689,25 +710,44 @@ export const HomeTab = ({
           ))}
         </div>
 
-        {/* Active Group Chats */}
-        <SectionHead title="Active Group Chats" onLink={goToConnectGroups}/>
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-          {groupChats.map((g, i) => (
-            <GroupChatChip key={g.id} item={g} index={i} onClick={() => openGroup(g)}/>
-          ))}
-        </div>
-
-        {/* Based On Your Child's Age */}
-        <SectionHead
-          title="Based On Your Child's Age"
-          subtitle={ageSubtitle}
-          onLink={goToKidsPrograms || goToPlaces}
-        />
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-          {AGE_PROGRAMS.map(p => (
-            <AgeProgramCard key={p.id} item={p} onClick={() => openPlace(p)}/>
-          ))}
-        </div>
+        {/* Based On Your Child's Age — per-child filterable, places + events */}
+        {ageKids.length > 0 && ageRailAll.length > 0 && (
+          <>
+            <SectionHead
+              title="Based On Your Child's Age"
+              onLink={goToKidsPrograms || goToPlaces}
+            />
+            {ageKids.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 8 }}>
+                {[{ label: 'All', idx: null }, ...ageKids.map((k, i) => ({ label: k.label, idx: i }))].map((chip) => {
+                  const active = ageChild === chip.idx;
+                  return (
+                    <button key={`${chip.label}-${chip.idx}`} onClick={() => setAgeChild(chip.idx)}
+                      className="active:scale-[.97] transition-transform"
+                      style={{
+                        flexShrink: 0, padding: '6px 13px', borderRadius: 999,
+                        background: active ? C.coral : C.paper,
+                        color: active ? '#fff' : C.navy,
+                        border: `1px solid ${active ? C.coral : C.divider}`,
+                        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+                        whiteSpace: 'nowrap', cursor: 'pointer',
+                      }}>
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
+              {ageRail.map((p) => (
+                <AgeProgramCard key={`${p.type}-${p.id}`} item={p}
+                  onClick={() => (p.type === 'event'
+                    ? openMeetup({ id: p.id, title: p.name, photo: p.photo, when: p.when, mi: null })
+                    : openPlace({ ...p, hero_photo: p.photo }))}/>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Continue Planning — 2x2 grid */}
         <SectionHead title="Continue Planning"/>
@@ -719,7 +759,7 @@ export const HomeTab = ({
 
         {/* Local Favorite This Week */}
         <SectionHead title="Local Favorite This Week"/>
-        <LocalFavoriteCard item={localFavorite} onClick={() => openPlace(localFavorite)}/>
+        <LocalFavoriteCard item={favoriteCard} onClick={() => openPlace(favoriteCard)}/>
 
         {/* Verify banner — only when not yet verified */}
         {!isVerified && <VerifyBanner onVerify={onVerify}/>}
@@ -755,6 +795,7 @@ export const HomeTab = ({
 
       {selectedEvent && (
         <EventDetailSheet
+          fullScreen
           event={selectedEvent}
           variant="event"
           joined={isJoined(selectedEvent.id)}
@@ -778,6 +819,7 @@ export const HomeTab = ({
 
       {selectedPlace && (
         <PlaceDetailSheet
+          fullScreen
           place={selectedPlace}
           saved={isSaved(selectedPlace.id)}
           interested={isGoing(selectedPlace.id)}
@@ -801,6 +843,7 @@ export const HomeTab = ({
 
       {selectedMom && (
         <MomDetailSheet
+          fullScreen
           mom={selectedMom}
           saved={isSaved(`mom-${selectedMom.id}`)}
           invited={!!invited[selectedMom.id]}
@@ -834,32 +877,6 @@ export const HomeTab = ({
             place: selectedMom.distance, photo: selectedMom.photo,
           })}
           onClose={() => setSelectedMom(null)}
-        />
-      )}
-
-      {selectedDiscussion && (
-        <GroupDiscussionSheet
-          discussion={selectedDiscussion}
-          joined={joinedDiscussions.has(selectedDiscussion.id)}
-          onToggleJoin={() => {
-            setJoinedDiscussions(prev => {
-              const next = new Set(prev);
-              if (next.has(selectedDiscussion.id)) {
-                next.delete(selectedDiscussion.id);
-                flash?.(`Left ${selectedDiscussion.title}`);
-              } else {
-                next.add(selectedDiscussion.id);
-                flash?.(`✦ Joined ${selectedDiscussion.title}`);
-              }
-              return next;
-            });
-          }}
-          onMessageMom={(mom) => { openMessage?.(mom); setSelectedDiscussion(null); }}
-          onScheduleMom={(mom) => { openSchedule?.(mom); setSelectedDiscussion(null); }}
-          flash={flash}
-          author={chatAuthor}
-          myUserId={myUserId}
-          onClose={() => setSelectedDiscussion(null)}
         />
       )}
 

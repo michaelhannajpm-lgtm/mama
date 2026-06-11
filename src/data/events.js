@@ -43,3 +43,31 @@ export const SUGGESTED_EVENTS = [
     hue:'linear-gradient(135deg, #7E9678 0%, #D9A441 100%)',
     photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=600&auto=format&fit=crop' },
 ];
+
+// Curated dated showcase events for the Home "Local Events Nearby" rail.
+// Seeded as real `kind:'dated'` rows with a fresh starts_at = now + daysAhead
+// (see api/_lib/seed.js) so they never go stale. kid_ages/tags power the
+// age-rail + relevance scoring.
+export const LOCAL_DATED_EVENTS = [
+  {
+    id: 'home-splash-pad', name: 'Saturday Splash Pad Meetup',
+    place: 'Curtis Hixon Park', time: '9:30 AM', daysAhead: 5,
+    tags: ['Water lovers', 'Outdoors'], kid_ages: ['1–3', '3–5'],
+    event_type: 'meetup', going: 12,
+    photo: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'home-music-together', name: 'Music Together Class',
+    place: 'Hyde Park', time: '10:00 AM', daysAhead: 2,
+    tags: ['Music lovers'], kid_ages: ['0–1', '1–3'],
+    event_type: 'class', going: 8,
+    photo: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&auto=format&fit=crop',
+  },
+  {
+    id: 'home-zoo-family-day', name: 'ZooTampa Family Day',
+    place: 'ZooTampa', time: '11:00 AM', daysAhead: 7,
+    tags: ['Outdoors', 'Active weekends'], kid_ages: ['3–5', '5–8'],
+    event_type: 'attraction', going: 22,
+    photo: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?w=400&auto=format&fit=crop',
+  },
+];

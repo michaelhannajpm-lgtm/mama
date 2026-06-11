@@ -46,13 +46,17 @@ export const ProfilePhotosSheet = ({ photos = [], seedMomId, onSave, flash, onCl
   };
 
   const removeAt = async (i) => {
+    // Never let her delete her only photo — there'd be nothing for other moms
+    // to see. (Deleting the primary when others remain auto-promotes the next,
+    // since the primary is simply photos[0] and the array keeps its order.)
+    if (list.length <= 1) { flash?.('Add another photo before removing your last one'); return; }
     const url = list[i];
     setBusy(true);
     try {
       // Server-authoritative: removes the URL from photos AND deletes the blob.
       const next = await deleteProfilePhoto(url, { seedMomId });
       commit(next || list.filter((_, idx) => idx !== i));
-      flash?.('Photo removed');
+      flash?.(i === 0 ? '✦ Photo removed · next photo is now primary' : 'Photo removed');
     } catch (e) {
       flash?.(e?.message || 'Could not remove photo');
     } finally {
@@ -85,13 +89,16 @@ export const ProfilePhotosSheet = ({ photos = [], seedMomId, onSave, flash, onCl
               border: i === 0 ? `2px solid ${C.coral}` : `1px solid ${C.line}`,
             }}>
               <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
-              <button onClick={() => removeAt(i)} aria-label="Remove photo" style={{
-                position: 'absolute', top: 5, right: 5, width: 24, height: 24, borderRadius: 12,
-                background: 'rgba(20,14,16,.55)', color: '#fff', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <XIcon size={13}/>
-              </button>
+              {/* Can't remove your only photo — the X is hidden until there's a spare. */}
+              {list.length > 1 && (
+                <button onClick={() => removeAt(i)} aria-label="Remove photo" style={{
+                  position: 'absolute', top: 5, right: 5, width: 24, height: 24, borderRadius: 12,
+                  background: 'rgba(20,14,16,.55)', color: '#fff', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <XIcon size={13}/>
+                </button>
+              )}
               {i === 0 ? (
                 <div style={{
                   position: 'absolute', left: 5, bottom: 5, display: 'inline-flex', alignItems: 'center', gap: 3,

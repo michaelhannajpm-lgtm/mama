@@ -58,3 +58,26 @@ test('momCardFromRow falls back gracefully on sparse rows', () => {
   assert.equal(card.nextSlot, null);
   assert.deepEqual(card.sharedTags, []);
 });
+
+test('privacy defaults: presence visible + verified-only DMs on', () => {
+  const card = momCardFromRow({ id: 'u', mom_types: [], last_seen_at: '2026-06-10T12:00:00Z' }, {}, null);
+  assert.equal(card.last_seen_at, '2026-06-10T12:00:00Z');
+  assert.equal(card.presenceHidden, false);
+  assert.equal(card.verifiedOnlyDms, true);
+});
+
+test('"Show last active" off hides presence (null last_seen + presenceHidden)', () => {
+  const card = momCardFromRow({
+    id: 'u', mom_types: [], last_seen_at: '2026-06-10T12:00:00Z',
+    settings: { privacy: { show_last_active: false } },
+  }, {}, null);
+  assert.equal(card.last_seen_at, null);
+  assert.equal(card.presenceHidden, true);
+});
+
+test('"Verified-only messages" off exposes verifiedOnlyDms: false', () => {
+  const card = momCardFromRow({
+    id: 'u', mom_types: [], settings: { privacy: { verified_only_dms: false } },
+  }, {}, null);
+  assert.equal(card.verifiedOnlyDms, false);
+});

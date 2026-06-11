@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Crown, MessageCircle } from 'lucide-react';
+import { Crown, MessageCircle, ShieldCheck } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
 import { getOrCreateDM, listMessages, sendMessage, subscribe } from '../lib/chat';
@@ -9,13 +9,16 @@ import { dmFreeState, DM_FREE_LIMIT } from '../lib/chat-helpers';
 // Plus conversion harder. Premium still unlocks unlimited.
 // DM_FREE_LIMIT = 3 is the protected lever — do not raise without product sign-off.
 
-export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPremium, flash }) => {
+export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified = false, onClose, openPremium, flash,
+  freeLimit = DM_FREE_LIMIT, plusPrice = 7.99, plusTrialDays = 7 }) => {
   const [messages, setMessages] = useState([]);
   const [convId, setConvId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const firstName = mom?.name?.split(' ')[0] || 'her';
   const unavailable = !mom?.auth_user_id;
+  // Privacy: she only accepts DMs from verified moms, and the sender isn't one.
+  const dmBlocked = !!mom?.verifiedOnlyDms && !senderVerified;
 
   // Icebreaker text only for brand-new conversations
   const icebreaker = (() => {
@@ -28,7 +31,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
     }
   })();
 
-  const free = dmFreeState(messages, myUserId, isPremium);
+  const free = dmFreeState(messages, myUserId, isPremium, freeLimit);
   const { used, remaining, limitReached } = free;
 
   const [text, setText] = useState('');
@@ -76,7 +79,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
     }
   }, [loading, messages.length, icebreaker]);
 
-  const canSend = !loading && convId && text.trim().length > 0 && !limitReached;
+  const canSend = !loading && convId && text.trim().length > 0 && !limitReached && !dmBlocked;
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -125,7 +128,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
           <h3 className="mt-1.5" style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em' }}>
             {isPremium
               ? <>Chat <span style={{ fontStyle: 'italic', color: C.terracotta }}>unlimited</span>.</>
-              : <>Your first <span style={{ fontStyle: 'italic', color: C.terracotta }}>{DM_FREE_LIMIT} messages</span> are free.</>}
+              : <>Your first <span style={{ fontStyle: 'italic', color: C.terracotta }}>{freeLimit} messages</span> are free.</>}
           </h3>
         </div>
 
@@ -133,7 +136,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
         {!isPremium && (
           <div className="mt-3 flex items-center gap-2">
             <div className="flex items-center gap-1">
-              {Array.from({ length: DM_FREE_LIMIT }, (_, i) => i).map(i => (
+              {Array.from({ length: freeLimit }, (_, i) => i).map(i => (
                 <div key={i} className="rounded-full" style={{
                   width: 10, height: 6,
                   background: i < used ? C.terracotta : C.divider,
@@ -188,8 +191,21 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
           </div>
         )}
 
-        {/* Input OR upsell */}
-        {limitReached ? (
+        {/* Verified-only gate · message limit upsell · or the composer */}
+        {dmBlocked ? (
+          <div className="mt-4 rounded-2xl p-4" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <ShieldCheck size={16} style={{ color: C.sageDark }}/>
+              <div style={{ fontFamily: 'Fraunces', fontSize: 15.5, fontWeight: 500, color: C.ink }}>
+                Verified moms only
+              </div>
+            </div>
+            <p style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: C.inkSoft, lineHeight: 1.5 }}>
+              {firstName} only accepts messages from verified moms. Verify your profile
+              (link Instagram or Facebook + add a real photo) to message her.
+            </p>
+          </div>
+        ) : limitReached ? (
           <div className="mt-4 rounded-2xl p-4" style={{ background: C.ink, color: C.cream }}>
             <div className="flex items-center gap-2 mb-2">
               <Crown size={16} style={{ color: C.saffron }}/>
@@ -198,17 +214,17 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
               </div>
             </div>
             <div className="text-[12px] mb-3" style={{ fontFamily: 'Albert Sans', opacity: .8, lineHeight: 1.4 }}>
-              You've used your {DM_FREE_LIMIT} free messages with {firstName}. Plus unlocks unlimited chat with every match.
+              You've used your {freeLimit} free messages with {firstName}. Plus unlocks unlimited chat with every match.
             </div>
             <button onClick={openPremium} className="w-full rounded-xl flex items-center justify-center gap-2"
               style={{
                 height: 44, background: C.saffron, color: C.ink,
                 fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 13.5,
               }}>
-              <Crown size={14}/> Try Plus · 7 days free
+              <Crown size={14}/> Try Plus · {plusTrialDays} days free
             </button>
             <div className="mt-1.5 text-center text-[10.5px]" style={{ fontFamily: 'Albert Sans', opacity: .55 }}>
-              Then $7.99/mo · cancel anytime
+              Then ${plusPrice.toFixed(2)}/mo · cancel anytime
             </div>
           </div>
         ) : (
@@ -227,7 +243,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, onClose, openPr
               />
               <div className="mt-1 flex items-center justify-between text-[10.5px]" style={{ color: C.inkMuted, fontFamily: 'Albert Sans' }}>
                 <span>{text.length} / 180 chars</span>
-                {!isPremium && <span>· message {used + 1} of {DM_FREE_LIMIT}</span>}
+                {!isPremium && <span>· message {used + 1} of {freeLimit}</span>}
               </div>
             </div>
 

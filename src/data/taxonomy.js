@@ -1,8 +1,8 @@
 import {
   Briefcase, Home, Sun, Flower2, Sparkles, Coffee, Lock,
-  TreePine, Leaf, Palette, BookOpen, Music,
   Globe, Compass,
 } from 'lucide-react';
+import { VALUE_LABELS, ACTIVITIES } from './matching-vocab.js';
 
 export const MOM_TYPES = [
   { id: 'working',      label: 'Working mom',       icon: Briefcase },
@@ -16,22 +16,25 @@ export const MOM_TYPES = [
   { id: 'prefer_not',   label: 'Prefer not to say', icon: Lock },
 ];
 
-export const VALUES = [
-  'Gentle parenting','Outdoorsy','Bookworm','Honest & open',
-  'Slow living','Playful','Adventurous','Multilingual home','Faith-based',
+// The curated "What describes you?" set shown in onboarding (AboutYou Q3) and
+// the profile's Interests & Preferences → Mom type. Single source of truth so
+// both surfaces always offer the exact same options. `id` matches MOM_TYPES so
+// selections persist to mom_types consistently.
+export const MOM_DESCRIBES = [
+  { id: 'new_to_area',   emoji: '🧭', label: 'New to area',       sub: 'Recently moved here' },
+  { id: 'working',       emoji: '💼', label: 'Working Mom',       sub: 'Balancing career'    },
+  { id: 'sahm',          emoji: '🏠', label: 'Stay at home',      sub: 'Home with kids'      },
+  { id: 'solo',          emoji: '💪', label: 'Solo Mom',          sub: 'Single parent'       },
+  { id: 'multicultural', emoji: '🌎', label: 'Multicultural',     sub: 'Diverse background'  },
+  { id: 'prefer_not',    emoji: '🤐', label: 'Prefer not to say', sub: null                  },
 ];
+
+// Single source of truth for values + activities lives in matching-vocab.js so
+// the profile UI, the seeded moms, and the filter sheets all share one set.
+export const VALUES = VALUE_LABELS;
 export const VALUE_NO_PREF = 'No preference';
 
-export const INTERESTS = [
-  { label: 'Coffee dates',      icon: Coffee },
-  { label: 'Park hangs',        icon: TreePine },
-  { label: 'Stroller walks',    icon: Leaf },
-  { label: 'Art & craft',       icon: Palette },
-  { label: 'Book club',         icon: BookOpen },
-  { label: 'Yoga / fitness',    icon: Flower2 },
-  { label: 'Music time',        icon: Music },
-  { label: 'Markets',           icon: Sparkles },
-];
+export const INTERESTS = ACTIVITIES; // [{ label, emoji }]
 export const INTEREST_NO_PREF = 'Surprise me';
 
 export const KID_AGES = ['0–1','1–3','3–5','5–8','8–12','12–18'];

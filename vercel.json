@@ -1,8 +1,14 @@
 {
   "rewrites": [
+    { "source": "/policy", "destination": "/policy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/data-deletion", "destination": "/data-deletion.html" },
     {
       "source": "/((?!api/|@vite/|@react-refresh|src/|node_modules/|.*\\..*).*)",
       "destination": "/"
     }
+  ],
+  "crons": [
+    { "path": "/api/internal/purge-deleted", "schedule": "15 3 * * *" }
   ]
 }

@@ -20,9 +20,9 @@ import { updateMomProfile } from '../../lib/onboarding';
 // MAIN APP — 5-tab shell:
 //   Home · Connect · Explore · My Hub · Profile
 //
-// Shared top header is now just a notification bell on the right.
-// Tab titles were removed (2026-06-10) so each screen reads cleaner;
-// each tab's content owns its own context.
+// Every tab now shows a consistent top header: the GoMama wordmark on
+// Home, and the tab's name in Fraunces on every other tab. The
+// notification bell sits on the right in all tabs.
 // ====================================================================
 
 // Bottom tab bar. 'hub' opens MamaHubSheet (as a screen). Profile lives
@@ -37,8 +37,9 @@ const TABS = [
   { id: 'profile',    icon: User,       label: 'Profile' },
 ];
 
-// Header titles. Home stays bare (its location pill lives inside HomeTab);
-// every other tab shows its name in Fraunces in the shared top header.
+// Header titles. Home shows the GoMama wordmark instead of a text title
+// (handled inline below); every other tab shows its name in Fraunces in
+// the shared top header.
 const HEADER_LABELS = {
   connect:    'Connect',
   localpicks: 'Explore',
@@ -60,11 +61,12 @@ export const MainApp = ({
   openSchedule, openProfile, openMessage, openPremium,
   messageHistory = {},
   account, requestAccount, restart, flash,
-  nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  verifiedRequiresSocial = true,
+  nearbyMoms = [], localFavorite = null, nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  nearbyLoading = false, placesLoading = false, eventsLoading = false,
   chatAuthor,
   myUserId,
 }) => {
-  void setPrefs;
   const [tab, setTab] = useState('home');
   const [villageOpen, setVillageOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -139,22 +141,24 @@ export const MainApp = ({
     <div className="h-full flex flex-col" style={{ background: C.cream }}>
       <StatusBar/>
 
-      {/* Shared top header — Home + Explore are bare on the left (each
-          screen anchors itself with its own in-body content); the other
-          tabs show their headline in Fraunces. The notification bell sits
-          on the right in every tab. */}
-      <div className="px-5" style={{ paddingTop: 14, paddingBottom: (isHome || tab === 'localpicks') ? 0 : 8 }}>
-        <div className="flex items-center justify-between">
+      {/* Shared top header — consistent across every tab. Home shows the
+          GoMama logo in the title slot; every other tab shows its name in
+          Fraunces. The notification bell sits on the right in every tab.
+          Header height + top/bottom padding are identical on all tabs. */}
+      <div className="px-5" style={{ paddingTop: 14, paddingBottom: 8 }}>
+        <div className="flex items-center justify-between" style={{ minHeight: 34 }}>
           <div style={{ minWidth: 0, flex: 1, paddingRight: 10 }}>
-            {(isHome || tab === 'localpicks') ? null : (
-              <div style={{
-                fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
-                color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {HEADER_LABELS[tab] || ''}
-              </div>
-            )}
+            <div style={{
+              fontFamily: 'Fraunces', fontSize: 26, fontWeight: 700,
+              color: C.navy, letterSpacing: '-.02em', lineHeight: 1.05,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {isHome ? (
+                <>Go <span style={{ fontStyle: 'italic', color: C.coral, fontWeight: 500 }}>Mama</span></>
+              ) : (
+                HEADER_LABELS[tab] || ''
+              )}
+            </div>
           </div>
           <button
             aria-label="Notifications"
@@ -182,7 +186,9 @@ export const MainApp = ({
 
       {tab === 'home' && <HomeTab
         thisWeek={thisWeek} events={events}
-        places={places} nearbyMoms={nearbyMoms} groups={TOP_DISCUSSIONS}
+        places={places} nearbyMoms={nearbyMoms}
+        nearbyLoading={nearbyLoading} eventsLoading={eventsLoading}
+        localFavorite={localFavorite}
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
@@ -193,15 +199,13 @@ export const MainApp = ({
         goToMeetups={() => goToExploreSeeAll('meetups')}
         goToKidsPrograms={() => goToExploreSeeAll('kids')}
         goToConnectMoms={() => goToConnectSeeAll('moms')}
-        goToConnectGroups={() => goToConnectSeeAll('topics')}
         onVerify={() => setTab('profile')}
+        location={location}
         city={locationGeo?.city || location || 'Tampa'}
         locationLabel={locationLabel}
         openLocation={() => setLocationOpen(true)}
         openVillage={() => setVillageOpen(true)}
-        onDiscuss={setSubjectThread}
-        chatAuthor={chatAuthor}
-        myUserId={myUserId}/>}
+        onDiscuss={setSubjectThread}/>}
       {tab === 'connect' && <ConnectTab
         profile={profile} prefs={prefs}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
@@ -214,6 +218,7 @@ export const MainApp = ({
         requireVerify={requireVerify}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
+        nearbyLoading={nearbyLoading}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
         initialSeeAll={connectSeeAll}
@@ -224,6 +229,7 @@ export const MainApp = ({
         onDiscuss={setSubjectThread}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
+        placesLoading={placesLoading} eventsLoading={eventsLoading}
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}
@@ -245,7 +251,8 @@ export const MainApp = ({
         location={location} setLocation={setLocation}
         locationGeo={locationGeo} setLocationGeo={setLocationGeo}
         distance={distance} setDistance={setDistance}
-        openPlans={() => setVillageOpen(true)}
+        prefs={prefs} setPrefs={setPrefs}
+        verifiedRequiresSocial={verifiedRequiresSocial}
         restart={restart} flash={flash}/>}
       {tab === 'hub' && <MamaHubSheet
         asScreen
@@ -255,6 +262,7 @@ export const MainApp = ({
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
         moms={nearbyMoms}
+        events={events} thisWeek={thisWeek} places={places}
         onOpenMessage={openMessage}
         onOpenDiscussion={(d) => setHubDiscussion(d)}
         flash={flash}/>}
@@ -329,6 +337,7 @@ export const MainApp = ({
           openMessage={openMessage}
           flash={flash}
           moms={nearbyMoms}
+          events={events} thisWeek={thisWeek} places={places}
           onClose={() => setVillageOpen(false)}
         />
       )}

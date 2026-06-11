@@ -12,6 +12,7 @@ const SELECT = [
   'id', 'auth_user_id', 'display_name', 'username', 'age', 'bio', 'photos',
   'kids_ages', 'mom_types', 'values', 'interests', 'free_slots', 'places',
   'city', 'neighborhood', 'county', 'home_lat', 'home_lng', 'distance_miles', 'verified',
+  'last_seen_at', 'settings', 'account_status',
 ].join(',');
 
 export default async function handler(req, res) {
@@ -34,7 +35,9 @@ export default async function handler(req, res) {
     : 24;
   const verifiedOnly = body.verifiedOnly !== false; // default true
 
-  let filter = 'visible=eq.true&blocked_global=eq.false';
+  // Only active accounts surface in discovery — deactivated/deleted moms are
+  // excluded at the source, not just client-side.
+  let filter = 'visible=eq.true&blocked_global=eq.false&account_status=eq.active';
   if (verifiedOnly) filter += '&verified=eq.true';
   const url =
     `${creds.supabaseUrl}/rest/v1/mom_profiles?${filter}` +

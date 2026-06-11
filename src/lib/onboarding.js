@@ -1,4 +1,5 @@
 import { supabase, isSupabaseReady } from './supabase';
+import { peekIncomingRef, clearIncomingRef, rememberMyCode } from './referral';
 
 const STORAGE_KEY = 'mama:session_id';
 
@@ -61,27 +62,41 @@ export const recordStep = (step, patch = {}) => {
 
 const toPhoneE164 = (phone) => `+1${(phone || '').replace(/\D/g, '')}`;
 
-// True when an auth error means the channel just isn't wired up on this env
-// (no SMS provider, phone signups disabled, etc.) — we fall back to demo mode
-// so the prototype keeps moving rather than blocking on infra config.
-const isUnconfiguredChannel = (msg = '') =>
-  /disabled|not configured|not enabled|not available|provider|unsupported phone|sms/i.test(msg);
-
-const friendlyAuthError = (error) => {
+// Map a Supabase auth error to a user-facing message. `phase` separates the
+// SEND step (signInWithOtp / updateUser) from the VERIFY step (verifyOtp):
+// only a verify failure may say "that code doesn't match". A send-step provider
+// error (e.g. Twilio "Invalid From Number") must NOT be rewritten as a bad
+// code — otherwise an SMS misconfig masquerades as a verification problem and
+// hides the real cause. The raw error is preserved on `err.cause` for debugging.
+const friendlyAuthError = (error, { phase = 'verify' } = {}) => {
   const msg = error?.message || 'Something went wrong';
-  const friendly =
-    /expired/i.test(msg) ? 'That code expired — tap “Resend code” for a new one.' :
-    /invalid|incorrect|token/i.test(msg) ? "That code doesn't match. Double-check and try again." :
-    /rate limit|too many|security purposes/i.test(msg) ? 'Too many attempts — wait a moment, then try again.' :
-    msg;
+  let friendly;
+  if (/rate limit|too many|security purposes/i.test(msg)) {
+    friendly = 'Too many attempts — wait a moment, then try again.';
+  } else if (phase === 'send') {
+    // The code never went out — surface a delivery problem, not a code problem.
+    // Log the real provider error so a misconfig fails loudly in the console.
+    console.warn('[auth] OTP send failed:', msg);
+    friendly = "We couldn't send your code right now — please try again in a moment.";
+  } else if (/expired/i.test(msg)) {
+    friendly = 'That code expired — tap “Resend code” for a new one.';
+  } else if (/invalid|incorrect|token|otp/i.test(msg)) {
+    friendly = "That code doesn't match. Double-check and try again.";
+  } else {
+    friendly = msg;
+  }
   const err = new Error(friendly);
   err.status = error?.status;
+  err.cause = error;
   return err;
 };
 
 // Send a 6-digit code (email also gets a magic link) to phone or email.
-// Creates the account on first use. Returns { local: true } when Supabase or
-// the channel isn't configured, so the caller drops into demo mode.
+// Creates the account on first use. Returns { local: true } ONLY when Supabase
+// itself isn't configured (no env vars) — the zero-backend prototype mode. Once
+// Supabase is live, any provider error (e.g. SMS not wired up, phone signups
+// disabled) propagates so a misconfiguration fails loudly instead of silently
+// faking success and accepting any code.
 export const sendOtp = async ({ method, phone, email, firstName, agreedTerms }) => {
   if (!isSupabaseReady()) return { local: true };
 
@@ -99,16 +114,13 @@ export const sendOtp = async ({ method, phone, email, firstName, agreedTerms }) 
       };
 
   const { error } = await supabase.auth.signInWithOtp(target);
-  if (error) {
-    if (isUnconfiguredChannel(error.message)) return { local: true };
-    throw friendlyAuthError(error);
-  }
+  if (error) throw friendlyAuthError(error, { phase: 'send' });
   return { ok: true };
 };
 
-// Verify the 6-digit code → returns { session, user } on success. In demo/local
-// mode (no Supabase, or a fallback send) any 6-digit code is accepted so the
-// prototype flow completes.
+// Verify the 6-digit code → returns { session, user } on success. Only in the
+// zero-backend prototype mode (no Supabase configured) is any 6-digit code
+// accepted; with Supabase live, the real emailed/texted code is required.
 export const verifyOtp = async ({ method, phone, email, token, local }) => {
   if (local || !isSupabaseReady()) {
     return { local: true, user: { id: `local-${getSessionId()}` } };
@@ -118,8 +130,51 @@ export const verifyOtp = async ({ method, phone, email, token, local }) => {
     : { email: (email || '').trim().toLowerCase(), token, type: 'email' };
 
   const { data, error } = await supabase.auth.verifyOtp(params);
-  if (error) throw friendlyAuthError(error);
+  if (error) throw friendlyAuthError(error, { phase: 'verify' });
   return data; // { session, user }
+};
+
+// ── Change + verify the signed-in mom's contact info ────────────────────────
+// Adding/changing a phone or email on an existing account is a different
+// Supabase flow from login OTP: updateUser() stages the new value and sends a
+// code, then verifyOtp({ type: 'phone_change' | 'email_change' }) confirms it.
+// Returns { local: true } in demo mode (no Supabase) so the prototype still
+// walks the UI.
+export const requestContactChange = async ({ kind, value }) => {
+  if (!isSupabaseReady()) return { local: true };
+  const payload = kind === 'phone'
+    ? { phone: toPhoneE164(value) }
+    : { email: (value || '').trim().toLowerCase() };
+  const { error } = await supabase.auth.updateUser(payload);
+  if (error) throw friendlyAuthError(error, { phase: 'send' });
+  return { ok: true };
+};
+
+// Confirm the code, then mirror the now-verified value into mom_profiles +
+// onboarding (server reads it back from the auth identity — the client value is
+// never trusted for the mirror). Returns the verified { email, phone }.
+export const confirmContactChange = async ({ kind, value, token }) => {
+  if (!isSupabaseReady()) {
+    return { local: true, email: kind === 'email' ? value : null, phone: kind === 'phone' ? value : null };
+  }
+  const params = kind === 'phone'
+    ? { phone: toPhoneE164(value), token, type: 'phone_change' }
+    : { email: (value || '').trim().toLowerCase(), token, type: 'email_change' };
+  const { error } = await supabase.auth.verifyOtp(params);
+  if (error) throw friendlyAuthError(error, { phase: 'verify' });
+
+  const access_token = (await supabase.auth.getSession()).data?.session?.access_token || null;
+  if (access_token) {
+    try {
+      const res = await fetch('/api/mom-profiles/sync-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token }),
+      });
+      if (res.ok) return res.json().catch(() => ({ ok: true }));
+    } catch { /* best-effort mirror */ }
+  }
+  return { ok: true };
 };
 
 export const signInWithProvider = async (provider) => {
@@ -142,13 +197,39 @@ export const promoteSession = async () => {
   if (!session?.access_token) return null;
 
   const session_id = getSessionId();
+  // Carry any invite code captured from a `?ref=` link so this signup gets
+  // attributed to the referrer. Cleared once the promote succeeds.
+  const ref = peekIncomingRef();
   const res = await fetch('/api/onboarding/promote', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id, access_token: session.access_token }),
+    body: JSON.stringify({ session_id, access_token: session.access_token, ref }),
   });
   if (!res.ok) return null;
-  return res.json().catch(() => null);
+  const hydrated = await res.json().catch(() => null);
+  if (hydrated) { if (ref) clearIncomingRef(); rememberMyCode(hydrated.username); }
+  return hydrated;
+};
+
+// Mark onboarding finished for the signed-in mom — flips
+// onboarding_profiles.onboarding_completed = true on the auth_user_id row, so a
+// later sign-in routes her to MainApp instead of back through onboarding. Soft
+// no-op (returns null) when not signed in or the backend is unreachable.
+export const completeOnboarding = async () => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  if (!access_token) return null;
+  try {
+    const res = await fetch('/api/onboarding/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token }),
+    });
+    return res.ok ? res.json().catch(() => ({ ok: true })) : null;
+  } catch {
+    return null;
+  }
 };
 
 // Patch the signed-in mom's mom_profiles row.
@@ -195,6 +276,48 @@ export const updateMomProfile = async (patch, { seedMomId } = {}) => {
     throw err;
   }
   return body.profile || null;
+};
+
+// Presence heartbeat — best-effort, fire-and-forget. Sets the current user's
+// mom_profiles.last_seen_at server-side (server clock). Soft no-op when neither
+// signed in nor a seeded dev user.
+export const sendHeartbeat = async ({ seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  let payload;
+  if (access_token) payload = { access_token };
+  else if (seedMomId) payload = { seed_mom_id: seedMomId };
+  else return;
+  try {
+    await fetch('/api/mom-profiles/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch { /* best-effort */ }
+};
+
+// Fetch the current mom's referral summary — { ok, code, count, friends[] }.
+// Authed by the real session (Bearer) or the dev seeded-mom id. Returns null on
+// any failure so callers can simply skip the list.
+export const fetchReferrals = async ({ seedMomId } = {}) => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  try {
+    if (access_token) {
+      const res = await fetch('/api/referrals', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      return res.ok ? res.json().catch(() => null) : null;
+    }
+    if (seedMomId) {
+      const res = await fetch(`/api/referrals?seedMomId=${encodeURIComponent(seedMomId)}`);
+      return res.ok ? res.json().catch(() => null) : null;
+    }
+  } catch { /* best-effort */ }
+  return null;
 };
 
 // Subscribe to Supabase auth state changes (SIGNED_IN, SIGNED_OUT, …).

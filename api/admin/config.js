@@ -11,6 +11,50 @@ const VALIDATORS = {
     if (!Number.isFinite(n) || n < 1 || n > 500) return { error: 'radius must be 1–500 miles' };
     return { value: Math.round(n) };
   },
+  // Presence recency windows (seconds). online window must be shorter than away.
+  presence_online_max_seconds: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 30 || n > 3600) return { error: 'online window must be 30–3600 seconds' };
+    return { value: Math.round(n) };
+  },
+  presence_away_max_seconds: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 60 || n > 86400) return { error: 'away window must be 60–86400 seconds' };
+    return { value: Math.round(n) };
+  },
+  // Whether the Verified badge also requires a linked social account (the
+  // documented verified-only moat). Off ⇒ full profile completion alone verifies.
+  verified_requires_social: (v) => {
+    if (v === true || v === 'true' || v === 1 || v === '1')   return { value: true };
+    if (v === false || v === 'false' || v === 0 || v === '0') return { value: false };
+    return { error: 'must be true or false' };
+  },
+  // 1:1 DM free-tier message limit. Protected monetization lever — default 3
+  // (see CLAUDE.md / premium-model.md). Editable here, but raising it weakens
+  // Plus conversion; change deliberately.
+  dm_free_message_limit: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 1 || n > 50) return { error: 'message limit must be 1–50' };
+    return { value: Math.round(n) };
+  },
+  // Go Mama Plus monthly price in USD. Display only — no real billing yet.
+  plus_price_monthly: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 999) return { error: 'price must be 0–999' };
+    return { value: Math.round(n * 100) / 100 };
+  },
+  // Go Mama Plus free-trial length in days.
+  plus_trial_days: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 90) return { error: 'trial must be 0–90 days' };
+    return { value: Math.round(n) };
+  },
+  // Whether new users default to seeing only verified moms in discovery.
+  default_verified_only_discovery: (v) => {
+    if (v === true || v === 'true' || v === 1 || v === '1')   return { value: true };
+    if (v === false || v === 'false' || v === 0 || v === '0') return { value: false };
+    return { error: 'must be true or false' };
+  },
 };
 
 export default async function handler(req, res) {

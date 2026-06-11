@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, SlidersHorizontal, ArrowUpDown, Crown } from 'lucide-react';
+import { X, SlidersHorizontal, ArrowUpDown, Crown } from 'lucide-react';
 import { C } from '../theme';
 
 // ==========================================================================
@@ -68,7 +68,7 @@ export const SeeAllSheet = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            aria-label="Back"
+            aria-label="Close"
             className="rounded-full flex items-center justify-center active:scale-[.95] transition-transform"
             style={{
               width: 34, height: 34,
@@ -76,7 +76,7 @@ export const SeeAllSheet = ({
               color: C.navy, cursor: 'pointer',
             }}
           >
-            <ChevronLeft size={16}/>
+            <X size={16}/>
           </button>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{

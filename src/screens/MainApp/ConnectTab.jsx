@@ -6,6 +6,7 @@ import {
   User, MessageCircle, Crown, Check, UserPlus,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Skeleton } from '../../components/Skeleton';
 import { MeetupsFilterSheet, MEETUPS_FILTER_DEFAULT } from '../../sheets/MeetupsFilterSheet';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
 import { MomDetailSheet } from '../../sheets/MomDetailSheet';
@@ -22,6 +23,7 @@ import {
   GROUP_CATEGORIES_VISIBLE, matchesGroupFilters,
 } from '../../data/discussions';
 import { youngestStageLabel } from '../../data/taxonomy';
+import { PresenceDot } from '../../components/PresenceDot';
 
 // ==========================================================================
 // ConnectTab — V5 "Connect" surface.
@@ -207,7 +209,6 @@ export const MomCard = ({ item, onClick, compact = false }) => {
             {(item.firstName || item.name || '?').charAt(0).toUpperCase()}
           </div>
         )}
-
         <div style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.4) 100%)',
@@ -245,13 +246,11 @@ export const MomCard = ({ item, onClick, compact = false }) => {
               <ShieldCheck size={9}/>
             </div>
           )}
-          {isOnline && (
-            <span style={{
-              width: 8, height: 8, borderRadius: 4,
-              background: C.sageDark, border: '1.5px solid #fff',
-              boxShadow: '0 2px 4px -2px rgba(27,42,78,.4)',
-            }}/>
-          )}
+          {item.presence ? (
+            <PresenceDot status={item.presence} size={9} style={{ position: 'relative', right: 'auto', bottom: 'auto', borderWidth: 1.5 }}/>
+          ) : isOnline ? (
+            <PresenceDot status="online" size={9} style={{ position: 'relative', right: 'auto', bottom: 'auto', borderWidth: 1.5 }}/>
+          ) : null}
         </div>
 
         {/* Bottom-left: distance pill */}
@@ -334,6 +333,23 @@ export const MomCard = ({ item, onClick, compact = false }) => {
     </button>
   );
 };
+
+// Loading placeholder for the compact 3-up MomCard (88px hero + name + tags).
+// Mirrors the real card's footprint so live moms swap in with no layout shift.
+const MomCardSkeleton = () => (
+  <div style={{
+    width: '100%', background: '#fff', borderRadius: 16,
+    border: `1px solid ${C.line}`, overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
+  }}>
+    <Skeleton w="100%" h={88} radius={0}/>
+    <div style={{ padding: '10px 8px 11px' }}>
+      <Skeleton w="70%" h={12} radius={6}/>
+      <Skeleton w="90%" h={9} radius={5} style={{ marginTop: 7 }}/>
+      <Skeleton w="50%" h={9} radius={5} style={{ marginTop: 6 }}/>
+    </div>
+  </div>
+);
 
 // Hard-coded availability windows fall back when the server hasn't shaped
 // `nextSlots`. Mirrors what the user might pick in onboarding.
@@ -447,6 +463,8 @@ const MomListCard = ({
           }}>
             <ShieldCheck size={11}/>
           </div>
+          {/* Presence dot — top-right (verified shield occupies bottom-right). */}
+          <PresenceDot status={item.presence} size={14} style={{ top: -1, right: -1, bottom: 'auto' }}/>
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
@@ -999,7 +1017,9 @@ export const ConnectTab = ({
   messageHistory = {},
   account, requestAccount, flash,
   filterOpen, setFilterOpen,
+  messageHistory = {},
   nearbyMoms = [], nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  nearbyLoading = false,
   initialSeeAll = null, onConsumeSeeAll,
   goToExploreSeeAll,                   // (key) => switch to Explore tab and
                                        // open that section's SeeAllSheet.
@@ -1258,7 +1278,11 @@ export const ConnectTab = ({
         {/* Recommended Moms for you — ranked by shared ground (kids, interests,
             values, free slots) minus a distance penalty. */}
         <SectionHead title="Recommended Moms for you" onLink={() => setSeeAll('moms')}/>
-        {gridMoms.length === 0 ? (
+        {nearbyLoading ? (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {[0, 1, 2].map(i => <MomCardSkeleton key={i}/>)}
+          </div>
+        ) : gridMoms.length === 0 ? (
           <div style={{
             fontFamily: 'Albert Sans', fontSize: 12, color: C.muted,
             padding: '8px 2px',
@@ -1425,6 +1449,7 @@ export const ConnectTab = ({
 
       {selectedMom && (
         <MomDetailSheet
+          fullScreen
           mom={selectedMom}
           saved={isSaved(`mom-${selectedMom.id}`)}
           // All deep actions live here now (moved off the old SeeAll card).
@@ -1522,4 +1547,3 @@ export const ConnectTab = ({
     </div>
   );
 };
-

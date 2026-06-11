@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { PresenceDot } from '../components/PresenceDot';
 
 // ==========================================================================
 // MomDetailSheet — full profile + action surface for a single mom. Replaces
@@ -78,6 +79,7 @@ export const MomDetailSheet = ({
   onConnect, onInvite, onMessage, onSchedule, onPropose,
   onSave, onShare, onPremium,
   onClose,
+  fullScreen = false,
 }) => {
   const [showFullBio, setShowFullBio] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -119,7 +121,7 @@ export const MomDetailSheet = ({
   const handleConnect = () => (onConnect || onInvite)?.(mom);
 
   return (
-    <Sheet onClose={onClose} tall bleedTop>
+    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen}>
       <div className="pb-2">
         {/* Hero — round avatar over a coral wash */}
         <div
@@ -164,6 +166,8 @@ export const MomDetailSheet = ({
                 <ShieldCheck size={13}/>
               </div>
             )}
+            {/* Presence dot — top-right (verified shield is bottom-right). */}
+            <PresenceDot status={mom.presence} size={20} ring="#fff" style={{ top: 2, right: 2, bottom: 'auto' }}/>
           </div>
           <div className="mt-3 flex items-center justify-center gap-2" style={{ flexWrap: 'wrap' }}>
             <div style={{

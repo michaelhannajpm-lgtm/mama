@@ -8,12 +8,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { PLACES as LOCAL_PLACES } from '../../src/data/places.js';
-import { SUGGESTED_EVENTS as LOCAL_EVENTS } from '../../src/data/events.js';
+import { SUGGESTED_EVENTS as LOCAL_EVENTS, LOCAL_DATED_EVENTS } from '../../src/data/events.js';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES } from '../../src/data/taxonomy.js';
 import { TAMPA_BAY_AREAS } from '../../src/data/tampa-bay-areas.js';
 import { lookupCoords, DEFAULT_COORDS } from '../../scripts/seed-data/place-coords.js';
 import { generateDisplayName, generateUsername } from '../../scripts/seed-data/name-pool.js';
 import { photosForMom } from '../../scripts/seed-data/photo-pool.js';
+import { extractFamilyTags } from '../../src/lib/family-tags.js';
 
 const buildPlacesPayload = (wantPlaces) => {
   const out = [];
@@ -61,7 +62,9 @@ const buildEventsPayload = async (sb, wantEvents) => {
       bucket: e.bucket,
       time_label: e.time,
       recurring: e.recurring || 'Weekly',
+      kind: 'recurring',
       tags: e.tags || [],
+      kid_ages: e.kidAges || [],
       hero_photo: e.photo || null,
       going_count: e.going || 0,
       visible: true,
@@ -85,14 +88,45 @@ const buildEventsPayload = async (sb, wantEvents) => {
       bucket: bk,
       time_label: base.time,
       recurring: 'Weekly',
+      kind: 'recurring',
       tags: base.tags || [],
+      kid_ages: base.kidAges || [],
       hero_photo: base.photo || null,
       going_count: 2 + (i % 14),
       visible: true,
     });
     i++;
   }
-  return out.slice(0, wantEvents);
+  // Curated dated showcase events for the Home rail — fresh starts_at each seed.
+  const now = Date.now();
+  for (const e of LOCAL_DATED_EVENTS) {
+    const match = places.find(p => e.place && p.area && e.place.includes(p.area)) || places[0];
+    out.push({
+      slug: e.id,
+      name: e.name,
+      place_id: match?.id || null,
+      city: 'Tampa, FL',
+      day_of_week: null,
+      bucket: null,
+      time_label: e.time,
+      recurring: null,
+      kind: 'dated',
+      starts_at: new Date(now + (e.daysAhead || 3) * 86400000).toISOString(),
+      tags: e.tags || [],
+      kid_ages: e.kid_ages || [],
+      event_type: e.event_type || null,
+      hero_photo: e.photo || null,
+      going_count: e.going || 0,
+      visible: true,
+      review_status: 'approved',
+    });
+  }
+
+  // Keep all curated dated rows; cap only the recurring fill.
+  const datedSlugs = new Set(LOCAL_DATED_EVENTS.map(e => e.id));
+  const dated = out.filter(r => datedSlugs.has(r.slug));
+  const recurringRows = out.filter(r => !datedSlugs.has(r.slug)).slice(0, Math.max(0, wantEvents - dated.length));
+  return [...recurringRows, ...dated];
 };
 
 // Deterministic pseudo-random so re-runs match.
@@ -173,21 +207,29 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
 
   const distance_miles = [5, 10, 20, 30, 50][Math.floor(rand() * 5)];
 
-  const verified  = rand() < 0.6;
+  // Every seeded mom is a verified mom with a linked Facebook profile, so the
+  // demo directory reads as fully vetted. Instagram/TikTok stay random for
+  // variety; Facebook + verified are guaranteed.
+  const verified  = true;
   const visible   = rand() < 0.95;
   const lastActive = rand() < 0.9
     ? new Date(Date.now() - Math.floor(rand() * 30) * 86400000).toISOString()
     : new Date(Date.now() - (30 + Math.floor(rand() * 60)) * 86400000).toISOString();
-  const socialLinks = {};
+  const socialLinks = { facebook: `https://facebook.com/${username}` };
   if (rand() < 0.55) socialLinks.instagram = `@${username}`;
   if (rand() < 0.2) socialLinks.tiktok = `@${username}mama`;
+
+  // Derive the same AI-style familyTags a real user gets, from the mom's bio +
+  // her interests/values, so the tag dimension actually matches real users.
+  const bio = momBio({ momTypeIds, kidCount, area, interestsList, rand });
+  const familyTags = extractFamilyTags(`${bio} ${interestsList.join(' ')} ${valuesList.join(' ')}`);
 
   return {
     auth_user_id: null,
     display_name: displayName,
     username,
     age,
-    bio: momBio({ momTypeIds, kidCount, area, interestsList, rand }),
+    bio,
     photos: photosForMom(idx),
     kids_ages: kidsAges,
     mom_types: momTypeIds,
@@ -207,6 +249,7 @@ const buildMomProfilePayload = (idx, placeIds, eventIds) => {
     verified,
     blocked_global: false,
     social_links: socialLinks,
+    settings: { privacy: { verified_only_dms: true }, familyTags },
     source: 'seed',
     last_active_at: lastActive,
   };
@@ -218,7 +261,7 @@ export const runSeed = async ({
   supabaseUrl,
   serviceRoleKey,
   wantPlaces = 50,
-  wantEvents = 30,
+  wantEvents = 33,
   wantMoms = 1000,
   reset = true,
   resetMoms = 'seed',

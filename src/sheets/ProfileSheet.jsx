@@ -1,9 +1,10 @@
 import { ShieldCheck, Heart, Quote, Users, Lock, Crown } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { PresencePill } from '../components/PresenceDot';
 import { TIME_WINDOWS } from '../data/taxonomy';
 
-export const ProfileSheet = ({ mom, profile, isPremium, onClose, openPremium }) => {
+export const ProfileSheet = ({ mom, profile, isPremium, onClose, openPremium, plusPrice = 7.99, plusTrialDays = 7 }) => {
   // Compute shared ground (works for both partial and full)
   const sharedValues = (mom.values || []).filter(v => (profile?.values || []).includes(v));
   const sharedInterests = (mom.interests || []).filter(i => (profile?.interests || []).includes(i));
@@ -54,6 +55,7 @@ export const ProfileSheet = ({ mom, profile, isPremium, onClose, openPremium }) 
             <div className="text-[12.5px] mt-0.5 opacity-90" style={{ fontFamily:'Albert Sans' }}>
               {mom.type} · Kids {isPremium ? mom.kids : broadKids} · {mom.distance}
             </div>
+            {mom.presence && <div className="mt-1.5"><PresencePill status={mom.presence} color="#fff"/></div>}
           </div>
         </div>
 
@@ -190,7 +192,7 @@ export const ProfileSheet = ({ mom, profile, isPremium, onClose, openPremium }) 
                 <Crown size={13}/> See full profile
               </button>
               <div className="mt-1.5 text-[10px]" style={{ fontFamily:'Albert Sans', color: C.inkMuted }}>
-                7 days free · then $7.99/mo
+                {plusTrialDays} days free · then ${plusPrice.toFixed(2)}/mo
               </div>
             </div>
           </div>

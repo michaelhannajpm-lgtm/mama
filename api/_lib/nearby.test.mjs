@@ -19,6 +19,16 @@ test('excludes self by auth_user_id and by seed_mom_id', () => {
   assert.deepEqual(ids.sort(), ['b']);
 });
 
+test('excludes moms who turned OFF "Discoverable"; keeps default/true', () => {
+  const rows = [
+    baseRow({ id: 'hidden',  settings: { privacy: { discoverable: false } } }),
+    baseRow({ id: 'shown',   settings: { privacy: { discoverable: true } } }),
+    baseRow({ id: 'default' }), // no settings ⇒ discoverable by default
+  ];
+  const { moms } = rankAndShape(rows, {}, { limit: 10 });
+  assert.deepEqual(moms.map((m) => m.id).sort(), ['default', 'shown']);
+});
+
 test('computes rounded distance when both sides have coords', () => {
   const rows = [baseRow({ id: 'a', home_lat: 27.95, home_lng: -82.46 })];
   const { moms } = rankAndShape(rows, { lat: 27.95, lng: -82.46 }, { limit: 10 });
