@@ -4,7 +4,7 @@
 // Adds a Hide-anonymous filter and a deep-link to the linked mom profile when
 // the user has been promoted.
 // ============================================================================
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { UserCog, Search, AlertTriangle, Mail, Phone, EyeOff, Eye, Users as UsersIcon, ExternalLink } from 'lucide-react';
 import { AC } from '../admin-theme';
 import { fetchEndpoint } from '../lib/adminFetch';
@@ -35,6 +35,7 @@ export const UsersSection = () => {
   const [hideAnonymous, setHideAnonymous] = useState(true);
   const [onlyLinked, setOnlyLinked] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
+  const highlightRowRef = useRef(null);
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -58,6 +59,11 @@ export const UsersSection = () => {
     window.addEventListener('gm-admin-open-user', onOpen);
     return () => window.removeEventListener('gm-admin-open-user', onOpen);
   }, []);
+
+  // Scroll to the highlighted row once when highlightId is set — not on every render.
+  useEffect(() => {
+    if (highlightId) highlightRowRef.current?.scrollIntoView({ block: 'center' });
+  }, [highlightId]);
 
   const users = data?.users || [];
   const stats = data?.stats || { total: 0, confirmed: 0, anonymous: 0, momLinked: 0, byProvider: {} };
@@ -86,7 +92,7 @@ export const UsersSection = () => {
         const isHighlighted = u.id === highlightId;
         return (
           <div
-            ref={isHighlighted ? (el) => el?.scrollIntoView({ block: 'center' }) : undefined}
+            ref={isHighlighted ? (el) => { highlightRowRef.current = el; } : undefined}
             style={isHighlighted ? {
               borderRadius: AC.radius,
               boxShadow: `0 0 0 2px ${AC.accent}`,

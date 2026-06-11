@@ -104,7 +104,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
       const ref = ev?.detail?.id;
       if (!ref) return;
       const target = match(ref);
-      if (target) { setEditing(target); setDeepLinkMiss(null); }
+      if (target) { if (editing?.id !== target.id) setEditing(target); setDeepLinkMiss(null); }
       else if (rows?.length) setDeepLinkMiss(ref);
     };
     window.addEventListener('gm-admin-open-place', onOpen);

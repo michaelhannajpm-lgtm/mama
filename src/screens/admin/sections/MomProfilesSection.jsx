@@ -56,6 +56,7 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload, reloading 
   const [blockedFilter, setBlockedFilter] = useState('not-blocked'); // not-blocked | blocked | all
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedMom, setSelectedMom] = useState(null);
+  const [deepLinkMiss, setDeepLinkMiss] = useState(null);
   const [actionMsg, setActionMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -67,16 +68,16 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload, reloading 
     try { pendingId = sessionStorage.getItem('gm-admin-open-mom'); } catch { /* ignore */ }
     if (pendingId && rows?.length) {
       const target = rows.find((r) => r.id === pendingId || r.username === pendingId);
-      if (target) {
-        setSelectedMom(target);
-        try { sessionStorage.removeItem('gm-admin-open-mom'); } catch { /* ignore */ }
-      }
+      if (target) { setSelectedMom(target); setDeepLinkMiss(null); }
+      else setDeepLinkMiss(pendingId);
+      try { sessionStorage.removeItem('gm-admin-open-mom'); } catch { /* ignore */ }
     }
     const onOpen = (ev) => {
       const ref = ev?.detail?.id;
       if (!ref) return;
       const target = (rows || []).find((r) => r.id === ref || r.username === ref);
-      if (target) setSelectedMom(target);
+      if (target) { if (selectedMom?.id !== target.id) setSelectedMom(target); setDeepLinkMiss(null); }
+      else if (rows?.length) setDeepLinkMiss(ref);
     };
     window.addEventListener('gm-admin-open-mom', onOpen);
     return () => window.removeEventListener('gm-admin-open-mom', onOpen);
@@ -423,6 +424,20 @@ export const MomProfilesSection = ({ rows, places, onPatch, onReload, reloading 
         radius={AC.radius}
       />
       </div>
+
+      {deepLinkMiss && (
+        <div style={{
+          margin: '8px 0', padding: '8px 12px', borderRadius: 8,
+          background: AC.warningSoft || '#FBF1E2', color: AC.text,
+          fontFamily: AC.font, fontSize: 12.5,
+        }}>
+          Couldn't find a profile for "{deepLinkMiss}". It may be deleted or renamed.
+          <button onClick={() => setDeepLinkMiss(null)} style={{
+            marginLeft: 8, background: 'transparent', border: 'none',
+            color: AC.accent, fontWeight: 600, cursor: 'pointer',
+          }}>Dismiss</button>
+        </div>
+      )}
 
       {selectedMom && (
         <MomProfileDetailModal
