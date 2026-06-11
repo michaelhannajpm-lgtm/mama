@@ -34,6 +34,7 @@ export const UsersSection = () => {
   const [query, setQuery] = useState('');
   const [hideAnonymous, setHideAnonymous] = useState(true);
   const [onlyLinked, setOnlyLinked] = useState(false);
+  const [highlightId, setHighlightId] = useState(null);
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -47,6 +48,16 @@ export const UsersSection = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Deep-link: /admin/users/<id> highlights (and scrolls to) the row.
+  useEffect(() => {
+    const apply = (ref) => { if (ref) setHighlightId(ref); };
+    try { apply(sessionStorage.getItem('gm-admin-open-user')); } catch { /* ignore */ }
+    try { sessionStorage.removeItem('gm-admin-open-user'); } catch { /* ignore */ }
+    const onOpen = (ev) => apply(ev?.detail?.id);
+    window.addEventListener('gm-admin-open-user', onOpen);
+    return () => window.removeEventListener('gm-admin-open-user', onOpen);
+  }, []);
 
   const users = data?.users || [];
   const stats = data?.stats || { total: 0, confirmed: 0, anonymous: 0, momLinked: 0, byProvider: {} };
@@ -71,15 +82,27 @@ export const UsersSection = () => {
     {
       key: 'user', header: 'User',
       sort: (u) => (u.email || u.phone || u.displayName || '').toLowerCase(),
-      render: (u) => (
-        <div>
-          <div className="flex items-center gap-1.5" style={{ fontWeight: 600, color: AC.text }}>
-            {u.email ? <Mail size={12} style={{ color: AC.textMuted }} /> : u.phone ? <Phone size={12} style={{ color: AC.textMuted }} /> : null}
-            {u.email || u.phone || (u.isAnonymous ? 'Anonymous' : '—')}
+      render: (u) => {
+        const isHighlighted = u.id === highlightId;
+        return (
+          <div
+            ref={isHighlighted ? (el) => el?.scrollIntoView({ block: 'center' }) : undefined}
+            style={isHighlighted ? {
+              borderRadius: AC.radius,
+              boxShadow: `0 0 0 2px ${AC.accent}`,
+              background: AC.accentSoft,
+              padding: '2px 6px',
+              margin: '-2px -6px',
+            } : undefined}
+          >
+            <div className="flex items-center gap-1.5" style={{ fontWeight: 600, color: AC.text }}>
+              {u.email ? <Mail size={12} style={{ color: AC.textMuted }} /> : u.phone ? <Phone size={12} style={{ color: AC.textMuted }} /> : null}
+              {u.email || u.phone || (u.isAnonymous ? 'Anonymous' : '—')}
+            </div>
+            {u.displayName && <div style={{ fontSize: 11, color: AC.textMuted }}>{u.displayName}</div>}
           </div>
-          {u.displayName && <div style={{ fontSize: 11, color: AC.textMuted }}>{u.displayName}</div>}
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'provider', header: 'Provider',
