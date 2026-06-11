@@ -20,8 +20,8 @@ These files are auto-loaded as context — read them before making changes:
 
 `.claude/agents/` contains subagents for common tasks:
 
-- **`screen-builder`** — adds new onboarding screens or MainApp tabs following existing patterns
-- **`design-reviewer`** — the UI authority: drives UI creation **and** reviews it. Owns UX judgment (intuitive/calm/on-brand/pulls-forward), mandatory skeleton/ghost loading for any API-driven surface, design-token/typography/palette compliance, phone-frame fidelity, and dependency direction. Use it before writing user-facing JSX and after. (Supersedes the former `ux-oracle` skill, archived at `docs/ux-oracle.md`.)
+- **`screen-builder`** — builds onboarding screens, MainApp tabs, sheets, and components. Owns both the build mechanics and the UX/taste layer (intuitive/calm/on-brand/pulls-forward) plus mandatory skeleton/ghost loading for any API-driven surface. Apply it BEFORE writing user-facing JSX. (Absorbs the former `ux-oracle` skill, archived at `docs/ux-oracle.md`.)
+- **`design-reviewer`** — audits UI changes for design-token compliance (no hardcoded hex, correct semantic palette), typography, phone-frame fidelity, and dependency direction. Dispatch it AFTER a UI change.
 - **`data-extender`** — adds entries to `SAMPLE_MOMS`, `PLACES`, `SUGGESTED_EVENTS` matching existing shapes
 
 Dispatch them via the Task tool when their description matches the work.

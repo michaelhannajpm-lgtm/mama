@@ -1,8 +1,9 @@
 > **Archived reference — not an active skill.** This was the `ux-oracle` skill.
-> Its guidance now lives in the **`design-reviewer`** agent
-> (`.claude/agents/design-reviewer.md`), which is the single authority that drives
-> Go Mama UI creation *and* review. Use that agent for any UI work. This document
-> is kept only for deeper reading and historical reference.
+> Its build-time guidance now lives in the **`screen-builder`** agent
+> (`.claude/agents/screen-builder.md`), which drives Go Mama UI creation with the
+> taste layer + mandatory skeleton loading. The **`design-reviewer`** agent owns
+> the mechanical compliance audit. Use those agents for UI work. This document is
+> kept for the deeper **Panel Review Mode** read and historical reference.
 
 # UX Oracle (reference)
 
