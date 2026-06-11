@@ -3,6 +3,9 @@ import { AC } from '../admin-theme';
 import { X, ExternalLink } from 'lucide-react';
 import { BusyOverlay } from '../components/primitives';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
+import { AiWriteButton } from '../components/AiWriteButton.jsx';
+import { AiImageControl } from '../components/AiImageControl.jsx';
+import { AiReviewButton } from '../components/AiReviewButton.jsx';
 import { MOM_TYPES, KID_AGES } from '../../../data/taxonomy';
 import { VALUE_LABELS, ACTIVITY_LABELS } from '../../../data/matching-vocab';
 
@@ -96,6 +99,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
     interest_tags: event.interest_tags || [],
     mom_type_fit: event.mom_type_fit || [],
     neighborhoods: (event.neighborhoods || []).join(', '),
+    hero_photo: event.hero_photo || '',
   });
   const [placeQuery, setPlaceQuery] = useState('');
   const [busy, setBusy] = useState(false);
@@ -156,6 +160,7 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
       interest_tags: form.interest_tags,
       mom_type_fit: form.mom_type_fit,
       neighborhoods: csv(form.neighborhoods),
+      hero_photo: form.hero_photo || null,
     };
     if (isNew) {
       if (!patch.name) { alert('Name is required'); return; }
@@ -201,13 +206,16 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
         </div>
 
         {/* 2. Image */}
-        <div style={sectionHeader}>Image</div>
-        {event.hero_photo ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...sectionHeader }}>
+          Image
+          <AiImageControl kind="event" record={form} onImage={(url) => setForm(f => ({ ...f, hero_photo: url }))} />
+        </div>
+        {form.hero_photo ? (
           <div>
             <div
-              onClick={() => setLightbox(event.hero_photo)}
+              onClick={() => setLightbox(form.hero_photo)}
               title="Click to enlarge"
-              style={{ width: 220, height: 150, borderRadius: 8, overflow: 'hidden', border: `2px solid ${AC.border}`, background: `center/cover url(${event.hero_photo})`, cursor: 'zoom-in' }}
+              style={{ width: 220, height: 150, borderRadius: 8, overflow: 'hidden', border: `2px solid ${AC.border}`, background: `center/cover url(${form.hero_photo})`, cursor: 'zoom-in' }}
             />
             {event.image_source_url && (
               <a href={event.image_source_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontFamily: 'Albert Sans', fontSize: 11, color: AC.textMuted, textDecoration: 'none' }}>
@@ -218,6 +226,11 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
         ) : (
           <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.textMuted }}>No image</div>
         )}
+
+        {/* AI assist — record-level review across all fields */}
+        <div style={{ marginBottom: 12, marginTop: 12 }}>
+          <AiReviewButton kind="event" record={form} onApply={(field, value) => setForm(f => ({ ...f, [field]: value }))} />
+        </div>
 
         {/* 3. Basics */}
         <div style={sectionHeader}>Basics</div>
@@ -236,7 +249,11 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
           {Text('age_min', 'Age min', 'number')}
           {Text('age_max', 'Age max', 'number')}
         </div>
-        <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Description
+        <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Description
+            <AiWriteButton kind="event" record={form} onWrite={(text) => setForm(f => ({ ...f, description: text }))} />
+          </span>
           <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} style={inputStyle} />
         </label>
         <label style={{ ...labelStyle, display: 'block', marginTop: 8 }}>Tags (comma-separated)
