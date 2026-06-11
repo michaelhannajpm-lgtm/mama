@@ -371,7 +371,7 @@ export const PlacesManager = ({ rows, adminFetch, onReload }) => {
       {deepLinkMiss && (
         <div style={{
           margin: '8px 0', padding: '8px 12px', borderRadius: 8,
-          background: AC.warningSoft || '#FBF1E2', color: AC.text,
+          background: AC.warnSoft, color: AC.text,
           fontFamily: AC.font, fontSize: 12.5,
         }}>
           Couldn't find a place for "{deepLinkMiss}". It may be deleted or renamed.
