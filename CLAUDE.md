@@ -13,22 +13,24 @@ These files are auto-loaded as context — read them before making changes:
 @.claude/context/design-tokens.md
 @.claude/context/architecture.md
 @.claude/context/premium-model.md
-@.claude/context/conventions.md
-@.claude/context/todo.md
 
 ## Specialized agents
 
 `.claude/agents/` contains subagents for common tasks:
 
-- **`screen-builder`** — builds onboarding screens, MainApp tabs, sheets, and components. Owns both the build mechanics and the UX/taste layer (intuitive/calm/on-brand/pulls-forward) plus mandatory skeleton/ghost loading for any API-driven surface. Apply it BEFORE writing user-facing JSX. (Absorbs the former `ux-oracle` skill, archived at `docs/ux-oracle.md`.)
-- **`design-reviewer`** — audits UI changes for design-token compliance (no hardcoded hex, correct semantic palette), typography, phone-frame fidelity, and dependency direction. Dispatch it AFTER a UI change.
-- **`data-extender`** — adds entries to `SAMPLE_MOMS`, `PLACES`, `SUGGESTED_EVENTS` matching existing shapes
+- **`screen-builder`** — builds and edits any phone-app UI (onboarding screens, MainApp tabs, sheets, components, cards, empty states, copy). Owns both the build mechanics (file conventions, state flow through `App.jsx`, `C` tokens, live `api/*` data) and the UX/taste layer (intuitive/calm/on-brand/pulls-forward) plus mandatory skeleton/ghost loading for any API-driven surface. Apply it BEFORE writing user-facing JSX. (Absorbs the former `ux-oracle` skill, archived at `docs/ux-oracle.md`.)
+- **`design-reviewer`** — audits UI changes for design-system compliance: token usage (no hardcoded hex, correct coral/sage/saffron semantics), typography, component reuse, spacing/hierarchy, accessibility, responsive/phone-frame fidelity, the three-state loading contract, and dependency direction. Dispatch it AFTER a UI change.
 
 Dispatch them via the Task tool when their description matches the work.
 
+> Admin-console UI (`src/screens/admin/**`) uses its own `AC` design system, not these agents — see the `admin-design` skill.
+
 ## Project skills
 
-- **`family-data-ingestion`** — read `.claude/skills/family-data-ingestion/SKILL.md` when building background jobs that import Tampa-area family places/events from Google Places, Eventbrite, public social APIs, civic calendars, libraries, museums, attractions, local media, YMCA, kids gyms, or similar sources.
+- **`data-ingestion`** — read `.claude/skills/data-ingestion/SKILL.md` when building background jobs that import Tampa-area family places/events from Google Places, Eventbrite, public social APIs, civic calendars, libraries, museums, attractions, local media, YMCA, kids gyms, or similar sources.
+- **`create-event`** — read `.claude/skills/create-event/SKILL.md` when creating/importing individual events into the Supabase `events` table from a prompt or a link.
+- **`admin-design`** — read `.claude/skills/admin-design/SKILL.md` before editing any admin-console UI (the `AC` token system).
+- **`dev-skill`** — read `.claude/skills/dev-skill/SKILL.md` to run the app locally (Vite client vs. full `vercel dev`).
 - **`store-image`** — read `.claude/skills/store-image/SKILL.md` when storing, uploading, importing, generating, or persisting images. Images must go to Vercel Blob first, then the returned public blob URL should be saved in Supabase or app data.
 
 ## Quick reference
@@ -41,8 +43,4 @@ Dispatch them via the Task tool when their description matches the work.
 
 ## Per-feature specs
 
-For each shipped feature, see `docs/superpowers/specs/2026-06-01-*.md` — one design doc per feature (palette, Landing, AboutYou, VillagePreview, 4-tab MainApp, Favorites, Profile verification, Calendar fold, Premium softening, Admin updates).
-
-## Where to start
-
-For remaining UX work, see `.claude/context/todo.md` — items are prioritized and self-contained. Implement one at a time and commit between each.
+For shipped features, see the design docs under `docs/superpowers/specs/` and the implementation plans under `docs/superpowers/plans/` — one document per feature (palette, Landing, AboutYou, MainApp tabs, verification, presence, chat, ingestion, premium, admin console, account lifecycle, etc.). These are historical: where a plan references the old single-file `src/AdminPage.jsx`, the live code is now under `src/screens/admin/`.

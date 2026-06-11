@@ -1,5 +1,5 @@
 ---
-name: family-data-ingestion
+name: data-ingestion
 description: Use when implementing or modifying Go Mama background jobs that discover, import, normalize, dedupe, and stage family-friendly places or events from Google Places, Eventbrite, public Facebook/Instagram pages via official APIs, local news/event calendars, county/city sites, libraries, museums, attractions, parks, YMCA, kids gyms, and other Tampa-area sources.
 ---
 
@@ -54,7 +54,7 @@ Concrete facts the schema files and examples don't tell you. Verify the live DB 
 - **The `.sql` files are stale.** `seed.js` already writes the *new* taxonomy (`schools`, `childcare`, … `fun`) into `places.category`, and seeding works — so the live DB's `category` CHECK constraint must already accept it, even though `supabase/places_schema.sql` still lists the *old* taxonomy (`cafes`, `parks`, …). Don't write a migration off the `.sql` file alone; inspect the deployed constraint first. See `references/data-contract.md`.
 - **`city` is stored with state: `'Tampa, FL'`** (not `'Tampa'`). All seeded rows use this. Normalize ingested `city` to the same format or city-based dedupe and admin filters will silently miss matches.
 - **Curated slugs are short, hand-authored ids** (`'bayshore'`, `'glazer'`, `e.id` like `'e-coffee-mom'`). Generate ingested slugs as `name + city` (data-contract rules) and ensure they can never collide with these curated ids — an upsert on a colliding slug would clobber a curated row. When in doubt, namespace ingested slugs (e.g. prefix with source).
-- **Admin reads are free; admin writes are not.** `api/admin/places.js` and `events.js` are read-only `select=*`, so new columns (`review_status`, `source_url`, …) appear in the admin GET automatically. But there is **no places/events *update* endpoint** — only `mom-profiles` has one (`api/admin/mom-profiles/update.js`). A working review workflow (approve/reject) needs new write routes modeled on that file, plus admin UI in `AdminPage.jsx`.
+- **Admin reads are automatic; writes go through dedicated update routes.** `api/admin/places.js` and `events.js` are read-only `select=*`, so new columns (`review_status`, `source_url`, …) appear in the admin GET automatically. Writes (approve/reject, edits) have their own endpoints: `api/admin/places/update.js` and `api/admin/events/update.js` (alongside `mom-profiles/update.js`). The review UI lives in `src/screens/admin/managers/PlacesManager.jsx` and `EventsManager.jsx` (with `PlaceEditModal`/`EventEditModal`).
 - **`vercel.json` rewrites exclude `/api/`** (`"/((?!api/).*)"`), so any new `api/cron/*` route is reachable without rewrite changes.
 
 ## Work Order
@@ -71,7 +71,7 @@ Concrete facts the schema files and examples don't tell you. Verify the live DB 
 6. Dedupe before writing. Prefer exact source ids, then normalized name + address, then geo distance + name similarity.
 7. Upsert in batches with service-role Supabase credentials.
 8. Add dry-run output and parser fixtures before live writes.
-9. Update admin surfaces. Reads are automatic (`api/admin/places.js`/`events.js` use `select=*`), but acting on `review_status` (approve/reject) needs **new write endpoints** — there is none for places/events today. Model them on `api/admin/mom-profiles/update.js` and add the controls in `AdminPage.jsx`. Defer this unless the user wants a usable review loop.
+9. Update admin surfaces. Reads are automatic (`api/admin/places.js`/`events.js` use `select=*`). Acting on `review_status` (approve/reject) and edits go through the existing write endpoints `api/admin/places/update.js` / `api/admin/events/update.js` (modeled on `mom-profiles/update.js`), surfaced in `src/screens/admin/managers/PlacesManager.jsx` / `EventsManager.jsx`. New columns generally need only a manager/edit-modal control, not a new route.
 
 ## Interfaces
 

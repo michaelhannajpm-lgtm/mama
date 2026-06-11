@@ -50,12 +50,60 @@ const VALIDATORS = {
     return { value: Math.round(n) };
   },
   // Whether new users default to seeing only verified moms in discovery.
-  default_verified_only_discovery: (v) => {
-    if (v === true || v === 'true' || v === 1 || v === '1')   return { value: true };
-    if (v === false || v === 'false' || v === 0 || v === '0') return { value: false };
-    return { error: 'must be true or false' };
+  default_verified_only_discovery: (v) => boolVal(v),
+
+  // ── Runtime client-cache policy ──────────────────────────────────────────
+  // How often (seconds) the client re-syncs config from the DB. Floor of 10s
+  // so a typo can't hammer the API; ceiling of one day.
+  runtime_cache_ttl_seconds: (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 10 || n > 86400) return { error: 'must be 10–86400 seconds' };
+    return { value: Math.round(n) };
   },
+  // Master switch — when false the client cache is sticky (no TTL re-sync).
+  runtime_cache_expires: (v) => boolVal(v),
+
+  // ── JSON lookups (migrated taxonomy/vocabulary) ──────────────────────────
+  // Each accepts a JSON string or an already-parsed value; stored as jsonb.
+  family_values: (v) => jsonArray(v),
+  activities:    (v) => jsonArray(v),
+  mom_describes: (v) => jsonArray(v),
+  kid_ages:      (v) => jsonArray(v),
+  time_windows:  (v) => jsonArray(v),
+  kid_stage:     (v) => jsonObject(v),
 };
+
+// Shared boolean coercion (true/'true'/1/'1' ↔ false/'false'/0/'0').
+function boolVal(v) {
+  if (v === true || v === 'true' || v === 1 || v === '1')   return { value: true };
+  if (v === false || v === 'false' || v === 0 || v === '0') return { value: false };
+  return { error: 'must be true or false' };
+}
+
+// Parse-if-string, then require the result to be the expected JSON container.
+// Keeps storage valid jsonb and rejects empties so a fat-fingered save can't
+// blank out a live lookup.
+function parseJson(v) {
+  if (typeof v === 'string') {
+    try { return { ok: JSON.parse(v) }; }
+    catch (e) { return { error: `invalid JSON: ${e.message}` }; }
+  }
+  return { ok: v };
+}
+function jsonArray(v) {
+  const p = parseJson(v);
+  if (p.error) return { error: p.error };
+  if (!Array.isArray(p.ok)) return { error: 'must be a JSON array' };
+  if (p.ok.length === 0) return { error: 'array cannot be empty' };
+  return { value: p.ok };
+}
+function jsonObject(v) {
+  const p = parseJson(v);
+  if (p.error) return { error: p.error };
+  if (!p.ok || typeof p.ok !== 'object' || Array.isArray(p.ok)) return { error: 'must be a JSON object' };
+  if (Object.keys(p.ok).length === 0) return { error: 'object cannot be empty' };
+  return { value: p.ok };
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -69,7 +117,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const url = `${creds.supabaseUrl}/rest/v1/app_config?select=key,value,updated_at&order=key.asc`;
+      const url = `${creds.supabaseUrl}/rest/v1/app_config?select=key,value,category,description,value_type,client_cacheable,cache_ttl_seconds,updated_at&order=category.asc,key.asc`;
       const r = await fetch(url, { headers: sbHeaders(creds.serviceRoleKey) });
       if (!r.ok) return json(res, 502, { error: `Supabase ${r.status}` });
       return json(res, 200, { rows: await r.json() });

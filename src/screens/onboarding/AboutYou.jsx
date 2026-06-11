@@ -3,6 +3,7 @@ import { ChevronLeft, Check, LocateFixed, Lock } from 'lucide-react';
 import { C } from '../../theme';
 import { StatusBar } from '../../components/StatusBar';
 import { MOM_DESCRIBES } from '../../data/taxonomy';
+import { getConfigLookup } from '../../lib/config-cache';
 import { NeighborhoodPicker } from '../../components/NeighborhoodPicker';
 import { nearestArea } from '../../lib/places.js';
 import { fetchNearbyMoms } from '../../lib/nearby-moms';
@@ -42,6 +43,8 @@ const DESCRIBES_PREFER_NOT_TO_SAY = 'Prefer not to say';
 
 // Shared with the profile's Interests & Preferences → Mom type (MOM_DESCRIBES
 // in data/taxonomy) so the two surfaces always offer the exact same options.
+// Resolved through the runtime config (admin-editable `mom_describes` lookup),
+// falling back to the built-in list when config is unavailable.
 const DESCRIBES_OPTS = MOM_DESCRIBES;
 
 // Stage → kid-age bucket used by events + mom-year matching.
@@ -694,7 +697,7 @@ export const AboutYou = ({ onNext, onBack, profile, setProfile, location, setLoc
               </QuestionHeader>
             </div>
             <div className="grid grid-cols-2" style={{ gap: 10, marginTop: 18 }}>
-              {DESCRIBES_OPTS.map(opt => (
+              {getConfigLookup('mom_describes', DESCRIBES_OPTS).map(opt => (
                 <OptionCard
                   key={opt.label}
                   emoji={opt.emoji}

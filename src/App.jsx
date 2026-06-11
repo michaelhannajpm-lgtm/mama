@@ -43,7 +43,8 @@ import { derivePresence } from './lib/presence';
 import { computeVerified } from './lib/social-verify';
 import { ensureSession, hasStoredSession, isSupabaseReady } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
-import { fetchPlaces, fetchConfig } from './lib/places-api';
+import { fetchPlaces } from './lib/places-api';
+import { loadConfig } from './lib/config-cache';
 import { fetchEvents } from './lib/events-api';
 import { appStateFromMomProfile, fetchSeededMomProfiles } from './lib/seeded-moms';
 import { fetchNearbyMoms } from './lib/nearby-moms';
@@ -128,14 +129,40 @@ function PrototypeApp({ bare = false }) {
   // is the user's choice, else the app default, else 50 mi.
   const [appConfig, setAppConfig] = useState({});
   useEffect(() => {
-    fetchConfig().then((cfg) => {
+    let alive = true;
+    let timer = null;
+
+    // Re-sync from the DB every cache.ttlSeconds so an admin's config edit
+    // reaches this already-loaded client without a reload. Skipped when caching
+    // is set to never expire (the cache is then sticky until manually refreshed).
+    function schedule(cache) {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (!cache || cache.expires === false) return;
+      const ms = Math.max(10, Number(cache.ttlSeconds) || 300) * 1000;
+      timer = setTimeout(() => { loadConfig({ force: true }).then(apply); }, ms);
+    }
+
+    function apply(bundle) {
+      if (!alive || !bundle) return;
+      const cfg = bundle.config || {};
       setAppConfig(cfg);
       // Apply the admin's default discovery filter unless the user already chose.
       if (!verifiedOnlyTouched.current && typeof cfg.defaultVerifiedOnlyDiscovery === 'boolean') {
         setNearbyVerifiedOnly(cfg.defaultVerifiedOnlyDiscovery);
       }
-    });
-  }, []);
+      schedule(bundle.cache);
+    }
+
+    loadConfig().then(apply);
+    // Immediate refresh when the tab regains focus (mirrors the presence re-beat).
+    const onFocus = () => { loadConfig({ force: true }).then(apply); };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [placesRadius, setPlacesRadius] = useState(null); // null = use app default
   const effectivePlacesRadius = placesRadius ?? appConfig.defaultPlacesRadiusMiles ?? 50;
   // Admin-configurable monetization knobs (with safe fallbacks).
@@ -521,8 +548,9 @@ function PrototypeApp({ bare = false }) {
   // made a push choice (settings.notifications.enabled is undefined). Driven by
   // the persisted preference rather than a routing step, so it surfaces uniformly
   // no matter how the user reached MainApp (OTP, OAuth reload, returning-incomplete).
+  // Seeded/dev logins skip it entirely — they're not real push targets.
   const notifEnabledPref = profile?.settings?.notifications?.enabled;
-  const needsNotifOptIn = !!account && step === 3
+  const needsNotifOptIn = !!account && !account?.seedMomId && step === 3
     && notifEnabledPref === undefined && !notifChoiceMade;
 
   // Persist the push opt-in (master switch) to settings.notifications, locally

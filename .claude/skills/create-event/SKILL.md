@@ -31,7 +31,7 @@ For a batch (several links/events): extract each, build all drafts, confirm once
 ### Fetching a link
 - Try `WebFetch` first. Pull the `<script type="application/ld+json">` block and
   look for `"@type":"Event"` — clean fields. Then OpenGraph. Then body text.
-- Respect the guardrails in the `family-data-ingestion` skill (official/public
+- Respect the guardrails in the `data-ingestion` skill (official/public
   data, provenance, no private/personal data). This skill is the **manual,
   on-demand** counterpart to that automated job — reuse its vocabulary, don't
   rebuild its crawler.
