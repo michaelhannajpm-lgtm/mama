@@ -52,6 +52,10 @@ export const rankAndShape = (rows, user = {}, { limit = 24 } = {}) => {
   for (const row of Array.isArray(rows) ? rows : []) {
     if (selfAuth && row.auth_user_id === selfAuth) continue;
     if (selfSeed && row.id === selfSeed) continue;
+    // Deactivated / deleted accounts never surface (defense in depth — the
+    // nearby query already filters account_status=active; undefined = active
+    // for legacy rows predating the column).
+    if (row.account_status && row.account_status !== 'active') continue;
     // Privacy: a mom who turned OFF "Discoverable" never appears in discovery
     // results (nearby / recommended). Default (undefined) = discoverable.
     if (row.settings?.privacy?.discoverable === false) continue;

@@ -79,6 +79,7 @@ export const MomDetailSheet = ({
   onConnect, onInvite, onMessage, onSchedule, onPropose,
   onSave, onShare, onPremium,
   onClose,
+  fullScreen = false,
 }) => {
   const [showFullBio, setShowFullBio] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -120,7 +121,7 @@ export const MomDetailSheet = ({
   const handleConnect = () => (onConnect || onInvite)?.(mom);
 
   return (
-    <Sheet onClose={onClose} tall bleedTop>
+    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen}>
       <div className="pb-2">
         {/* Hero — round avatar over a coral wash */}
         <div

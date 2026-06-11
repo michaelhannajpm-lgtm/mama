@@ -210,12 +210,30 @@ no-op — the permission prompt still fires and the opt-in preference is still s
 The app ships and works today; subscription storage lights up the moment a VAPID
 keypair is configured for the sending work.
 
-### B6. Out of scope (deferred to the push-sending work)
+### B6. Delivery — IMPLEMENTED (2026-06-11)
 
-- Generating the VAPID keypair and sending pushes (`web-push` server dependency,
-  the cron/trigger that delivers them).
-- Mapping granular preferences (`meetups`/`messages`/`groups`/`digest`) to actual
-  send decisions.
+Originally scoped as a follow-up; built and shipped in the same pass.
+
+- **VAPID keypair** generated (`web-push`). Env: `VITE_VAPID_PUBLIC_KEY` (client,
+  build-time), `VAPID_PRIVATE_KEY` + `VAPID_SUBJECT` + `PUSH_HOOK_SECRET` (server).
+  Set on Vercel (Production + Development).
+- **`api/_lib/push-send.js`** — `web-push` wrapper. `sendToUser()` delivers to all
+  of a user's `push_subscriptions`, prunes dead endpoints (404/410). `notifyAllowed()`
+  gates on the master switch + per-category toggle (unit-tested).
+- **`api/push/send.js`** — internal fan-out endpoint, authed by `x-push-secret`
+  (== `PUSH_HOOK_SECRET`). `{ type:'message', message_id }` resolves the
+  conversation's participants (minus author), checks each recipient's
+  notification settings, and delivers. DM → category `messages`; group/subject →
+  `groups`.
+- **Automatic trigger** — `notify_push_on_message()` (SECURITY DEFINER) on
+  `messages` AFTER INSERT POSTs the endpoint via `pg_net` (non-blocking). The
+  hook secret is read from **Supabase Vault** (`push_hook_secret`), never from a
+  client-reachable table. DDL in `supabase/_apply_push_message_trigger.sql`.
+- Verified end-to-end in production: message insert → trigger → `pg_net` →
+  `200 {ok, recipients, delivered}`.
+
+Still deferred: meetup/group/digest *triggers* (only DM/group-chat messages push
+today — the other categories' toggles exist but have no emitter yet).
 
 ## Data-model summary
 

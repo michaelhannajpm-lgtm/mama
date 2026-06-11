@@ -1,6 +1,6 @@
 // Shared row helpers for the admin Places/Events managers: photo realness,
 // status colors, and which row actions are relevant for a given status.
-import { C } from '../theme';
+import { C } from '../../../theme';
 
 export const STATUSES = ['needs_review', 'approved', 'rejected', 'archived'];
 

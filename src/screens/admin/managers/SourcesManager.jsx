@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import { SourceEditModal } from './SourceEditModal';
 

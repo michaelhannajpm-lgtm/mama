@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { X, Star, ExternalLink } from 'lucide-react';
 import { StatusBadge, VisibilityBadge } from './AdminFilters';
 

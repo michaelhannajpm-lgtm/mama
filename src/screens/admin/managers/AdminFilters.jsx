@@ -4,7 +4,7 @@
 // its identity (terracotta for places, sage for events).
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search as SearchIcon } from 'lucide-react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { STATUSES, statusColor } from './adminRows';
 
 const fieldStyle = {

@@ -63,6 +63,7 @@ export const MainApp = ({
   account, requestAccount, restart, flash,
   verifiedRequiresSocial = true,
   nearbyMoms = [], localFavorite = null, nearbyVerifiedOnly = true, onSetVerifiedOnly,
+  nearbyLoading = false, placesLoading = false, eventsLoading = false,
   chatAuthor,
   myUserId,
 }) => {
@@ -186,6 +187,7 @@ export const MainApp = ({
       {tab === 'home' && <HomeTab
         thisWeek={thisWeek} events={events}
         places={places} nearbyMoms={nearbyMoms}
+        nearbyLoading={nearbyLoading} eventsLoading={eventsLoading}
         localFavorite={localFavorite}
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
@@ -216,6 +218,7 @@ export const MainApp = ({
         requireVerify={requireVerify}
         filterOpen={connectFilterOpen} setFilterOpen={setConnectFilterOpen}
         nearbyMoms={nearbyMoms}
+        nearbyLoading={nearbyLoading}
         nearbyVerifiedOnly={nearbyVerifiedOnly}
         onSetVerifiedOnly={onSetVerifiedOnly}
         initialSeeAll={connectSeeAll}
@@ -226,6 +229,7 @@ export const MainApp = ({
         onDiscuss={setSubjectThread}/>}
       {tab === 'localpicks' && <LocalPicksTab
         places={places}
+        placesLoading={placesLoading} eventsLoading={eventsLoading}
         location={location} locationGeo={locationGeo}
         placesRadius={placesRadius}
         savedItems={savedItems} setSavedItems={setSavedItems}

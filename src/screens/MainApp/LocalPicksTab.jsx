@@ -8,6 +8,7 @@ import {
   Bookmark, Check,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Skeleton } from '../../components/Skeleton';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
@@ -526,6 +527,37 @@ const SectionHead = ({ title, link = 'See all', onLink }) => (
     >
       {link} <ChevronRight size={11}/>
     </button>
+  </div>
+);
+
+// Loading shell for one Explore section: a title bar + a horizontal row of card
+// placeholders sized like the real 45%-width cards (≈96px media + 2 text lines),
+// so live picks swap in without the layout jumping.
+const LpCardSkeleton = () => (
+  <div style={{
+    background: '#fff', borderRadius: 12, border: `1px solid ${C.line}`,
+    overflow: 'hidden', width: '100%',
+  }}>
+    <Skeleton w="100%" h={96} radius={0}/>
+    <div style={{ padding: '8px 10px 10px' }}>
+      <Skeleton w="90%" h={11} radius={5}/>
+      <Skeleton w="60%" h={10} radius={5} style={{ marginTop: 7 }}/>
+    </div>
+  </div>
+);
+
+const SectionSkeleton = () => (
+  <div className="px-5">
+    <div style={{ marginTop: 14, marginBottom: 10 }}>
+      <Skeleton w={150} h={15} radius={7}/>
+    </div>
+    <div className="flex" style={{ gap: 10, overflow: 'hidden', paddingBottom: 4 }}>
+      {[0, 1, 2].map(i => (
+        <div key={i} style={{ flex: '0 0 45%', display: 'flex' }}>
+          <LpCardSkeleton/>
+        </div>
+      ))}
+    </div>
   </div>
 );
 
@@ -1126,6 +1158,7 @@ const quickFilterMatch = (item, ids, userCoords) => {
 
 export const LocalPicksTab = ({
   places,
+  placesLoading = false, eventsLoading = false,
   location, locationGeo,
   placesRadius = 50,
   savedItems = [], setSavedItems, flash,
@@ -1279,7 +1312,10 @@ export const LocalPicksTab = ({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 4, paddingBottom: 16 }}>
-        {visibleSections.map(section => (
+        {(placesLoading || eventsLoading) && (
+          [0, 1, 2].map(i => <SectionSkeleton key={`sk-${i}`}/>)
+        )}
+        {!(placesLoading || eventsLoading) && visibleSections.map(section => (
           <div key={section.key} id={`explore-section-${section.key}`} className="px-5">
             <SectionHead title={section.title} onLink={() => setSeeAll(section.key)}/>
             {/* Horizontal scroll — ~2.2 cards visible to hint there's more */}
@@ -1315,7 +1351,7 @@ export const LocalPicksTab = ({
           </div>
         ))}
 
-        {visibleSections.length === 0 && (
+        {!(placesLoading || eventsLoading) && visibleSections.length === 0 && (
           <div className="px-5" style={{
             marginTop: 40, textAlign: 'center',
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,

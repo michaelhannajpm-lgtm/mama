@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { C } from './theme';
 import { TIME_WINDOWS } from './data/taxonomy';
-import { AdminPage } from './AdminPage';
+import { AdminApp } from './screens/admin';
 import { PhoneFrame } from './components/PhoneFrame';
 import { AuthLoading } from './components/AuthLoading';
 import { Toast } from './components/Toast';
@@ -28,15 +28,20 @@ import { CreateAccountSheet } from './sheets/CreateAccountSheet';
 import { PremiumSheet } from './sheets/PremiumSheet';
 import { SeededMomLoginSheet } from './sheets/SeededMomLoginSheet';
 import { Landing }        from './screens/Landing';
+import { ReactivateScreen } from './screens/ReactivateScreen';
+import { DeletedScreen }    from './screens/DeletedScreen';
+import { reactivateAccount, restoreAccount } from './lib/account';
 import { AboutYou }       from './screens/onboarding/AboutYou';
 import { Account }        from './screens/onboarding/Account';
 import { Login }          from './screens/onboarding/Login';
+import { NotificationsOptIn } from './screens/onboarding/NotificationsOptIn';
 import { MainApp } from './screens/MainApp';
-import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat } from './lib/onboarding';
+import { recordStep, promoteSession, signOut, onAuthChange, sendHeartbeat, completeOnboarding, updateMomProfile } from './lib/onboarding';
+import { requestPushPermission } from './lib/push';
 import { captureIncomingRef } from './lib/referral';
 import { derivePresence } from './lib/presence';
 import { computeVerified } from './lib/social-verify';
-import { ensureSession, hasStoredSession } from './lib/supabase';
+import { ensureSession, hasStoredSession, isSupabaseReady } from './lib/supabase';
 import { resolveArea } from './lib/places.js';
 import { fetchPlaces, fetchConfig } from './lib/places-api';
 import { fetchEvents } from './lib/events-api';
@@ -65,6 +70,7 @@ function PrototypeApp({ bare = false }) {
   const [seededLoginOpen, setSeededLoginOpen] = useState(false);
   const [seededMoms, setSeededMoms] = useState([]);
   const [nearbyMoms, setNearbyMoms] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(true); // true until the first nearby fetch settles
   const [localFavorite, setLocalFavorite] = useState(null);
   const [nearbyVerifiedOnly, setNearbyVerifiedOnly] = useState(true);
   const nearbyReqId = useRef(0);
@@ -81,7 +87,16 @@ function PrototypeApp({ bare = false }) {
   const [profileMom, setProfileMom] = useState(null);
   const [messageMom, setMessageMom] = useState(null);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  // True once the one-time notification opt-in has been answered this session
+  // (covers the brief window before the persisted preference round-trips).
+  const [notifChoiceMade, setNotifChoiceMade] = useState(false);
   const [account, setAccount] = useState(null); // { firstName, username, auth_user_id, method, phone, email } after signup
+  // Account lifecycle (from promote): 'active' | 'deactivated' | 'deleted'.
+  // Drives the root gate below — a non-active signed-in user is routed to the
+  // Reactivate / Deleted screen and can't reach any tab. deletedAt scopes the
+  // 30-day restore window on the Deleted screen.
+  const [accountStatus, setAccountStatus] = useState('active');
+  const [deletedAt, setDeletedAt] = useState(null);
   const [pendingAction, setPendingAction] = useState(null); // generic gate: { type, mom?, slot?, event? }
   const [toast, setToast] = useState(null);
   // Lifted state — shared across Screen 7 (1:1) and Screen 8 (groups) for conflict awareness
@@ -99,11 +114,13 @@ function PrototypeApp({ bare = false }) {
   // category). Null until the first load resolves; screens fall back to their
   // own hardcoded data so the app never renders blank or stale.
   const [livePlaces, setLivePlaces] = useState(null); // { places, topPicks, flat } | null
+  const [placesLoading, setPlacesLoading] = useState(true); // false once the first fetch settles (ok or error)
   useEffect(() => {
     let alive = true;
     fetchPlaces()
       .then(data => { if (alive) setLivePlaces(data); })
-      .catch(() => { /* keep hardcoded fallback in screens */ });
+      .catch(() => { /* keep hardcoded fallback in screens */ })
+      .finally(() => { if (alive) setPlacesLoading(false); });
     return () => { alive = false; };
   }, []);
   const placesData = livePlaces?.places || null;
@@ -132,12 +149,14 @@ function PrototypeApp({ bare = false }) {
   const changePlacesRadius = (r) => { setPlacesRadius(r); recordStep(3, { places_radius_miles: r }); };
 
   const [liveEvents, setLiveEvents] = useState(null); // { recurring, thisWeek } | null
+  const [eventsLoading, setEventsLoading] = useState(true); // false once the first fetch settles (ok or error)
 
   useEffect(() => {
     let alive = true;
     fetchEvents()
       .then(data => { if (alive) setLiveEvents(data); })
-      .catch(() => { if (alive) setLiveEvents(null); });
+      .catch(() => { if (alive) setLiveEvents(null); })
+      .finally(() => { if (alive) setEventsLoading(false); });
     return () => { alive = false; };
   }, []);
 
@@ -187,7 +206,10 @@ function PrototypeApp({ bare = false }) {
     setGoingItems([]);
     setRatings({});
     setPendingAction(null);
+    setNotifChoiceMade(false);
     setAccount(next.account);
+    setAccountStatus('active');
+    setDeletedAt(null);
     setLoginOpen(false);
     setSeededLoginOpen(false);
     setSplashShown(true);
@@ -219,6 +241,7 @@ function PrototypeApp({ bare = false }) {
   const loadNearbyMoms = async (verifiedOnly = nearbyVerifiedOnly) => {
     const reqId = ++nearbyReqId.current;
     setNearbyVerifiedOnly(verifiedOnly);
+    setNearbyLoading(true);
     try {
       const { moms } = await fetchNearbyMoms(buildMatchUser(), { limit: 24, verifiedOnly });
       if (reqId !== nearbyReqId.current) return; // a newer load superseded this one
@@ -227,6 +250,10 @@ function PrototypeApp({ bare = false }) {
       if (reqId !== nearbyReqId.current) return;
       console.error('loadNearbyMoms failed', e);
       setNearbyMoms([]);
+    } finally {
+      // Only the latest request clears the flag — a superseded load mustn't
+      // flip the skeleton off while a newer fetch is still in flight.
+      if (reqId === nearbyReqId.current) setNearbyLoading(false);
     }
   };
 
@@ -294,16 +321,37 @@ function PrototypeApp({ bare = false }) {
 
   // Auto-promote on mount: if Supabase has a session (OAuth return or
   // returning user), attach it to our onboarding row and hydrate state.
+  //
+  // The launch gate (authResolving) stays up until auth is AUTHORITATIVELY
+  // resolved so a returning mom never flashes Landing before promoteSession()
+  // swaps her in. The gate drops in exactly two ways:
+  //   (a) hydrate() succeeds → splashShown set → MainApp, or
+  //   (b) the authoritative INITIAL_SESSION attempt finishes with no profile
+  //       (new / anonymous-only visitor) → Landing.
+  // We deliberately do NOT drop the gate on a speculative early promote: the
+  // old code ran hydrate() immediately and dropped the gate in its finally{}
+  // regardless of outcome, so a slow or transient-failed first promote revealed
+  // Landing before a second, successful promote redirected into the app — the
+  // "Landing → couple seconds → redirect" flash.
   useEffect(() => {
     let cancelled = false;
-    let alreadyHydrated = false;
+    let hydrated = false;     // true once we've hydrated a real signed-in user
+    let gateDropped = false;
+
+    // Reveal whatever's behind the gate (MainApp if hydrated, else Landing).
+    // Idempotent — only the first call has any effect.
+    const dropGate = () => {
+      if (cancelled || gateDropped) return;
+      gateDropped = true;
+      setAuthResolving(false);
+    };
 
     const hydrate = async () => {
-      if (alreadyHydrated) return;
+      if (hydrated) return;
       try {
         const result = await promoteSession();
         if (cancelled || !result?.auth_user_id) return;
-        alreadyHydrated = true;
+        hydrated = true;
         if (result.profile) setProfile(p => ({
           ...p,
           kidsAges: result.profile.kidsAges || {},
@@ -333,34 +381,60 @@ function PrototypeApp({ bare = false }) {
           phone: result.phone,
           email: result.email,
         });
+        // Lifecycle gate: a deactivated/deleted user is still hydrated (so
+        // reactivate/restore drops her straight back in) but the root render
+        // routes her to the gate instead of MainApp.
+        setAccountStatus(result.account_status || 'active');
+        setDeletedAt(result.deleted_at || null);
         setSplashShown(true);
-        setStep(3); // jump straight to MainApp for returning users
-        flash(`Welcome back, ${result.first_name} ✦`);
+        // Gate on the explicit onboarding flag. A signed-in user who never
+        // finished onboarding (no name/location/kids on file) is routed to
+        // AboutYou — NOT MainApp. Because `account` is now set, AboutYou's
+        // onNext skips the Account screen and lands straight in MainApp.
+        if (result.onboarding_completed) {
+          setStep(3); // returning, complete → MainApp
+          flash(`Welcome back, ${result.first_name} ✦`);
+        } else {
+          setStep(0); // signed in, not onboarded → finish onboarding first
+        }
+        // hydrate owns clearing the launch gate once it routes a real user —
+        // dropGate is a no-op after the initial load (gateDropped latched), so
+        // the Login flow relies on this to leave the AuthLoading state.
+        setAuthResolving(false);
       } catch {
-        /* silent */
-      } finally {
-        // Auth outcome is now known (signed in → splashShown already set above,
-        // or no session → fall through to Landing). Drop the launch gate either
-        // way so we never hang on the loading screen.
-        if (!cancelled) setAuthResolving(false);
+        /* silent — gate still drops via the caller's .finally(dropGate) */
       }
     };
 
     // Guarantee a session (anonymous if needed) so chat RLS + Realtime work.
-    ensureSession().then(setMyUserId);
-    // Try once immediately — handles the "already signed in" case.
-    hydrate();
+    ensureSession().then((id) => { if (!cancelled) setMyUserId(id); });
 
-    // Subscribe to auth changes so we catch the OAuth-callback hash detection,
-    // which fires async after the supabase client initialises.
+    // INITIAL_SESSION is auth-js's authoritative "persisted session loaded (or
+    // not)" signal — it always fires once after we subscribe (and carries the
+    // OAuth-callback session when returning from a redirect). SIGNED_IN covers
+    // fresh logins. In every case we drop the gate only AFTER the hydrate
+    // attempt settles, so the gate spans the whole promote round-trip instead
+    // of being released mid-flight.
+    // Always clear the launch gate after a hydrate attempt — dropGate latches
+    // after the initial load, so a later SIGNED_IN (e.g. the Login flow, which
+    // raises authResolving itself) must explicitly release authResolving even
+    // if hydrate throws, or the user hangs on AuthLoading.
+    const settleGate = () => { dropGate(); if (!cancelled) setAuthResolving(false); };
     const unsub = onAuthChange((event, session) => {
       if (cancelled) return;
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.access_token) {
-        hydrate();
+      if (event === 'INITIAL_SESSION') {
+        if (session?.access_token) hydrate().finally(settleGate);
+        else dropGate(); // genuinely no session → Landing
+      } else if (event === 'SIGNED_IN' && session?.access_token) {
+        hydrate().finally(settleGate);
       }
     });
 
-    return () => { cancelled = true; unsub(); };
+    // Safety net: never hang on the gate if no auth event arrives (e.g. auth
+    // misconfigured / offline). Falls through to Landing after a beat.
+    const safety = setTimeout(dropGate, 5000);
+
+    return () => { cancelled = true; clearTimeout(safety); unsub(); };
   }, []);
 
   const restart = async () => {
@@ -377,8 +451,26 @@ function PrototypeApp({ bare = false }) {
     setGoingItems([]);
     setRatings({});
     setPendingAction(null);
+    setNotifChoiceMade(false);
+    setAccountStatus('active');
+    setDeletedAt(null);
     setSplashShown(false);
     await signOut();
+  };
+
+  // Lifecycle gate handlers. Reactivate/restore flip the account back to active
+  // — the user was already hydrated during promote, so clearing the gate drops
+  // her into MainApp. Errors propagate to the gate screen's inline handler.
+  const handleReactivate = async () => {
+    await reactivateAccount();
+    setAccountStatus('active');
+    flash('Welcome back ✦');
+  };
+  const handleRestore = async () => {
+    await restoreAccount();
+    setAccountStatus('active');
+    setDeletedAt(null);
+    flash('Welcome back ✦');
   };
 
   // Generic gate: if no account yet, queue the action and open CreateAccountSheet
@@ -387,6 +479,7 @@ function PrototypeApp({ bare = false }) {
   // Replay the queued action after account creation completes
   const handleAccountComplete = (acct) => {
     setAccount(acct);
+    completeOnboarding(); // a real account taking an in-app action counts as onboarded
     const a = pendingAction;
     if (a) {
       if (a.type === '1to1' && a.mom && a.slot) {
@@ -423,19 +516,72 @@ function PrototypeApp({ bare = false }) {
     photo: !!profile?.photos?.[0],
   });
 
+  // ── First-run notification opt-in ────────────────────────────────────
+  // Shown once, as the last onboarding beat, to any account that hasn't yet
+  // made a push choice (settings.notifications.enabled is undefined). Driven by
+  // the persisted preference rather than a routing step, so it surfaces uniformly
+  // no matter how the user reached MainApp (OTP, OAuth reload, returning-incomplete).
+  const notifEnabledPref = profile?.settings?.notifications?.enabled;
+  const needsNotifOptIn = !!account && step === 3
+    && notifEnabledPref === undefined && !notifChoiceMade;
+
+  // Persist the push opt-in (master switch) to settings.notifications, locally
+  // and through to mom_profiles. Seeded/dev users route via seedMomId.
+  const persistNotifEnabled = (enabled) => {
+    const nextNotifs = { ...(profile?.settings?.notifications || {}), enabled };
+    const nextSettings = { ...(profile?.settings || {}), notifications: nextNotifs };
+    setProfile((p) => ({ ...p, settings: { ...(p.settings || {}), notifications: nextNotifs } }));
+    updateMomProfile({ settings: nextSettings }, { seedMomId: account?.seedMomId });
+  };
+
+  const handleNotifAllow = async () => {
+    const { ok, reason } = await requestPushPermission();
+    persistNotifEnabled(ok);
+    setNotifChoiceMade(true);
+    flash(ok ? '✦ Notifications on — see you soon' : reason === 'denied'
+      ? 'Notifications are blocked in your browser settings'
+      : 'No worries — you can turn these on anytime in your profile');
+  };
+
+  const handleNotifSkip = () => {
+    persistNotifEnabled(false);
+    setNotifChoiceMade(true);
+  };
+
   const inner = (
     <div className="w-full h-full relative">
       {authResolving ? (
             <AuthLoading/>
+          ) : account && accountStatus === 'deactivated' ? (
+            <ReactivateScreen
+              firstName={account.firstName}
+              onReactivate={handleReactivate}
+              onSignOut={restart}
+            />
+          ) : account && accountStatus === 'deleted' ? (
+            <DeletedScreen
+              deletedAt={deletedAt}
+              onRestore={handleRestore}
+              onSignOut={restart}
+            />
           ) : !splashShown && loginOpen ? (
             <Login
               onBack={() => setLoginOpen(false)}
               onSuccess={(acct) => {
                 setAccount(acct);
                 setLoginOpen(false);
-                setSplashShown(true);
-                setStep(3);
-                flash(`Welcome back, ${acct.firstName} ✦`);
+                if (isSupabaseReady()) {
+                  // The OTP verify fired SIGNED_IN → the mount effect's
+                  // hydrate() will promote + route by the onboarding flag
+                  // (MainApp if complete, AboutYou if not). Show the launch
+                  // gate meanwhile so Landing doesn't flash; hydrate clears it.
+                  setAuthResolving(true);
+                } else {
+                  // Demo mode (no Supabase): no SIGNED_IN to hydrate from.
+                  setSplashShown(true);
+                  setStep(3);
+                  flash(`Welcome back, ${acct.firstName} ✦`);
+                }
               }}
               flash={flash}
             />
@@ -455,7 +601,20 @@ function PrototypeApp({ bare = false }) {
               location_lng:          locationGeo?.lng ?? null,
               kids_ages: profile.kidsAges,
               mom_types: profile.momTypes,
-            }); setStep(2); }}
+              // Finishing AboutYou is what "completed onboarding" means. Flag
+              // the session_id row so a later promote reads it back as done.
+              onboarding_completed: true,
+            });
+              if (account) {
+                // Already signed in (returning user we routed here, or OAuth
+                // mid-onboarding) → skip the Account screen, flip the flag on
+                // the auth-linked row too, and enter the app.
+                completeOnboarding();
+                setStep(3);
+              } else {
+                setStep(2); // new user → create account next
+              }
+            }}
             onBack={()=>{ setSplashShown(false); }}
             profile={profile} setProfile={setProfile}
             location={location} setLocation={setLocation}
@@ -467,10 +626,21 @@ function PrototypeApp({ bare = false }) {
             onBack={()=>setStep(0)}
             onLogin={()=>{ setSplashShown(false); setLoginOpen(true); }}
             account={account}
-            onComplete={(acct) => { setAccount(acct); setStep(3); }}
+            onComplete={(acct) => {
+              setAccount(acct);
+              // New user just authenticated at the end of onboarding — flip the
+              // flag on their now-linked row so future sign-ins go straight to
+              // MainApp. (The AboutYou recordStep already set it on the
+              // session_id row; this covers the auth_user_id row too.)
+              completeOnboarding();
+              setStep(3);
+            }}
             flash={flash}
           />}
-          {step===3 && <MainApp
+          {step===3 && needsNotifOptIn && (
+            <NotificationsOptIn onAllow={handleNotifAllow} onSkip={handleNotifSkip}/>
+          )}
+          {step===3 && !needsNotifOptIn && <MainApp
             places={placesData}
             events={eventsData}
             thisWeek={thisWeekData}
@@ -487,6 +657,9 @@ function PrototypeApp({ bare = false }) {
             account={account} requestAccount={requestAccount}
             verifiedRequiresSocial={appConfig.verifiedRequiresSocial !== false}
             nearbyMoms={nearbyMomsShown}
+            nearbyLoading={nearbyLoading}
+            placesLoading={placesLoading}
+            eventsLoading={eventsLoading}
             localFavorite={localFavorite}
             nearbyVerifiedOnly={nearbyVerifiedOnly}
             onSetVerifiedOnly={handleSetVerifiedOnly}
@@ -591,7 +764,7 @@ export default function App() {
   }, []);
 
   if (route === '/admin' || route.startsWith('/admin/')) {
-    return <AdminPage />;
+    return <AdminApp />;
   }
   return <PrototypeApp />;
 }

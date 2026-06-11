@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Star, Search, Check } from 'lucide-react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 
 export const WeeklyFavoriteManager = ({ adminFetch, places = [] }) => {
   const [current, setCurrent] = useState(null);

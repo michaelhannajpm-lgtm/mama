@@ -211,6 +211,27 @@ export const promoteSession = async () => {
   return hydrated;
 };
 
+// Mark onboarding finished for the signed-in mom — flips
+// onboarding_profiles.onboarding_completed = true on the auth_user_id row, so a
+// later sign-in routes her to MainApp instead of back through onboarding. Soft
+// no-op (returns null) when not signed in or the backend is unreachable.
+export const completeOnboarding = async () => {
+  const access_token = isSupabaseReady()
+    ? (await supabase.auth.getSession()).data?.session?.access_token || null
+    : null;
+  if (!access_token) return null;
+  try {
+    const res = await fetch('/api/onboarding/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token }),
+    });
+    return res.ok ? res.json().catch(() => ({ ok: true })) : null;
+  } catch {
+    return null;
+  }
+};
+
 // Patch the signed-in mom's mom_profiles row.
 // Returns the updated profile on success; throws with a friendly message on
 // failure. Silently no-ops (returns null) if the user isn't signed in — the

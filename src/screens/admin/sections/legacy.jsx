@@ -1,24 +1,21 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+// ============================================================================
+// Legacy admin tab bodies — relocated VERBATIM from the original AdminPage.jsx
+// during the 2026-06-11 console restructure. These still use the phone-app
+// palette (`C`) and their own private helpers; they sit inside the new console
+// chrome and share the coral accent, so they read fine. Migrate each to the
+// `AC` console design system incrementally — see
+// `.claude/skills/admin-design/SKILL.md`. Exports: Overview, MomsReport,
+// MomProfilesTab, QuickActions.
+// ============================================================================
+import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart3, Users, ListChecks, RefreshCw, Download, AlertTriangle, ShieldOff,
-  Smartphone, Zap, Trash2, ShieldAlert, Check as CheckIcon, Sprout, X,
-  ChevronLeft, ChevronRight, MapPin, Calendar, Server, Database, Settings, Star,
+  AlertTriangle, Check as CheckIcon, ChevronLeft, ChevronRight, Download,
+  ShieldAlert, Sprout, Trash2, X,
 } from 'lucide-react';
-import { C } from './theme';
-import { PlacesManager } from './admin/PlacesManager';
-import { EventsManager } from './admin/EventsManager';
-import { IngestionManager } from './admin/IngestionManager';
-import { SourcesManager } from './admin/SourcesManager';
-import { ConfigManager } from './admin/ConfigManager';
-import { WeeklyFavoriteManager } from './admin/WeeklyFavoriteManager';
+import { C } from '../../../theme';
+import { adminFetch } from '../lib/adminFetch';
 
-// ============================================================================
-// Go Mama · Admin dashboard at /#admin (or /admin via Vercel rewrite).
-// SECURITY: gated by a shared admin password (see api/_lib/admin-auth.js).
-// The login exchanges the password for a signed bearer token; every
-// /api/admin/* route enforces it server-side via requireAdmin.
-// ============================================================================
-
+// Number / relative-time helpers (verbatim from the original AdminPage).
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString());
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '0%');
 const rel = (iso) => {
@@ -33,93 +30,6 @@ const rel = (iso) => {
   const days = Math.floor(h / 24);
   if (days < 30) return `${days}d ago`;
   return d.toLocaleDateString();
-};
-
-// Admin auth ----------------------------------------------------------------
-// The password is exchanged once (via /api/admin/login) for a signed token.
-// Only the token is stored (localStorage) and sent (Authorization: Bearer …).
-
-const TOKEN_KEY = 'gm_admin_token';
-const getAdminToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
-const setAdminToken = (t) => { try { localStorage.setItem(TOKEN_KEY, t); } catch { /* ignore */ } };
-const clearAdminToken = () => { try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ } };
-
-// fetch wrapper that attaches the admin bearer token and, on a 401, drops the
-// token and signals the dashboard (via a window event) to fall back to login.
-const adminFetch = async (path, options = {}) => {
-  const token = getAdminToken();
-  const headers = { ...(options.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(path, { ...options, headers });
-  if (res.status === 401) {
-    clearAdminToken();
-    window.dispatchEvent(new Event('gm-admin-unauthorized'));
-  }
-  return res;
-};
-
-// Login gate — shown until a valid token is stored.
-const AdminLogin = ({ onSuccess }) => {
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (submitting || !password) return;
-    setSubmitting(true); setErr(null);
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      const ct = res.headers.get('content-type') || '';
-      if (!ct.includes('application/json')) {
-        throw new Error('API routes need `vercel dev` or a deployed preview to run.');
-      }
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error || `Login failed (${res.status})`);
-      if (!body?.token) throw new Error('No token returned');
-      setAdminToken(body.token);
-      onSuccess();
-    } catch (e2) {
-      setErr(e2?.message || 'Login failed');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center px-5" style={{ background: C.creamSoft }}>
-      <form onSubmit={submit} className="w-full max-w-[360px] rounded-2xl p-7"
-        style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
-        <div className="rounded-lg w-10 h-10 flex items-center justify-center mb-4"
-          style={{ background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 20, fontWeight: 600 }}>M</div>
-        <h1 style={{ fontFamily: 'Fraunces', fontSize: 24, fontWeight: 500, color: C.ink, letterSpacing: '-.02em' }}>
-          Go Mama · <span style={{ fontStyle: 'italic', color: C.terracotta, fontWeight: 500 }}>Admin</span>
-        </h1>
-        <p className="mt-1 mb-5 text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
-          Enter the admin password to continue.
-        </p>
-        <input
-          type="password" value={password} autoFocus
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Admin password"
-          className="w-full rounded-xl px-3.5 py-3 mb-3 outline-none"
-          style={{ background: C.cream, border: `1px solid ${err ? C.terracotta : C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontSize: 14 }}
-        />
-        {err && (
-          <div className="mb-3 text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.terracotta }}>{err}</div>
-        )}
-        <button type="submit" disabled={submitting || !password}
-          className="w-full rounded-xl py-3 flex items-center justify-center"
-          style={{ background: C.terracotta, color: '#fff', fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 14, opacity: (submitting || !password) ? 0.6 : 1 }}>
-          {submitting ? 'Checking…' : 'Sign in'}
-        </button>
-      </form>
-    </div>
-  );
 };
 
 // Small helpers --------------------------------------------------------------
@@ -319,7 +229,7 @@ const downloadCsv = (filename, rows) => {
 // ============================================================================
 // Overview tab
 // ============================================================================
-const Overview = ({ moms, momProfiles, places, events }) => {
+export const Overview = ({ moms, momProfiles, places, events }) => {
   const completed = moms.filter(m => !!m.completed_at);
   const completionRate = pct(completed.length, moms.length);
   const avgMs = (() => {
@@ -372,7 +282,7 @@ const Overview = ({ moms, momProfiles, places, events }) => {
 // ============================================================================
 // Moms report tab
 // ============================================================================
-const MomsReport = ({ rows, momProfiles }) => {
+export const MomsReport = ({ rows, momProfiles }) => {
   const completed = rows.filter(r => !!r.completed_at);
   const completionRate = pct(completed.length, rows.length);
 
@@ -1158,7 +1068,7 @@ const MomPhotoLightbox = ({ photos, initialIndex, onClose }) => {
 // ============================================================================
 // Mom profiles tab — promoted moms in the discoverable directory.
 // ============================================================================
-const MomProfilesTab = ({ rows, places, onPatch }) => {
+export const MomProfilesTab = ({ rows, places, onPatch }) => {
   const placesById = useMemo(
     () => new Map((places || []).map(p => [p.id, p])),
     [places]
@@ -1331,7 +1241,7 @@ const MomProfilesTab = ({ rows, places, onPatch }) => {
 // ============================================================================
 // Quick Actions tab — destructive operations live here, gated by typed confirm.
 // ============================================================================
-const QuickActions = ({ onReset, momsCount, momProfilesCount, placesCount, eventsCount }) => {
+export const QuickActions = ({ onReset, momsCount, momProfilesCount, placesCount, eventsCount }) => {
   const [phase, setPhase] = useState('idle'); // 'idle' | 'arming' | 'confirming' | 'running' | 'done' | 'error'
   const [confirmText, setConfirmText] = useState('');
   const [result, setResult] = useState(null);
@@ -1603,195 +1513,6 @@ const QuickActions = ({ onReset, momsCount, momProfilesCount, placesCount, event
           )}
         </div>
       </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// Root
-// ============================================================================
-export const AdminPage = () => {
-  const [tab, setTab] = useState('overview');
-  const [moms, setMoms] = useState(null);
-  const [momProfiles, setMomProfiles] = useState(null);
-  const [places, setPlaces] = useState(null);
-  const [events, setEvents] = useState(null);
-  const [sources, setSources] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [authed, setAuthed] = useState(() => !!getAdminToken());
-
-  const signOut = () => {
-    clearAdminToken();
-    setAuthed(false);
-    setMoms(null); setMomProfiles(null); setPlaces(null); setEvents(null); setSources(null);
-  };
-
-  // Fetch + parse one admin endpoint. Detects the `npm run dev` case where
-  // Vite serves the raw .js source file (which starts with a `//` comment)
-  // instead of running the Vercel function — surfaces a clear hint instead
-  // of "Unexpected token '/'…" JSON-parse noise.
-  const fetchEndpoint = async (path, label) => {
-    let res;
-    try {
-      res = await adminFetch(path);
-    } catch (e) {
-      throw new Error(`${label}: network error — ${e?.message || 'unreachable'}`);
-    }
-    const ct = res.headers.get('content-type') || '';
-    const text = await res.text();
-    if (ct.includes('application/json')) {
-      try {
-        const j = JSON.parse(text);
-        if (res.status >= 400) {
-          throw new Error(`${label} ${res.status}: ${j?.error || 'unknown'}`);
-        }
-        return j;
-      } catch (e) {
-        if (e instanceof SyntaxError) {
-          throw new Error(`${label}: response was not valid JSON`);
-        }
-        throw e;
-      }
-    }
-    // Not JSON — almost always Vite serving the source file in dev mode.
-    if (text.trimStart().startsWith('//') || text.includes('export default async function')) {
-      throw new Error('API routes don\'t run under `npm run dev`. Use `vercel dev` to serve them locally, or visit the deployed URL.');
-    }
-    throw new Error(`${label} ${res.status}: unexpected response (${ct || 'no content-type'})`);
-  };
-
-  const load = async () => {
-    setLoading(true); setError(null);
-    try {
-      const [a, b, c, d, g] = await Promise.all([
-        fetchEndpoint('/api/admin/onboarding',   'Onboarding'),
-        fetchEndpoint('/api/admin/mom-profiles', 'Mom profiles'),
-        fetchEndpoint('/api/admin/places',       'Places'),
-        fetchEndpoint('/api/admin/events',       'Events'),
-        fetchEndpoint('/api/admin/sources',      'Sources'),
-      ]);
-      setMoms(a.rows || []);
-      setMomProfiles(b.rows || []);
-      setPlaces(c.rows || []);
-      setEvents(d.rows || []);
-      setSources(g.rows || []);
-    } catch (e) {
-      setError(e?.message || 'Could not load data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // A 401 from any admin call drops us back to the login gate.
-  useEffect(() => {
-    const onUnauth = () => setAuthed(false);
-    window.addEventListener('gm-admin-unauthorized', onUnauth);
-    return () => window.removeEventListener('gm-admin-unauthorized', onUnauth);
-  }, []);
-
-  useEffect(() => { if (authed) load(); }, [authed]);
-
-  if (!authed) return <AdminLogin onSuccess={() => setAuthed(true)} />;
-
-  return (
-    <div style={{ minHeight: '100vh', background: C.creamSoft }}>
-      <header className="sticky top-0 z-10 border-b" style={{ background: C.cream, borderColor: C.divider }}>
-        <div className="max-w-[1200px] mx-auto px-5 py-3 flex items-center gap-3">
-          <div className="rounded-lg w-9 h-9 flex items-center justify-center" style={{ background: C.ink, color: C.saffron, fontFamily: 'Fraunces', fontSize: 18, fontWeight: 600 }}>M</div>
-          <div className="flex-1">
-            <h1 style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.ink, letterSpacing: '-.02em', lineHeight: 1 }}>
-              Go Mama · Admin
-            </h1>
-            <div className="text-[11px]" style={{ fontFamily: 'Albert Sans', color: C.inkMuted }}>
-              Market study dashboard · {loading ? 'loading…' : moms ? `${moms.length} onboardings · ${momProfiles?.length || 0} mom profiles · ${places?.length || 0} places · ${events?.length || 0} events` : ''}
-            </div>
-          </div>
-          <a href="/" target="_blank" rel="noopener noreferrer"
-            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-            <Smartphone size={13}/> Open the app
-          </a>
-          <button onClick={load} disabled={loading}
-            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12, opacity: loading ? 0.6 : 1 }}>
-            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}/> Refresh
-          </button>
-          <button onClick={signOut}
-            className="rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: C.paper, border: `1px solid ${C.divider}`, color: C.ink, fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12 }}>
-            <ShieldOff size={13}/> Sign out
-          </button>
-        </div>
-        <div className="max-w-[1200px] mx-auto px-5 pb-2 flex gap-1">
-          {[
-            { id: 'overview',     icon: BarChart3,     label: 'Overview' },
-            { id: 'onboarding',   icon: ListChecks,    label: 'Onboarding' },
-            { id: 'mom-profiles', icon: Users,         label: 'Mom profiles' },
-            { id: 'places',       icon: MapPin,        label: 'Places' },
-            { id: 'events',       icon: Calendar,      label: 'Events' },
-            { id: 'featured',     icon: Star,          label: 'Featured' },
-            { id: 'ingestion',    icon: Server,        label: 'Ingestion' },
-            { id: 'sources',      icon: Database,      label: 'Sources' },
-            { id: 'config',       icon: Settings,      label: 'Config' },
-            { id: 'actions',      icon: Zap,           label: 'Quick Actions' },
-          ].map(t => {
-            const active = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors"
-                style={{
-                  background: active ? C.terracotta : 'transparent',
-                  color: active ? '#fff' : C.inkSoft,
-                  border: `1px solid ${active ? C.terracotta : C.divider}`,
-                  fontFamily: 'Albert Sans', fontWeight: 600, fontSize: 12.5,
-                }}>
-                <t.icon size={13}/> {t.label}
-              </button>
-            );
-          })}
-        </div>
-      </header>
-
-      <div className="max-w-[1200px] mx-auto px-5 py-5">
-
-        {error && (
-          <div className="mb-4 rounded-xl flex items-start gap-2.5 p-3" style={{ background: `${C.terracotta}15`, border: `1px solid ${C.terracotta}` }}>
-            <AlertTriangle size={16} style={{ color: C.terracotta, flexShrink: 0, marginTop: 2 }}/>
-            <div className="text-[12.5px]" style={{ fontFamily: 'Albert Sans', color: C.ink, lineHeight: 1.5 }}>
-              <strong>Could not load.</strong> {error}<br/>
-              <span style={{ color: C.inkSoft }}>
-                Check that <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> are set in your Vercel env, and that the
-                serverless functions are deployed (they don't run under <code>npm run dev</code>; use <code>vercel dev</code>).
-              </span>
-            </div>
-          </div>
-        )}
-
-        {!moms || !momProfiles || !places || !events ? (
-          <div className="rounded-2xl p-8 text-center" style={{ background: C.paper, border: `1px solid ${C.divider}` }}>
-            <RefreshCw size={20} className="mx-auto mb-2" style={{ color: C.inkSoft, animation: loading ? 'spin 1s linear infinite' : 'none' }}/>
-            <div className="text-[13px]" style={{ fontFamily: 'Albert Sans', color: C.inkSoft }}>
-              {loading ? 'Loading data from Supabase…' : 'No data loaded'}
-            </div>
-          </div>
-        ) : (
-          <>
-            {tab === 'overview'     && <Overview moms={moms} momProfiles={momProfiles} places={places} events={events}/>}
-            {tab === 'onboarding'   && <MomsReport rows={moms} momProfiles={momProfiles}/>}
-            {tab === 'mom-profiles' && <MomProfilesTab rows={momProfiles} places={places || []} onPatch={(updated) => setMomProfiles(prev => prev.map(r => r.id === updated.id ? updated : r))}/>}
-            {tab === 'places'       && <PlacesManager rows={places || []} adminFetch={adminFetch} onReload={load}/>}
-            {tab === 'events'       && <EventsManager rows={events || []} places={places || []} adminFetch={adminFetch} onReload={load}/>}
-            {tab === 'featured'     && <WeeklyFavoriteManager adminFetch={adminFetch} places={places || []} />}
-            {tab === 'ingestion'    && <IngestionManager adminFetch={adminFetch} />}
-            {tab === 'sources'      && <SourcesManager rows={sources || []} adminFetch={adminFetch} onReload={load} />}
-            {tab === 'config'       && <ConfigManager adminFetch={adminFetch} />}
-            {tab === 'actions'      && <QuickActions onReset={load} momsCount={moms.length} momProfilesCount={momProfiles.length} placesCount={places.length} eventsCount={events.length}/>}
-          </>
-        )}
-      </div>
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

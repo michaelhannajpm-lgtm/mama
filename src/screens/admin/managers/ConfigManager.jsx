@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Save, RefreshCw } from 'lucide-react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 
 // Admin editor for app_config values, grouped into categories across two
 // columns. Reads/writes via /api/admin/config (admin-gated); the public

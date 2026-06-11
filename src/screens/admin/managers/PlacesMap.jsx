@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { loadGoogleMaps, mapsKeyPresent } from './googleMaps';
 
-// Renders events that have a linked place with coordinates as clickable markers.
-// Events have no own lat/lng — they map to their place (event.places.lat/lng).
-export const EventsMap = ({ events, onSelect }) => {
+// Renders all `places` with numeric lat/lng as clickable markers. Marker click
+// calls onSelect(place). Degrades to a setup prompt when the key is missing.
+export const PlacesMap = ({ places, onSelect }) => {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -25,11 +25,11 @@ export const EventsMap = ({ events, onSelect }) => {
       markersRef.current = [];
       const bounds = new maps.LatLngBounds();
       let any = false;
-      (events || []).forEach(e => {
-        const lat = Number(e.places?.lat), lng = Number(e.places?.lng);
+      (places || []).forEach(p => {
+        const lat = Number(p.lat), lng = Number(p.lng);
         if (!isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) return;
-        const marker = new maps.Marker({ position: { lat, lng }, map: mapRef.current, title: e.name });
-        marker.addListener('click', () => onSelect && onSelect(e));
+        const marker = new maps.Marker({ position: { lat, lng }, map: mapRef.current, title: p.name });
+        marker.addListener('click', () => onSelect && onSelect(p));
         markersRef.current.push(marker);
         bounds.extend({ lat, lng });
         any = true;
@@ -37,7 +37,7 @@ export const EventsMap = ({ events, onSelect }) => {
       if (any) { mapRef.current.fitBounds(bounds); if (markersRef.current.length === 1) mapRef.current.setZoom(14); }
     }).catch(e => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
-  }, [events, onSelect]);
+  }, [places, onSelect]);
 
   const panel = (msg) => (
     <div style={{ height: 560, borderRadius: 16, border: `1px solid ${C.divider}`, background: C.paper,
@@ -45,12 +45,12 @@ export const EventsMap = ({ events, onSelect }) => {
       fontFamily: 'Albert Sans', fontSize: 13.5, color: C.inkMuted }}>{msg}</div>
   );
 
-  if (!mapsKeyPresent()) return panel('Map view needs a browser Maps key. Set VITE_GOOGLE_MAPS_API_KEY (Maps JavaScript API enabled) in .env, then rebuild.');
+  if (!mapsKeyPresent()) return panel('Map view needs a browser Maps key. Set VITE_GOOGLE_MAPS_API_KEY (with the Maps JavaScript API enabled) in .env, then rebuild.');
   if (error) return panel(`Map error: ${error}`);
-  const mapped = (events || []).filter(e => isFinite(Number(e.places?.lat)) && isFinite(Number(e.places?.lng))).length;
+  const withGeo = (places || []).filter(p => isFinite(Number(p.lat)) && isFinite(Number(p.lng))).length;
   return (
     <div>
-      <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted, marginBottom: 6 }}>{mapped} of {(events || []).length} events have a mapped place</div>
+      <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: C.inkMuted, marginBottom: 6 }}>{withGeo} of {(places || []).length} places have coordinates</div>
       <div ref={ref} style={{ width: '100%', height: 560, borderRadius: 16, border: `1px solid ${C.divider}` }} />
     </div>
   );

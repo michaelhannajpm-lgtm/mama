@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { X, Plus } from 'lucide-react';
 
 const SOURCE_TYPES = ['google_places', 'eventbrite', 'ics', 'json_ld', 'facebook_graph', 'place_website'];

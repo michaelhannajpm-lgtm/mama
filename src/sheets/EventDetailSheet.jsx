@@ -104,6 +104,7 @@ export const EventDetailSheet = ({
   onJoin, onInterested, onShare, onDiscuss,
   flash,                               // for the two inline message toasts
   onClose,
+  fullScreen = false,
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
   if (!event) return null;
@@ -141,7 +142,7 @@ export const EventDetailSheet = ({
     : DEFAULT_GOING_AVATARS).slice(0, 5);
 
   return (
-    <Sheet onClose={onClose} tall bleedTop>
+    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen}>
       {/* All content lives inside Sheet's overflow-y-auto wrapper, so the
           whole detail view scrolls as one column — top hero to bottom CTA. */}
       <div className="pb-8">

@@ -5,6 +5,7 @@ import {
   Music, Calendar,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Skeleton } from '../../components/Skeleton';
 import { PresenceDot } from '../../components/PresenceDot';
 import { bucketActivities, pickTrendingPlaces } from '../../lib/home-feed';
 import { buildAgeRail, childList } from '../../lib/age-rail';
@@ -49,6 +50,39 @@ const longDateLabel = (item) => {
 };
 
 const placePhoto = (p) => p.hero_photo || p.blob_url || p.url || null;
+
+// -------------------------- loading skeletons --------------------------
+// Each mirrors the exact footprint of the real card it stands in for, so live
+// data swaps in with zero layout shift. Neutral by design (see Skeleton).
+
+// Matches MeetupCard (width 168, 100px media + text block).
+const MeetupCardSkeleton = () => (
+  <div style={{
+    flexShrink: 0, width: 168, background: '#fff', borderRadius: 14,
+    border: `1px solid ${C.line}`, overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
+  }}>
+    <Skeleton w="100%" h={100} radius={0}/>
+    <div style={{ padding: '12px 10px 10px' }}>
+      <Skeleton w="85%" h={12} radius={6}/>
+      <Skeleton w="55%" h={9} radius={5} style={{ marginTop: 7 }}/>
+      <Skeleton w="70%" h={9} radius={5} style={{ marginTop: 7 }}/>
+    </div>
+  </div>
+);
+
+// Matches MomMeetCard (3-up grid cell: 72px avatar + name + sub).
+const MomMeetCardSkeleton = () => (
+  <div style={{
+    flex: 1, minWidth: 0, background: '#fff', borderRadius: 14,
+    border: `1px solid ${C.line}`, padding: '12px 8px 12px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+  }}>
+    <Skeleton w={72} h={72} radius={36}/>
+    <Skeleton w="62%" h={12} radius={6} style={{ marginTop: 8 }}/>
+    <Skeleton w="84%" h={9} radius={5} style={{ marginTop: 7 }}/>
+  </div>
+);
 
 // -------------------------- shared bits --------------------------
 
@@ -381,6 +415,7 @@ const LocalFavoriteCard = ({ item, onClick }) => (
 export const HomeTab = ({
   thisWeek = [], events = [],
   places = null, nearbyMoms = [],
+  nearbyLoading = false, eventsLoading = false,
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
@@ -627,14 +662,20 @@ export const HomeTab = ({
             same MeetupCard shape as the Upcoming Meetups row below. */}
         <SectionHead title="Local Events Nearby" onLink={goToActivities}/>
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 6 }}>
-          {funThings.map(it => (
-            <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
-          ))}
+          {eventsLoading
+            ? [0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)
+            : funThings.map(it => (
+                <MeetupCard key={it.id} item={it} onClick={() => openMeetup(it)}/>
+              ))}
         </div>
 
         {/* Moms You May Want To Meet — 3-up grid, match-ranked */}
         <SectionHead title="Moms You May Want To Meet" onLink={goToConnectMoms}/>
-        {moms.length > 0 ? (
+        {nearbyLoading ? (
+          <div className="grid grid-cols-3" style={{ gap: 8 }}>
+            {[0, 1, 2].map(i => <MomMeetCardSkeleton key={i}/>)}
+          </div>
+        ) : moms.length > 0 ? (
           <div className="grid grid-cols-3" style={{ gap: 8 }}>
             {moms.slice(0, 3).map(m => (
               <MomMeetCard key={m.id} item={m} onClick={() => setSelectedMom(m)}/>
@@ -754,6 +795,7 @@ export const HomeTab = ({
 
       {selectedEvent && (
         <EventDetailSheet
+          fullScreen
           event={selectedEvent}
           variant="event"
           joined={isJoined(selectedEvent.id)}
@@ -777,6 +819,7 @@ export const HomeTab = ({
 
       {selectedPlace && (
         <PlaceDetailSheet
+          fullScreen
           place={selectedPlace}
           saved={isSaved(selectedPlace.id)}
           interested={isGoing(selectedPlace.id)}
@@ -800,6 +843,7 @@ export const HomeTab = ({
 
       {selectedMom && (
         <MomDetailSheet
+          fullScreen
           mom={selectedMom}
           saved={isSaved(`mom-${selectedMom.id}`)}
           invited={!!invited[selectedMom.id]}

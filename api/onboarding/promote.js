@@ -182,6 +182,14 @@ const hydratedShape = (row, momProfile) => {
       places: row.places || [],
     },
     social_links: mp.social_links || row.social_links || {},
+    // Account lifecycle — drives the launch guard. 'active' for legacy rows
+    // (and anyone without a mom_profiles row yet); 'deactivated' → Reactivate
+    // gate; 'deleted' → Deleted gate (restorable within 30 days of deleted_at).
+    account_status: mp.account_status || 'active',
+    deleted_at: mp.deleted_at || null,
+    // Explicit "finished onboarding" gate. Stays false until AboutYou is
+    // submitted; App.jsx routes a false-flag user to onboarding, not MainApp.
+    onboarding_completed: row.onboarding_completed === true,
   };
 };
 
@@ -220,6 +228,13 @@ export default async function handler(req, res) {
   }
 
   if (!user?.id) return json(res, 401, { error: 'Auth user not found' });
+
+  // Everyone gets an anonymous session (ensureSession) so chat RLS + Realtime
+  // work — but an anonymous session is NOT a real account. Don't promote it,
+  // or a brand-new visitor would be linked + routed into the app, skipping the
+  // Landing → onboarding flow. Returning a soft 200/null leaves them on
+  // Landing until they actually sign in (OAuth / OTP).
+  if (user.is_anonymous === true) return json(res, 200, { ok: true, anonymous: true });
 
   const provider = ALLOWED_PROVIDERS.has(user.app_metadata?.provider)
     ? user.app_metadata.provider

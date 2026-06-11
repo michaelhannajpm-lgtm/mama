@@ -4,8 +4,14 @@ import { Sheet } from '../components/Sheet';
 
 // ==========================================================================
 // ToggleSettingsSheet — reusable drawer of labeled on/off switches. Used for
-// Notifications and Privacy. `items` is [{ key, label, sub, default }]. On Save
-// it calls onSave(nextValues) which persists (settings jsonb) via the API.
+// Notifications and Privacy. `items` is [{ key, label, sub, default, gated }].
+// On Save it calls onSave(nextValues) which persists (settings jsonb) via the
+// API.
+//
+// Master-gate (Notifications): pass `gateKey` (a master switch key) — items
+// flagged `gated: true` are hidden while the master is off, and flipping the
+// master ON calls `onGateEnable()` first (the real push-permission prompt). If
+// that resolves falsy (permission denied / unsupported), the master stays off.
 // ==========================================================================
 
 const Switch = ({ on, onClick, disabled }) => (
@@ -28,14 +34,27 @@ const Switch = ({ on, onClick, disabled }) => (
   </button>
 );
 
-export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], values = {}, onSave, onClose, disabledKeys = [], disabledNote }) => {
+export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], values = {}, onSave, onClose, disabledKeys = [], disabledNote, gateKey, onGateEnable, footer = null }) => {
   const disabled = new Set(disabledKeys);
   // A disabled toggle (e.g. Discoverable with no photo yet) always reads false.
   const init = items.reduce((o, it) => { o[it.key] = disabled.has(it.key) ? false : (values[it.key] ?? it.default ?? false); return o; }, {});
   const [draft, setDraft] = useState(init);
   const [saving, setSaving] = useState(false);
 
-  const flip = (key) => { if (disabled.has(key)) return; setDraft(d => ({ ...d, [key]: !d[key] })); };
+  const gateOn = gateKey ? !!draft[gateKey] : true;
+  // Items flagged `gated` hide while the master switch is off.
+  const visibleItems = items.filter((it) => !it.gated || gateOn);
+
+  const flip = async (key) => {
+    if (disabled.has(key)) return;
+    // Turning the master ON fires the real permission prompt; only enable if
+    // it's granted. Turning it OFF (or any non-gate key) is a plain toggle.
+    if (key === gateKey && !draft[key] && onGateEnable) {
+      const ok = await onGateEnable();
+      if (!ok) return;
+    }
+    setDraft(d => ({ ...d, [key]: !d[key] }));
+  };
 
   const save = async () => {
     setSaving(true);
@@ -55,7 +74,7 @@ export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], va
         </h3>
 
         <div className="mt-5" style={{ background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden' }}>
-          {items.map((it, i) => (
+          {visibleItems.map((it, i) => (
             <div key={it.key} className="flex items-center gap-3" style={{
               padding: '13px 14px', borderTop: i === 0 ? 'none' : `1px solid ${C.line}`,
             }}>
@@ -70,6 +89,8 @@ export const ToggleSettingsSheet = ({ eyebrow, title, accentWord, items = [], va
             </div>
           ))}
         </div>
+
+        {footer}
 
         <button
           onClick={save}

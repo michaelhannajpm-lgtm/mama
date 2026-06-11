@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, CalendarClock, Check, X,
   User as UserIcon, LogOut, BadgeCheck, Camera, Share2, Mail, Phone,
-  Instagram, Facebook,
+  Instagram, Facebook, PauseCircle, Trash2,
 } from 'lucide-react';
 import { C } from '../../theme';
+import { Sheet } from '../../components/Sheet';
 import { ProfilePhotosSheet } from '../../sheets/ProfilePhotosSheet';
 import { EditIdentitySheet } from '../../sheets/EditIdentitySheet';
 import { InterestsPreferencesSheet } from '../../sheets/InterestsPreferencesSheet';
@@ -14,6 +15,9 @@ import { KidsSheet } from '../../sheets/KidsSheet';
 import { AvailabilitySheet } from '../../sheets/AvailabilitySheet';
 import { ContactVerifySheet } from '../../sheets/ContactVerifySheet';
 import { signOut as signOutSession, updateMomProfile, fetchReferrals } from '../../lib/onboarding';
+import { deactivateAccount, deleteAccount } from '../../lib/account';
+import { DeleteAccountSheet } from '../../sheets/DeleteAccountSheet';
+import { requestPushPermission, sendTestPush, pushBlockedHint } from '../../lib/push';
 import { inviteUrl, myCode } from '../../lib/referral';
 import { linkFacebook, linkInstagram, getLinkedProviders } from '../../lib/social-verify';
 import { profileCompletion } from '../../lib/profile-completion';
@@ -25,11 +29,15 @@ import { profileCompletion } from '../../lib/profile-completion';
 // sign out.
 // ==========================================================================
 
+// `enabled` is the master push opt-in (the gate). While it's off, the four
+// granular toggles below it are hidden and only the master switch shows; flip
+// it on (which fires the real permission prompt) to reveal them.
 const NOTIFICATION_ITEMS = [
-  { key: 'meetups',  label: 'Meetup reminders',   sub: 'Upcoming 1:1s and events',        default: true },
-  { key: 'messages', label: 'New messages',       sub: 'When a mom messages you',          default: true },
-  { key: 'groups',   label: 'Group activity',     sub: 'Posts in groups you joined',       default: true },
-  { key: 'digest',   label: 'Weekly digest',      sub: 'A roundup of picks near you',      default: false },
+  { key: 'enabled',  label: 'Allow notifications', sub: 'Push for meetups & messages',     default: false },
+  { key: 'meetups',  label: 'Meetup reminders',   sub: 'Upcoming 1:1s and events',  default: true,  gated: true },
+  { key: 'messages', label: 'New messages',       sub: 'When a mom messages you',   default: true,  gated: true },
+  { key: 'groups',   label: 'Group activity',     sub: 'Posts in groups you joined', default: true,  gated: true },
+  { key: 'digest',   label: 'Weekly digest',      sub: 'A roundup of picks near you', default: false, gated: true },
 ];
 
 const PRIVACY_ITEMS = [
@@ -168,6 +176,10 @@ export const YouTab = ({
   const [photosOpen, setPhotosOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [sheet, setSheet] = useState(null); // 'prefs'|'avail'|'notif'|'priv'|'location'|'kids'|null
+  // Account-lifecycle flow opened from inside the Privacy sheet's Account
+  // footer: null | 'deactivate' (confirm) | 'delete' (reason sheet).
+  const [accountAction, setAccountAction] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
   const [photoIdx, setPhotoIdx] = useState(0); // active photo in the hero carousel
@@ -378,6 +390,66 @@ export const YouTab = ({
     try { await signOutSession(); } catch { /* swallow */ }
     restart?.();
   };
+
+  // Deactivate: persist the pause, then sign out → Landing. On her next login
+  // promote reports 'deactivated' and App shows the Reactivate gate.
+  const handleDeactivate = async () => {
+    setActionBusy(true);
+    try { await deactivateAccount(); } catch (e) { flash?.(e?.message || 'Could not deactivate'); }
+    setActionBusy(false);
+    setAccountAction(null);
+    try { await signOutSession(); } catch { /* swallow */ }
+    restart?.();
+  };
+
+  // Delete: the DeleteAccountSheet captures the reason and calls this. Persist
+  // the soft-delete (reason stored server-side), then sign out → Landing. Next
+  // login shows the Deleted/Restore gate. Throws propagate to the sheet so it
+  // can show an inline error instead of half-completing.
+  const handleDelete = async ({ reasonCode, reasonNote }) => {
+    await deleteAccount({ reasonCode, reasonNote });
+    setAccountAction(null);
+    try { await signOutSession(); } catch { /* swallow */ }
+    restart?.();
+  };
+
+  // The "Account" section injected into the Privacy sheet footer. Tapping a row
+  // closes Privacy and opens the matching lifecycle flow at the YouTab root.
+  const accountFooter = (
+    <div className="mt-5" style={{ background: '#fff', border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ padding: '11px 14px 3px', fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted }}>
+        Account
+      </div>
+      <button
+        onClick={() => { setSheet(null); setAccountAction('deactivate'); }}
+        className="w-full flex items-center gap-3 active:scale-[.99] transition-transform"
+        style={{ background: 'transparent', border: 'none', padding: '12px 14px', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: C.divider, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <PauseCircle size={16} color={C.navySoft}/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.navy }}>Deactivate account</div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 1 }}>Take a break — reactivate anytime</div>
+        </div>
+        <ChevronRight size={15} color={C.muted}/>
+      </button>
+      <button
+        onClick={() => { setSheet(null); setAccountAction('delete'); }}
+        className="w-full flex items-center gap-3 active:scale-[.99] transition-transform"
+        style={{ background: 'transparent', border: 'none', borderTop: `1px solid ${C.line}`, padding: '12px 14px', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Trash2 size={16} color={C.coralDeep}/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.coralDeep }}>Delete account</div>
+          <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 1 }}>Permanently remove your profile</div>
+        </div>
+        <ChevronRight size={15} color={C.muted}/>
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex-1 overflow-y-auto px-5" style={{ scrollbarWidth: 'none', paddingBottom: 20 }}>
@@ -796,7 +868,29 @@ export const YouTab = ({
         eyebrow="Stay in the loop" title="Notification" accentWord="settings"
         items={NOTIFICATION_ITEMS}
         values={profile?.settings?.notifications || {}}
+        gateKey="enabled"
+        onGateEnable={async () => {
+          const { ok, reason } = await requestPushPermission();
+          if (!ok) flash?.(pushBlockedHint(reason)); // explain a stuck toggle instead of silently refusing
+          return ok;
+        }}
         onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), notifications: next } })}
+        footer={
+          <button
+            onClick={async () => {
+              flash?.('Sending a test…');
+              const r = await sendTestPush();
+              if (!r.ok) flash?.(pushBlockedHint(r.reason));
+              else flash?.(r.sent > 0 ? '✦ Test sent — check your notifications' : '✦ Test shown on this device');
+            }}
+            className="mt-5 w-full rounded-2xl flex items-center justify-center gap-2 active:scale-[.99] transition-transform"
+            style={{
+              height: 46, background: '#fff', border: `1.5px solid ${C.coral}`,
+              color: C.coralDeep, fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 13.5, cursor: 'pointer',
+            }}>
+            <Bell size={15}/> Send a test notification
+          </button>
+        }
         onClose={() => setSheet(null)}/>}
 
       {sheet === 'priv' && <ToggleSettingsSheet
@@ -806,6 +900,7 @@ export const YouTab = ({
         disabledKeys={hasPhoto ? [] : ['discoverable']}
         disabledNote="Add a profile photo to turn this on."
         onSave={(next) => saveProfile({ settings: { ...(profile?.settings || {}), privacy: next } })}
+        footer={accountFooter}
         onClose={() => setSheet(null)}/>}
 
       {sheet === 'location' && <LocationSheet
@@ -831,6 +926,51 @@ export const YouTab = ({
           onClose={() => setContactSheet(null)}
           flash={flash}
         />
+      )}
+
+      {accountAction === 'delete' && (
+        <DeleteAccountSheet
+          onConfirm={handleDelete}
+          onClose={() => setAccountAction(null)}
+        />
+      )}
+
+      {accountAction === 'deactivate' && (
+        <Sheet onClose={() => (actionBusy ? null : setAccountAction(null))}>
+          <div className="px-5 pt-1 pb-6">
+            <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.coral, fontFamily: 'Albert Sans', fontWeight: 700 }}>
+              Take a break
+            </div>
+            <h3 className="mt-1.5" style={{ fontFamily: 'Fraunces', fontSize: 22, fontWeight: 500, color: C.navy, letterSpacing: '-.02em' }}>
+              Deactivate your <span style={{ fontStyle: 'italic', color: C.coral }}>account</span>
+            </h3>
+            <p style={{ fontFamily: 'Albert Sans', fontSize: 13, color: C.inkSoft, lineHeight: 1.5, marginTop: 8 }}>
+              You'll disappear from matching and the app until you're ready. Nothing
+              is deleted — just log back in anytime to reactivate and pick up where
+              you left off.
+            </p>
+            <button
+              onClick={handleDeactivate}
+              disabled={actionBusy}
+              className="mt-5 w-full rounded-2xl active:scale-[.99] transition-transform"
+              style={{
+                height: 50, background: C.navy, color: C.cream,
+                fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 14, border: 'none',
+                cursor: actionBusy ? 'default' : 'pointer',
+              }}
+            >
+              {actionBusy ? 'Deactivating…' : 'Deactivate my account'}
+            </button>
+            <button
+              onClick={() => setAccountAction(null)}
+              disabled={actionBusy}
+              className="mt-3 w-full"
+              style={{ background: 'transparent', border: 'none', padding: 6, fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, color: C.muted, cursor: actionBusy ? 'default' : 'pointer' }}
+            >
+              Never mind
+            </button>
+          </div>
+        </Sheet>
       )}
     </div>
   );

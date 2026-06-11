@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   MapPin, Star, Phone, Globe, Bookmark, Share2,
-  Sparkles, Navigation, Clock, Check, X, MessageCircle,
+  Sparkles, Navigation, Clock, Check, X, ArrowLeft, MessageCircle,
 } from 'lucide-react';
 import { C } from '../theme';
 
@@ -52,6 +52,9 @@ export const PlaceDetailSheet = ({
   interested = false,
   onSave, onShare, onDirections, onInterested, onDiscuss,
   onClose,
+  fullScreen = false,                  // Home-tab treatment: back arrow ← (top-
+                                       // left) instead of the X. The panel is
+                                       // already full-bleed either way.
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -106,19 +109,21 @@ export const PlaceDetailSheet = ({
             }}/>
           )}
 
-          {/* Close button — top-right, floating over the hero */}
+          {/* Close affordance, floating over the hero. Home-tab full-screen
+              uses a back arrow (←) top-left; everywhere else keeps the X. */}
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={fullScreen ? 'Back' : 'Close'}
             className="absolute active:scale-[.95] transition-transform"
             style={{
-              top: 14, right: 14, width: 36, height: 36, borderRadius: 18,
+              top: 14, ...(fullScreen ? { left: 14 } : { right: 14 }),
+              width: 36, height: 36, borderRadius: 18,
               background: 'rgba(255,255,255,.92)', border: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', boxShadow: '0 2px 8px -2px rgba(0,0,0,.35)',
             }}
           >
-            <X size={18} color={C.navy}/>
+            {fullScreen ? <ArrowLeft size={18} color={C.navy}/> : <X size={18} color={C.navy}/>}
           </button>
 
           {/* Page dots — active one elongates; cues that more photos exist */}

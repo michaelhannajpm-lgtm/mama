@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { C } from '../theme';
+import { C } from '../../../theme';
 import { Play, RefreshCw, Server } from 'lucide-react';
 
 const STATUS_COLOR = (s) => ({

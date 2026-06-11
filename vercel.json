@@ -7,5 +7,8 @@
       "source": "/((?!api/|@vite/|@react-refresh|src/|node_modules/|.*\\..*).*)",
       "destination": "/"
     }
+  ],
+  "crons": [
+    { "path": "/api/internal/purge-deleted", "schedule": "15 3 * * *" }
   ]
 }
