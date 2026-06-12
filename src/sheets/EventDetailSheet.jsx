@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   MapPin, Clock, Users, Check, Star, Share2,
-  Sparkles, MessageCircle, ListChecks,
+  Sparkles, MessageCircle, ListChecks, Navigation,
 } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { mapsUrl } from '../lib/geo';
 
 // ==========================================================================
 // EventDetailSheet — shared detail surface for events, meetups, and
@@ -136,13 +137,24 @@ export const EventDetailSheet = ({
     onDiscuss?.();
   };
 
+  // Directions — available when the event (or its inherited place) has a point
+  // or a street address. Opens the device's maps app in a new tab.
+  const directionsHref = mapsUrl({
+    lat: event.lat, lng: event.lng,
+    address: event.address, label: event.place || event.title,
+  });
+  const openDirections = () => {
+    if (!directionsHref) return;
+    window.open(directionsHref, '_blank', 'noopener,noreferrer');
+  };
+
   const goingCount = event.going != null ? event.going : 0;
   const avatars = (event.goingAvatars && event.goingAvatars.length
     ? event.goingAvatars
     : DEFAULT_GOING_AVATARS).slice(0, 5);
 
   return (
-    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen}>
+    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen} label={event?.title || 'Event details'}>
       {/* All content lives inside Sheet's overflow-y-auto wrapper, so the
           whole detail view scrolls as one column — top hero to bottom CTA. */}
       <div className="pb-8">
@@ -180,10 +192,10 @@ export const EventDetailSheet = ({
             {event.when && (
               <MetaRow Icon={Clock} text={event.when}/>
             )}
-            {event.place && (
+            {(event.place || event.address) && (
               <MetaRow
                 Icon={MapPin}
-                text={event.place + (event.distance ? ` · ${event.distance}` : '')}
+                text={(event.place || event.address) + (event.distance ? ` · ${event.distance}` : '')}
               />
             )}
             {event.going != null && (
@@ -202,6 +214,25 @@ export const EventDetailSheet = ({
               />
             )}
           </div>
+
+          {/* Get directions — only when the event has a point or address.
+              Opens the device's maps app; neutral so the coral CTA below stays
+              the single primary action. */}
+          {directionsHref && (
+            <button
+              onClick={openDirections}
+              aria-label="Get directions"
+              className="mt-3 active:scale-[.98] transition-transform"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                width: '100%', height: 42, borderRadius: 12,
+                background: C.paper, color: C.navy, border: `1px solid ${C.divider}`,
+                fontFamily: 'Albert Sans', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              <Navigation size={14} color={C.coralDeep}/> Get directions
+            </button>
+          )}
 
           {/* Tags */}
           {tags.length > 0 && (

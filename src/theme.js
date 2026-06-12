@@ -39,6 +39,24 @@ export const C = {
 
   // Highlight — saffron for premium pop, keeps warm tone
   saffron:      '#D9A441',
+  saffronDark:  '#8A6610',  // readable saffron/gold foreground (text on a tint)
+  saffronSoft:  '#FFF4D6',  // pale gold chip background
+
+  // Extended accents — readable foregrounds on their soft tints, plus the
+  // category-chip colors used across the tabs. Added 2026-06-12 to retire the
+  // hardcoded hex that had drifted into HomeTab / Explore / Profile / Connect.
+  lilacDark:    '#5E4A8A',  // readable lilac/purple foreground (on C.lilac)
+  azure:        '#1D5A94',  // info/blue foreground (saved places, Facebook pill)
+                            //   — passes WCAG AA (≈5:1) as text on C.azureSoft.
+  azureSoft:    '#D6E6F4',  // pale blue chip background
+  amber:        '#B36A1D',  // warm-amber ICON color (saved programs). NOTE: only
+                            //   ~3.4:1 on amberSoft — decorative/icon use only,
+                            //   not text.
+  amberSoft:    '#FBE2C7',  // pale amber chip background
+  // Explore category-chip accents — filled circles behind a white icon.
+  catViolet:    '#8E63CC',  // Meetups
+  catOrange:    '#F09142',  // Kids Activities
+  catTeal:      '#4A8A7A',  // Schools & Childcare
 
   // Atmospheric warm wash (rose → peach in the new palette)
   rose:         '#FDE2D4',
@@ -55,4 +73,8 @@ export const C = {
 
   // Premium dark surface
   premium:      '#1B1517',
+
+  // Disabled primary-button fill — a muted warm tan that reads as inert
+  // against cream (never coral; a disabled CTA shouldn't look tappable).
+  btnDisabled:  '#D8CCB6',
 };

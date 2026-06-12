@@ -83,9 +83,10 @@ export const AdminLogin = ({ onSuccess }) => {
         boxShadow: AC.shadowLg, padding: 28,
       }}>
         <div className="flex items-center justify-center mb-4" style={{
-          width: 40, height: 40, borderRadius: 10, background: AC.railBg,
-          color: AC.accent, fontFamily: AC.brandFont, fontSize: 20, fontWeight: 600,
-        }}>M</div>
+          width: 40, height: 40, borderRadius: 10, overflow: 'hidden',
+        }}>
+          <img src="/app-logo.png" alt="Go Mama" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
         <h1 style={{ fontFamily: AC.brandFont, fontSize: 24, fontWeight: 500, color: AC.text, letterSpacing: '-.02em' }}>
           Go Mama · <span style={{ fontStyle: 'italic', color: AC.accent, fontWeight: 500 }}>Console</span>
         </h1>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Crown, MessageCircle, ShieldCheck } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { Skeleton } from '../components/Skeleton';
 import { getOrCreateDM, listMessages, sendMessage, subscribe } from '../lib/chat';
 import { dmFreeState, DM_FREE_LIMIT } from '../lib/chat-helpers';
 
@@ -97,7 +98,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
   // ---- unavailable state ----
   if (unavailable) {
     return (
-      <Sheet onClose={onClose} tall>
+      <Sheet onClose={onClose} tall label={`Message ${firstName}`}>
         <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
           <div>
             <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.terracotta, fontFamily: 'Albert Sans', fontWeight: 600 }}>
@@ -118,7 +119,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
   }
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall label={`Message ${firstName}`}>
       <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
         {/* Header */}
         <div>
@@ -162,8 +163,18 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
           </div>
         )}
 
+        {/* Thread — chat-bubble skeleton while the conversation loads (the
+            DM round-trips to Supabase), so the sheet never flashes blank. */}
+        {loading && (
+          <div className="mt-4 space-y-2" aria-hidden="true">
+            <div className="flex justify-start"><Skeleton w="68%" h={38} radius={16}/></div>
+            <div className="flex justify-end"><Skeleton w="52%" h={30} radius={16}/></div>
+            <div className="flex justify-start"><Skeleton w="60%" h={30} radius={16}/></div>
+          </div>
+        )}
+
         {/* Thread — show messages chronologically */}
-        {messages.length > 0 && (
+        {!loading && messages.length > 0 && (
           <div className="mt-4 space-y-2 max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             {messages.map((m) => {
               const isMe = m.author_id === myUserId;
@@ -188,6 +199,17 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Warm empty state — a fresh conversation with no history yet. Makes
+            the space before the composer feel intentional and points to the
+            pre-filled icebreaker, completing the loading → data → empty trio. */}
+        {!loading && messages.length === 0 && !dmBlocked && !limitReached && (
+          <div className="mt-4 rounded-2xl p-4 text-center" style={{ background: C.creamSoft, border: `1px dashed ${C.coralSoft}` }}>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, color: C.inkSoft, lineHeight: 1.5 }}>
+              Say hi to {firstName} — you've already got something in common. We've drafted an opener below.
+            </div>
           </div>
         )}
 

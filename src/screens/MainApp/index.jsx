@@ -62,6 +62,7 @@ export const MainApp = ({
   messageHistory = {},
   account, requestAccount, restart, flash,
   verifiedRequiresSocial = true,
+  freeLimit = 3,
   nearbyMoms = [], localFavorite = null, nearbyVerifiedOnly = true, onSetVerifiedOnly,
   nearbyLoading = false, placesLoading = false, eventsLoading = false,
   chatAuthor,
@@ -123,9 +124,9 @@ export const MainApp = ({
 
   // Same pattern for Explore. Used so the "See all" links on Home (Things
   // to do, Popular places) and Connect (Upcoming meetups) all route into
-  // the SAME SeeAllSheet that lives in LocalPicksTab — with that section's
-  // quick filters and advanced filter sheet. Keys must match SECTIONS in
-  // LocalPicksTab: 'events' | 'meetups' | 'places' | 'kids' | 'schools' | 'health'.
+  // the SAME inline results view that lives in LocalPicksTab — with that
+  // section's quick filters and advanced filter sheet. Keys must match SECTIONS
+  // in LocalPicksTab: 'events' | 'meetups' | 'places' | 'kids' | 'schools' | 'health'.
   const [exploreSeeAll, setExploreSeeAll] = useState(null);
   const goToExploreSeeAll = (view) => { setExploreSeeAll(view); setTab('localpicks'); };
 
@@ -187,7 +188,8 @@ export const MainApp = ({
       {tab === 'home' && <HomeTab
         thisWeek={thisWeek} events={events}
         places={places} nearbyMoms={nearbyMoms}
-        nearbyLoading={nearbyLoading} eventsLoading={eventsLoading}
+        freeLimit={freeLimit}
+        nearbyLoading={nearbyLoading} eventsLoading={eventsLoading} placesLoading={placesLoading}
         localFavorite={localFavorite}
         savedItems={savedItems} setSavedItems={setSavedItems}
         goingItems={goingItems} setGoingItems={setGoingItems}
@@ -212,6 +214,7 @@ export const MainApp = ({
         eventsLoading={eventsLoading}
         openSchedule={openSchedule} openProfile={openProfile} openMessage={openMessage}
         openPremium={openPremium}
+        freeLimit={freeLimit}
         joinedEvents={joinedEvents} setJoinedEvents={setJoinedEvents}
         scheduled1to1={scheduled1to1}
         savedItems={savedItems} setSavedItems={setSavedItems}
@@ -243,6 +246,8 @@ export const MainApp = ({
         flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}
         account={account} openPremium={openPremium}
+        nearbyMoms={nearbyMoms} nearbyLoading={nearbyLoading}
+        openMessage={openMessage} openSchedule={openSchedule} freeLimit={freeLimit}
         initialSeeAll={exploreSeeAll}
         onConsumeSeeAll={() => setExploreSeeAll(null)}
         goToConnectGroups={() => goToConnectSeeAll('topics')}
@@ -272,14 +277,18 @@ export const MainApp = ({
         flash={flash}/>}
 
       {/* Tab Bar — 4 buttons, coral underline indicates active */}
-      <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.line, background: '#fff' }}>
-        <div className="flex justify-between items-center">
+      <div className="px-3 pt-2 pb-6 border-t" style={{ borderColor: C.line, background: C.paper }}>
+        <div className="flex justify-between items-center" role="tablist" aria-label="Main navigation">
           {TABS.map(t => {
             const active = tab === t.id;
             return (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
+                role="tab"
+                aria-selected={active}
+                aria-current={active ? 'page' : undefined}
+                aria-label={t.label}
                 className="flex flex-col items-center gap-0.5 py-1.5 flex-1 relative"
               >
                 {active && (

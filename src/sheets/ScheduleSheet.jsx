@@ -31,14 +31,17 @@ export const ScheduleSheet = ({ mom, onClose, onContinue, hasAccount, prefs, set
     });
   };
 
+  // Suggested meet-up slots. The first anchors on the mom's own next outing;
+  // the rest fall back to well-known Tampa family-friendly spots (this is a
+  // Tampa Bay app — never seed out-of-market venues).
   const slots = [
-    { day:'Tue', time:'9:30 AM', place: mom.nextPlace },
-    { day:'Thu', time:'10:00 AM', place: 'Sightglass · 7th St' },
-    { day:'Sat', time:'9:00 AM',  place: 'Dolores Park · north end' },
+    { day:'Tue', time:'9:30 AM', place: mom.nextPlace || 'Armature Works · Riverwalk' },
+    { day:'Thu', time:'10:00 AM', place: 'Buddy Brew · Hyde Park' },
+    { day:'Sat', time:'9:00 AM',  place: 'Al Lopez Park · playground' },
   ];
 
   return (
-    <Sheet onClose={onClose}>
+    <Sheet onClose={onClose} label={`Schedule with ${mom.name.split(' ')[0]}`}>
       <div className="px-6 pt-2 pb-6">
         <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
           Schedule with {mom.name.split(' ')[0]}

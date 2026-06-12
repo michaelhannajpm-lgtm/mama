@@ -13,13 +13,15 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Users, Search, X, ChevronLeft, ChevronRight, Trash2, AlertTriangle,
   ShieldCheck, ShieldOff, Eye, EyeOff, RotateCcw, Save, AlertCircle, RefreshCw,
+  Gift, Award, Check,
 } from 'lucide-react';
 import { AC, AC_TONES } from '../admin-theme';
 import { adminFetch } from '../lib/adminFetch';
 import {
   PageHeader, StatCard, Card, DataTable, Toolbar, Input, Badge, Banner, Button,
-  BusyOverlay, fmt, pct, rel,
+  BusyOverlay, EmptyState, fmt, pct, rel,
 } from '../components/primitives';
+import { REFERRAL_TIERS, referralProgress } from '../../../lib/referral-rewards';
 import { useConfirm } from '../components/ConfirmDialog';
 import { navigateRecord, navigateSection, currentRecordRef } from '../lib/adminRouter';
 import { MOM_TYPES, VALUES, INTERESTS, KID_AGES, DAYS, TIME_WINDOWS } from '../../../data/taxonomy';
@@ -676,6 +678,7 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
             { id: 'preferences', label: 'Preferences' },
             { id: 'location', label: 'Location' },
             { id: 'social', label: 'Social & verify' },
+            { id: 'referrals', label: 'Referrals' },
             { id: 'settings', label: 'Settings' },
             { id: 'audit', label: 'Audit' },
           ].map((t) => (
@@ -713,6 +716,9 @@ const MomProfileDetailModal = ({ mom, placesById, onClose, onPatched, onDeleted 
           )}
           {tab === 'social' && (
             <SocialTab mom={mom} draft={draft} setDraft={setDraft} editing={editing} />
+          )}
+          {tab === 'referrals' && (
+            <ReferralsTab mom={mom} />
           )}
           {tab === 'settings' && (
             <SettingsTab mom={mom} draft={draft} setDraft={setDraft} editing={editing} />
@@ -1255,6 +1261,153 @@ const AuditTab = ({ mom, onPatchSource, busy }) => (
     </Field>
   </div>
 );
+
+// ----------------------------------------------------------------------------
+// Referrals — who this mom brought in, their live verified status, and her
+// reward-tier progress. Only verified invitees count toward a perk (see
+// `src/lib/referral-rewards.js`). Fetches its own data; degrades gracefully.
+// ----------------------------------------------------------------------------
+const RefAvatar = ({ name, photo }) => (
+  <div style={{
+    width: 26, height: 26, borderRadius: 13, overflow: 'hidden', flexShrink: 0,
+    background: AC.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  }}>
+    {photo
+      ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      : <span style={{ fontFamily: AC.font, fontSize: 11, fontWeight: 700, color: AC.accent }}>{(name || '?').charAt(0).toUpperCase()}</span>}
+  </div>
+);
+
+const RewardLadder = ({ progress }) => (
+  <Card padding={16}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ fontFamily: AC.font, fontSize: 13, fontWeight: 700, color: AC.text }}>Reward progress</div>
+      <div style={{ fontFamily: AC.font, fontSize: 12, color: AC.textMuted }}>
+        {progress.next
+          ? `${progress.toNext} more verified to “${progress.next.title}”`
+          : 'Top tier reached'}
+      </div>
+    </div>
+    {/* Overall progress across the whole ladder */}
+    <div style={{ height: 6, borderRadius: 999, background: AC.surfaceAlt, overflow: 'hidden' }}>
+      <div style={{ width: `${progress.pctToGoal}%`, height: '100%', background: AC.accent, borderRadius: 999, transition: 'width .3s' }} />
+    </div>
+    {/* Tier chips */}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+      {REFERRAL_TIERS.map((t) => {
+        const unlocked = progress.verifiedCount >= t.count;
+        return (
+          <div key={t.count} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: AC.radiusSm,
+            background: unlocked ? AC.accentSoft : AC.surfaceAlt,
+            border: `1px solid ${unlocked ? AC.accentBorder : AC.border}`,
+          }}>
+            {unlocked
+              ? <Check size={13} style={{ color: AC.accent }} />
+              : <Award size={13} style={{ color: AC.textFaint }} />}
+            <span style={{ fontFamily: AC.font, fontSize: 11.5, fontWeight: 700, color: unlocked ? AC.text : AC.textMuted }}>
+              {t.count}
+            </span>
+            <span style={{ fontFamily: AC.font, fontSize: 11.5, color: unlocked ? AC.textSoft : AC.textMuted }}>
+              {t.perk}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  </Card>
+);
+
+const ReferralsTab = ({ mom }) => {
+  const [data, setData] = useState(null); // { count, verifiedCount, friends }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const r = await adminFetch(`/api/admin/referrals?momId=${encodeURIComponent(mom.id)}`);
+        const body = await r.json().catch(() => null);
+        if (!r.ok || !body?.ok) throw new Error(body?.error || `Request failed (${r.status})`);
+        if (alive) setData(body);
+      } catch (e) {
+        if (alive) setError(e?.message || 'Failed to load referrals');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [mom.id]);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '24px 4px', color: AC.textMuted, fontFamily: AC.font, fontSize: 13 }}>
+        <RefreshCw size={14} className="animate-spin" /> Loading referrals…
+      </div>
+    );
+  }
+  if (error) {
+    return <Banner tone="danger" icon={AlertCircle}>{error}</Banner>;
+  }
+
+  const friends = data?.friends || [];
+  const verifiedCount = data?.verifiedCount || 0;
+  const progress = referralProgress(verifiedCount);
+
+  const columns = [
+    {
+      key: 'name', header: 'Mom', wrap: true, sort: (r) => r.name || '',
+      render: (r) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <RefAvatar name={r.name} photo={r.photo} />
+          <span style={{ fontFamily: AC.font, fontSize: 13, fontWeight: 600, color: AC.text }}>{r.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'status', header: 'Status', width: 120, sort: (r) => r.status,
+      render: (r) => (
+        <Badge tone={r.status === 'verified' ? 'success' : 'warn'} dot>
+          {r.status === 'verified' ? 'Verified' : 'Joined'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'joinedAt', header: 'Joined', width: 140, mono: true, sort: (r) => r.joinedAt || '',
+      render: (r) => (r.joinedAt ? rel(r.joinedAt) : '—'),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <div className="grid grid-cols-3" style={{ gap: 12 }}>
+        <StatCard label="Invited" value={fmt(data?.count || 0)} icon={Users} />
+        <StatCard label="Verified" value={fmt(verifiedCount)} tone={AC.success} hint="count toward rewards" icon={ShieldCheck} />
+        <StatCard
+          label="Reward tier"
+          value={progress.current ? progress.current.title : 'None yet'}
+          hint={progress.next ? `Next: ${progress.next.title}` : 'Top tier'}
+          icon={Gift}
+        />
+      </div>
+
+      <RewardLadder progress={progress} />
+
+      {friends.length === 0 ? (
+        <EmptyState
+          icon={Gift}
+          title="No referrals yet"
+          body="When a mom signs up from this mom's invite link, she'll show up here. She counts toward a reward once she's verified."
+        />
+      ) : (
+        <DataTable columns={columns} rows={friends} defaultSort={{ key: 'joinedAt', dir: 'desc' }} />
+      )}
+    </div>
+  );
+};
 
 // ----------------------------------------------------------------------------
 // Photo lightbox — same UX as the legacy version, restyled with AC tokens.

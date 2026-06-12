@@ -301,6 +301,25 @@ const MomCardSkeleton = () => (
   </div>
 );
 
+// Matches MeetupCard (70px media + 2-line title + place + going row). The
+// meetup rail used MomCardSkeleton, whose taller 88px media caused a layout
+// snap when the real 70px cards swapped in — this mirrors the real footprint.
+const MeetupCardSkeleton = () => (
+  <div style={{
+    width: '100%', background: '#fff', borderRadius: 12,
+    border: `1px solid ${C.line}`, overflow: 'hidden',
+    display: 'flex', flexDirection: 'column',
+  }}>
+    <Skeleton w="100%" h={70} radius={0}/>
+    <div style={{ padding: '6px 7px 8px' }}>
+      <Skeleton w="92%" h={10} radius={5}/>
+      <Skeleton w="64%" h={10} radius={5} style={{ marginTop: 4 }}/>
+      <Skeleton w="55%" h={8} radius={4} style={{ marginTop: 5 }}/>
+      <Skeleton w="46%" h={8} radius={4} style={{ marginTop: 7 }}/>
+    </div>
+  </div>
+);
+
 // Hard-coded availability windows fall back when the server hasn't shaped
 // `nextSlots`. Mirrors what the user might pick in onboarding.
 const FALLBACK_AVAILABILITY = ['Tue mornings', 'Thu mornings', 'Sat mornings'];
@@ -553,7 +572,7 @@ const MomListCard = ({
             connectionStatus === 'accepted'
               ? '#fff'
               : connectionStatus === 'pending'
-                ? '#8A6610'
+                ? C.saffronDark
                 : '#fff',
           border: connectionStatus === 'pending' ? `1px solid ${C.saffron}` : 'none',
           fontFamily: 'Albert Sans', fontWeight: 700, fontSize: 12.5,
@@ -616,7 +635,7 @@ const MomListCard = ({
           </span>
           <span style={{
             fontFamily: 'Albert Sans', fontSize: 8.5,
-            color: msgLimitHit ? '#8A6610' : C.muted,
+            color: msgLimitHit ? C.saffronDark : C.muted,
           }}>
             {isPremium ? 'Unlimited' : msgLimitHit ? 'Plus required' : `${msgRemaining} free left`}
           </span>
@@ -941,6 +960,7 @@ const DiscussionCard = ({ discussion, onOpen }) => {
 
 export const ConnectTab = ({
   profile, prefs, openSchedule, openProfile, openMessage, openPremium,
+  freeLimit = 3,
   events = [], thisWeek = [], eventsLoading = false,
   joinedEvents = [], setJoinedEvents,
   scheduled1to1 = {},
@@ -1098,6 +1118,7 @@ export const ConnectTab = ({
   const openMeetupDetail = (m) => setSelectedEvent({
     id: m.id, title: m.title, photo: m.photo,
     when: m.meta, place: m.place, going: m.going,
+    lat: m._live?.lat, lng: m._live?.lng, address: m._live?.address,
     tags: m._live?.tags?.length ? m._live.tags : ['All moms welcome'],
     kind: 'Upcoming meetup',
   });
@@ -1249,7 +1270,7 @@ export const ConnectTab = ({
         <SectionHead title="Upcoming meetups" onLink={() => goToExploreSeeAll?.('meetups')}/>
         {eventsLoading ? (
           <div className="grid grid-cols-3" style={{ gap: 8 }}>
-            {[0, 1, 2].map(i => <MomCardSkeleton key={i}/>)}
+            {[0, 1, 2].map(i => <MeetupCardSkeleton key={i}/>)}
           </div>
         ) : meetupCards.length === 0 ? (
           <div style={{
@@ -1413,7 +1434,7 @@ export const ConnectTab = ({
           proposal={proposals[selectedMom.id]}
           isPremium={!!account?.isPremium}
           messagesUsed={(messageHistory?.[selectedMom.id] || []).filter(m => m.fromUser).length}
-          freeLimit={3}
+          freeLimit={freeLimit}
           onConnect={() => handleConnect(selectedMom)}
           onMessage={() => {
             handleMessage(selectedMom);

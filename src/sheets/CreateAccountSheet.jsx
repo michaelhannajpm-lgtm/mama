@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Check, Lock, Mail, Phone, Users } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { PrimaryBtn } from '../components/PrimaryBtn';
 import { CodeVerify } from '../components/CodeVerify';
 import { TIME_WINDOWS } from '../data/taxonomy';
 import { sendOtp, verifyOtp } from '../lib/onboarding';
@@ -16,10 +17,11 @@ import { sendOtp, verifyOtp } from '../lib/onboarding';
 export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
   const [phase, setPhase] = useState('collect'); // 'collect' | 'code'
   const [method, setMethod] = useState('phone'); // 'phone' or 'email'
-  const [firstName, setFirstName] = useState('Sana');
-  const [phone, setPhone] = useState('(813) 956-2058');
+  const [firstName, setFirstName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [agreed, setAgreed] = useState(true);
+  // Consent is an explicit opt-in — never pre-checked (GDPR/CCPA, Apple 5.1.1).
+  const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [demo, setDemo] = useState(false);
@@ -102,7 +104,7 @@ export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
   })();
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall label="Create your account">
       <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
         {phase === 'code' ? (
           <div className="pt-2">
@@ -264,19 +266,13 @@ export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
               </div>
             )}
 
-            {/* CTA */}
+            {/* CTA — shared PrimaryBtn (coral, medium) so every sheet's primary
+                action has one height / radius / disabled treatment. */}
             <div className="mt-4">
-              <button onClick={handleSend} disabled={!canSend}
-                className="w-full rounded-2xl flex items-center justify-center gap-2 transition-all"
-                style={{
-                  height: 52,
-                  background: canSend ? C.terracotta : C.divider,
-                  color: canSend ? '#fff' : C.inkMuted,
-                  fontFamily:'Albert Sans', fontWeight:600, fontSize: 15,
-                }}>
+              <PrimaryBtn onClick={handleSend} disabled={!canSend} variant="terracotta" size="md">
                 {submitting ? 'Sending code…' : 'Send my code'}
                 <ArrowRight size={16}/>
-              </button>
+              </PrimaryBtn>
               <div className="mt-2.5 text-center text-[10.5px] flex items-center justify-center gap-1" style={{ color: C.inkMuted, fontFamily:'Albert Sans' }}>
                 <Lock size={10}/>
                 Your {method} is never shown to other moms.

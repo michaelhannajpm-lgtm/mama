@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   MapPin, Star, Phone, Globe, Bookmark, Share2,
   Sparkles, Navigation, Clock, Check, X, ArrowLeft, MessageCircle,
@@ -58,6 +58,40 @@ export const PlaceDetailSheet = ({
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+
+  // This sheet renders its own full-bleed overlay (it predates the Sheet
+  // primitive), so it wires the core dialog a11y itself: focus-in on open,
+  // Escape-to-close, and focus restore on close. onClose via a ref so the
+  // effect runs once per mount despite inline-arrow callers.
+  const rootRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    const root = rootRef.current;
+    const prevFocus = document.activeElement;
+    root?.focus();
+    const focusablesIn = (el) => [...el.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(n => n.offsetParent !== null);
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current?.(); return; }
+      if (e.key !== 'Tab' || !root) return;
+      const f = focusablesIn(root);
+      if (!f.length) { e.preventDefault(); root.focus(); return; }
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === root)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+    };
+  }, []);
+
   if (!place) return null;
 
   const kind = place.kind || 'Place';
@@ -75,7 +109,12 @@ export const PlaceDetailSheet = ({
 
   return (
     <div
-      className="absolute inset-0 z-40 flex flex-col"
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={place.title ? `${place.title} details` : 'Place details'}
+      tabIndex={-1}
+      className="absolute inset-0 z-40 flex flex-col outline-none"
       style={{ background: C.cream, animation: 'slideUp .3s cubic-bezier(.2,.8,.2,1)' }}
     >
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
@@ -295,17 +334,23 @@ export const PlaceDetailSheet = ({
             </button>
           )}
 
-          {/* Visited indicator placeholder — keeps social proof front-of-mind */}
-          <div className="mt-4 rounded-2xl p-3 flex items-center gap-2.5" style={{
-            background: `${C.sageDark}10`, border: `1px solid ${C.sageDark}33`,
-          }}>
-            <Check size={14} color={C.sageDark}/>
-            <div className="text-[11.5px]" style={{
-              fontFamily: 'Albert Sans', color: C.navy,
+          {/* Social proof — only when we have a REAL count from the API
+              (place.visitorsThisWeek). Never fabricate a number; an invented
+              "12 moms" erodes the trust the rest of the app is built on. */}
+          {Number.isFinite(place.visitorsThisWeek) && place.visitorsThisWeek > 0 && (
+            <div className="mt-4 rounded-2xl p-3 flex items-center gap-2.5" style={{
+              background: `${C.sageDark}10`, border: `1px solid ${C.sageDark}33`,
             }}>
-              <strong style={{ color: C.sageDark }}>12 moms</strong> in your area visited this week
+              <Check size={14} color={C.sageDark}/>
+              <div className="text-[11.5px]" style={{
+                fontFamily: 'Albert Sans', color: C.navy,
+              }}>
+                <strong style={{ color: C.sageDark }}>
+                  {place.visitorsThisWeek} mom{place.visitorsThisWeek === 1 ? '' : 's'}
+                </strong> in your area visited this week
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -161,8 +161,12 @@ const OptionCard = ({
         >
           <span
             role="button"
+            tabIndex={0}
             aria-label={`Remove one ${label}`}
             onClick={(e) => { e.stopPropagation(); onDec?.(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onDec?.(); }
+            }}
             style={{
               width: 18, height: 18, borderRadius: 999,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -179,8 +183,12 @@ const OptionCard = ({
           </span>
           <span
             role="button"
+            tabIndex={0}
             aria-label={`Add one ${label}`}
             onClick={(e) => { e.stopPropagation(); onInc?.(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onInc?.(); }
+            }}
             style={{
               width: 18, height: 18, borderRadius: 999,
               display: 'flex', alignItems: 'center', justifyContent: 'center',

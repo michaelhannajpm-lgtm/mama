@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   MapPin, ChevronRight, Pencil, Heart, Bell, Lock, Gift, Baby, CalendarClock, Check, X,
   User as UserIcon, LogOut, BadgeCheck, Camera, Share2, Mail, Phone,
-  Instagram, Facebook, PauseCircle, Trash2,
+  Instagram, Facebook, PauseCircle, Trash2, Trophy, Star, ChevronDown, Users,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { Sheet } from '../../components/Sheet';
@@ -21,6 +21,8 @@ import { requestPushPermission, sendTestPush, pushBlockedHint } from '../../lib/
 import { inviteUrl, myCode } from '../../lib/referral';
 import { linkFacebook, linkInstagram, getLinkedProviders } from '../../lib/social-verify';
 import { profileCompletion } from '../../lib/profile-completion';
+import { referralProgress, REFERRAL_TIERS } from '../../lib/referral-rewards';
+import { Skeleton } from '../../components/Skeleton';
 
 // ==========================================================================
 // YouTab — "My Profile". User card (+ verified badge at top) · bio · connect
@@ -134,7 +136,7 @@ const SocialRow = ({ Icon, name, handle, linked, onConnect }) => (
     }}
   >
     <div style={{
-      width: 30, height: 30, borderRadius: 9, background: C.lilac, color: '#5E4A8A',
+      width: 30, height: 30, borderRadius: 9, background: C.lilac, color: C.lilacDark,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       <Icon size={15}/>
@@ -255,13 +257,16 @@ export const YouTab = ({
   // Friends who joined via this mom's invite link — shown inline under the
   // Refer card. Best-effort; stays empty/hidden if the fetch fails or there's
   // no account yet.
-  const [referrals, setReferrals] = useState(null); // { code, count, friends[] } | null
+  const [referrals, setReferrals] = useState(null); // { code, count, verifiedCount, friends[] } | null
+  const [referralsLoading, setReferralsLoading] = useState(true);
   const [friendsOpen, setFriendsOpen] = useState(false);
   useEffect(() => {
     let alive = true;
+    setReferralsLoading(true);
     (async () => {
       const data = await fetchReferrals({ seedMomId: account?.seedMomId });
       if (alive && data?.ok) setReferrals(data);
+      if (alive) setReferralsLoading(false);
     })();
     return () => { alive = false; };
   }, [account?.auth_user_id, account?.seedMomId]);
@@ -692,8 +697,8 @@ export const YouTab = ({
         )}
         {(igLinked || fbLinked) && (
           <div className="flex gap-1.5" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-            {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone="#5E4A8A">{socialLinks.instagram}</StatPill>}
-            {fbLinked && <StatPill Icon={Facebook} bg="#E7EEF8" tone="#2B5CA8">Facebook</StatPill>}
+            {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone={C.lilacDark}>{socialLinks.instagram}</StatPill>}
+            {fbLinked && <StatPill Icon={Facebook} bg={C.azureSoft} tone={C.azure}>Facebook</StatPill>}
           </div>
         )}
       </div>
@@ -711,13 +716,13 @@ export const YouTab = ({
         <SettingsRow Icon={MapPin} iconBg={C.peach} iconFg={C.coralDeep}
           label="Location" sub={location ? `${cityLabel} · ${distance ?? 5} mi` : 'Set your neighborhood & radius'}
           incomplete={!isDone('location')} onClick={() => setSheet('location')}/>
-        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
+        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg={C.lilacDark}
           label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'}
           incomplete={!isDone('kids')} onClick={() => setSheet('kids')}/>
         <SettingsRow Icon={CalendarClock} iconBg={C.sage} iconFg={C.sageDark}
           label="Availability" sub={availDays ? `Free on ${availDays} day${availDays === 1 ? '' : 's'} a week` : "Set when you're free to meet"}
           onClick={() => setSheet('avail')}/>
-        <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
+        <SettingsRow Icon={Bell} iconBg={C.saffronSoft} iconFg={C.saffronDark}
           label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
         <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
           label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
@@ -750,7 +755,7 @@ export const YouTab = ({
         }}
       >
         <div style={{
-          width: 38, height: 38, borderRadius: 12, background: '#fff', color: '#5E4A8A',
+          width: 38, height: 38, borderRadius: 12, background: '#fff', color: C.lilacDark,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}><Gift size={18}/></div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -766,70 +771,268 @@ export const YouTab = ({
         }}><Share2 size={12}/> Share</span>
       </button>
 
-      {/* Friends who joined via your invite — inline under the Refer card.
-          Collapsed to an avatar stack + count; tap to expand the full list. */}
-      {referredFriends.length > 0 && (
-        <div style={{ marginTop: 8, background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden' }}>
-          <button
-            onClick={() => setFriendsOpen(o => !o)}
-            className="w-full active:scale-[.99] transition-transform"
-            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'transparent', border: 'none', padding: '12px 14px', cursor: 'pointer', textAlign: 'left' }}
-          >
-            <div style={{ display: 'flex', flexShrink: 0 }}>
-              {referredFriends.slice(0, 3).map((f, i) => (
-                <div key={i} style={{
-                  width: 28, height: 28, borderRadius: 14, marginLeft: i ? -8 : 0,
-                  border: `2px solid ${C.paper}`, overflow: 'hidden', flexShrink: 0,
-                  background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      {/* ── Referral rewards ─────────────────────────────────────────────
+          Three states: loading skeleton · loaded data · empty invite.
+          Container header stays visible across all three states.       */}
+      <div style={{ marginTop: 8 }}>
+
+        {/* Loading skeleton — shape-matched to the real card */}
+        {referralsLoading && (
+          <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14 }}>
+            {/* eyebrow */}
+            <Skeleton w={90} h={10} radius={6} style={{ marginBottom: 10 }}/>
+            {/* headline */}
+            <Skeleton w="70%" h={14} radius={7} style={{ marginBottom: 6 }}/>
+            {/* sub-line */}
+            <Skeleton w="50%" h={10} radius={6} style={{ marginBottom: 14 }}/>
+            {/* progress bar */}
+            <Skeleton w="100%" h={8} radius={999} style={{ marginBottom: 14 }}/>
+            {/* tier pills */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {REFERRAL_TIERS.map((_, i) => (
+                <Skeleton key={i} w={56} h={22} radius={999}/>
+              ))}
+            </div>
+            {/* divider + friend rows */}
+            <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[0, 1].map(i => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Skeleton w={32} h={32} radius={16}/>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <Skeleton w="55%" h={11} radius={6}/>
+                    <Skeleton w="35%" h={9} radius={5}/>
+                  </div>
+                  <Skeleton w={52} h={20} radius={999}/>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Loaded — has data */}
+        {!referralsLoading && referrals && (() => {
+          const progress = referralProgress(referrals.verifiedCount ?? 0);
+          const allEarned = !progress.next;
+
+          return (
+            <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, overflow: 'hidden' }}>
+
+              {/* ── Reward progress card ── */}
+              <div style={{ padding: '14px 14px 0' }}>
+
+                {/* eyebrow */}
+                <div style={{
+                  fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 800,
+                  letterSpacing: '.13em', textTransform: 'uppercase', color: C.muted,
+                  marginBottom: 8,
                 }}>
-                  {f.photo
-                    ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                    : <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
+                  Your rewards
                 </div>
-              ))}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.navy }}>
-                {referrals.count} friend{referrals.count === 1 ? '' : 's'} joined
-              </div>
-              <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>
-                Tap to see {friendsOpen ? 'less' : 'who'}
-              </div>
-            </div>
-            <ChevronRight size={15} color={C.muted} style={{ transform: friendsOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}/>
-          </button>
-          {friendsOpen && (
-            <div style={{ borderTop: `1px solid ${C.line}` }}>
-              {referredFriends.map((f, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? `1px solid ${C.line}` : 'none' }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
-                    background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {f.photo
-                      ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                      : <span style={{ fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy }}>{f.name}</div>
-                    {f.joinedAt && (
-                      <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>
-                        Joined {new Date(f.joinedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+
+                {allEarned ? (
+                  /* ── All tiers earned — top tier celebration ── */
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                      background: C.saffronSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Trophy size={18} color={C.saffron}/>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 600, color: C.navy, lineHeight: 1.2 }}>
+                        You're a{' '}
+                        <span style={{ fontStyle: 'italic', color: C.saffron, fontWeight: 600 }}>Village Leader</span>
                       </div>
-                    )}
+                      <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 3 }}>
+                        Every reward unlocked · {referrals.count} friends brought in
+                      </div>
+                    </div>
                   </div>
-                  <span style={{
-                    flexShrink: 0, background: C.sage, color: C.sageDark, borderRadius: 999,
-                    padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
-                  }}>
-                    {f.status === 'verified' ? 'Verified' : 'Joined'}
-                  </span>
+                ) : (
+                  /* ── Next reward in progress ── */
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Fraunces', fontSize: 16, fontWeight: 600, color: C.navy, lineHeight: 1.25 }}>
+                          {progress.toNext === 1
+                            ? <span>1 more verified friend →{' '}<span style={{ fontStyle: 'italic', color: C.saffron }}>free Plus</span></span>
+                            : progress.next?.kind === 'plus'
+                              ? <span><span style={{ fontStyle: 'italic', color: C.saffron }}>{progress.toNext} more</span> verified friends → {progress.next.perk}</span>
+                              : <span><span style={{ fontStyle: 'italic', color: C.saffron }}>{progress.toNext} more</span> → {progress.next?.perk}</span>
+                          }
+                        </div>
+                        <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 4 }}>
+                          Verified friends count · joined-only is pending
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div style={{ height: 8, borderRadius: 999, background: C.saffronSoft, overflow: 'hidden', marginBottom: 10 }}>
+                      <div style={{
+                        width: `${progress.pctToNext}%`, height: '100%', borderRadius: 999,
+                        background: `linear-gradient(90deg, ${C.saffron}, ${C.saffronDark})`,
+                        transition: 'width .4s ease-out',
+                      }}/>
+                    </div>
+                  </>
+                )}
+
+                {/* Tier ladder */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 12 }}>
+                  {REFERRAL_TIERS.map((tier) => {
+                    const earned = (referrals.verifiedCount ?? 0) >= tier.count;
+                    return (
+                      <span key={tier.count} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: earned ? C.saffronSoft : C.cream,
+                        color: earned ? C.saffronDark : C.muted,
+                        border: `1px solid ${earned ? C.saffron + '55' : C.line}`,
+                        borderRadius: 999, padding: '4px 10px',
+                        fontFamily: 'Albert Sans', fontSize: 10.5, fontWeight: 700,
+                        transition: 'all .2s',
+                      }}>
+                        {earned
+                          ? <Check size={10} color={C.saffronDark}/>
+                          : <Star size={10} color={C.muted}/>
+                        }
+                        {tier.title}
+                      </span>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+
+              {/* ── Invitee list ── */}
+              {referredFriends.length > 0 && (
+                <>
+                  <button
+                    onClick={() => setFriendsOpen(o => !o)}
+                    className="w-full active:scale-[.99] transition-transform"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      background: 'transparent', border: 'none',
+                      borderTop: `1px solid ${C.line}`,
+                      padding: '11px 14px', cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {/* Avatar stack */}
+                    <div style={{ display: 'flex', flexShrink: 0 }}>
+                      {referredFriends.slice(0, 3).map((f, i) => (
+                        <div key={i} style={{
+                          width: 26, height: 26, borderRadius: 13, marginLeft: i ? -7 : 0,
+                          border: `2px solid ${C.paper}`, overflow: 'hidden', flexShrink: 0,
+                          background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {f.photo
+                            ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                            : <span style={{ fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.navy }}>
+                        {referrals.count} friend{referrals.count === 1 ? '' : 's'} joined
+                        {referrals.verifiedCount > 0 && (
+                          <span style={{ fontWeight: 400, color: C.muted }}>
+                            {' '}· {referrals.verifiedCount} verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronDown size={15} color={C.muted} style={{ transform: friendsOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}/>
+                  </button>
+
+                  {friendsOpen && (
+                    <div>
+                      {referredFriends.map((f, i) => {
+                        const isVerified = f.status === 'verified';
+                        return (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px', borderTop: `1px solid ${C.line}`,
+                          }}>
+                            <div style={{
+                              width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
+                              background: C.coralSoft, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {f.photo
+                                ? <img src={f.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                                : <span style={{ fontFamily: 'Albert Sans', fontSize: 12, fontWeight: 800, color: C.coralDeep }}>{(f.name || '?').charAt(0)}</span>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 700, color: C.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {f.name}
+                              </div>
+                              {f.joinedAt && (
+                                <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>
+                                  Joined {new Date(f.joinedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </div>
+                              )}
+                            </div>
+                            {isVerified ? (
+                              <span style={{
+                                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3,
+                                background: `${C.sageDark}18`, color: C.sageDark,
+                                borderRadius: 999, padding: '4px 10px',
+                                fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800,
+                              }}>
+                                <BadgeCheck size={10}/> Verified
+                              </span>
+                            ) : (
+                              <span style={{
+                                flexShrink: 0, background: C.cream, color: C.muted,
+                                border: `1px solid ${C.line}`, borderRadius: 999, padding: '4px 9px',
+                                fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+                              }}>
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Pending explanation — only when some friends aren't verified yet */}
+                      {referredFriends.some(f => f.status !== 'verified') && (
+                        <div style={{
+                          borderTop: `1px solid ${C.line}`, padding: '9px 14px',
+                          fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, lineHeight: 1.4,
+                        }}>
+                          Pending friends count once they verify their account.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          );
+        })()}
+
+        {/* Loaded — empty state (account exists, nobody's joined yet) */}
+        {!referralsLoading && referrals && referrals.count === 0 && (
+          <div style={{
+            marginTop: 4,
+            background: C.cream, border: `1px dashed ${C.line}`, borderRadius: 16,
+            padding: '16px 14px', textAlign: 'center',
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 20, background: C.saffronSoft,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px',
+            }}>
+              <Users size={18} color={C.saffron}/>
+            </div>
+            <div style={{ fontFamily: 'Fraunces', fontSize: 15, fontWeight: 600, color: C.navy, lineHeight: 1.3 }}>
+              Your <span style={{ fontStyle: 'italic', color: C.coral }}>village</span> is waiting
+            </div>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 11.5, color: C.muted, marginTop: 5, lineHeight: 1.45 }}>
+              Invite a friend with the button above.{' '}
+              {REFERRAL_TIERS[1]?.perk && (
+                <>Bring {REFERRAL_TIERS[1].count} verified friends and earn {REFERRAL_TIERS[1].perk}.</>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Sign out + restart */}
       {account && (
