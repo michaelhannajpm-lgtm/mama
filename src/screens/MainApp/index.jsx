@@ -124,9 +124,9 @@ export const MainApp = ({
 
   // Same pattern for Explore. Used so the "See all" links on Home (Things
   // to do, Popular places) and Connect (Upcoming meetups) all route into
-  // the SAME SeeAllSheet that lives in LocalPicksTab — with that section's
-  // quick filters and advanced filter sheet. Keys must match SECTIONS in
-  // LocalPicksTab: 'events' | 'meetups' | 'places' | 'kids' | 'schools' | 'health'.
+  // the SAME inline results view that lives in LocalPicksTab — with that
+  // section's quick filters and advanced filter sheet. Keys must match SECTIONS
+  // in LocalPicksTab: 'events' | 'meetups' | 'places' | 'kids' | 'schools' | 'health'.
   const [exploreSeeAll, setExploreSeeAll] = useState(null);
   const goToExploreSeeAll = (view) => { setExploreSeeAll(view); setTab('localpicks'); };
 
@@ -246,6 +246,8 @@ export const MainApp = ({
         flash={flash}
         filterOpen={localPicksFilterOpen} setFilterOpen={setLocalPicksFilterOpen}
         account={account} openPremium={openPremium}
+        nearbyMoms={nearbyMoms} nearbyLoading={nearbyLoading}
+        openMessage={openMessage} openSchedule={openSchedule} freeLimit={freeLimit}
         initialSeeAll={exploreSeeAll}
         onConsumeSeeAll={() => setExploreSeeAll(null)}
         goToConnectGroups={() => goToConnectSeeAll('topics')}

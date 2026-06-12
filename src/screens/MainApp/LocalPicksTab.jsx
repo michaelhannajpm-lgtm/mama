@@ -7,13 +7,14 @@ import {
   Tent, CalendarDays, Clock,
   Bookmark, Check,
   Search, Calendar, GraduationCap, Heart, Backpack,
+  ArrowLeft, SlidersHorizontal, Crown, X,
 } from 'lucide-react';
 import { C } from '../../theme';
 import { Skeleton } from '../../components/Skeleton';
 import { PlacesFilterSheet, PLACES_FILTER_DEFAULT } from '../../sheets/PlacesFilterSheet';
 import { PlaceDetailSheet } from '../../sheets/PlaceDetailSheet';
 import { EventDetailSheet } from '../../sheets/EventDetailSheet';
-import { SeeAllSheet } from '../../sheets/SeeAllSheet';
+import { MomDetailSheet } from '../../sheets/MomDetailSheet';
 import { ShareSheet } from '../../sheets/ShareSheet';
 import { RateSheet } from '../../sheets/RateSheet';
 import { GroupDiscussionSheet } from '../../sheets/GroupDiscussionSheet';
@@ -151,6 +152,76 @@ const LpCardSkeleton = () => (
       <Skeleton w="60%" h={10} radius={5} style={{ marginTop: 7 }}/>
     </div>
   </div>
+);
+
+// Grouped search-result section — uppercase label + match count, then cards.
+const ResultGroup = ({ label, count, children }) => (
+  <div className="px-5" style={{ marginTop: 6, marginBottom: 8 }}>
+    <div className="flex items-baseline gap-2" style={{ marginBottom: 8 }}>
+      <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: C.muted }}>{label}</span>
+      <span style={{ fontFamily: 'Albert Sans', fontSize: 11, fontWeight: 800, color: C.inkSoft }}>{count}</span>
+    </div>
+    {children}
+  </div>
+);
+
+// 2-up grid for the results views — cards fill their cell.
+const GridTwo = ({ children }) => (
+  <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+    {children}
+  </div>
+);
+
+// Compact mom card for the Moms group in global search. Opens the shared
+// MomDetailSheet on tap (every deep action lives there).
+const MomResultCard = ({ mom, onClick }) => {
+  const title = mom.name || mom.firstName || 'Mom';
+  const sub = [mom.distance, mom.neighborhood || mom.area].filter(Boolean).join(' · ');
+  return (
+    <button onClick={onClick} className="text-left active:scale-[.98] transition-transform" style={{
+      background: '#fff', borderRadius: 12, border: `1px solid ${C.line}`,
+      boxShadow: '0 3px 8px -6px rgba(27,42,78,.18)', overflow: 'hidden', cursor: 'pointer',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{
+        height: 92, position: 'relative',
+        background: mom.photo ? `center/cover url(${mom.photo})` : `linear-gradient(135deg, ${C.coralSoft}, ${C.peach})`,
+      }}>
+        {mom.overlap != null && (
+          <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(255,255,255,.92)', color: C.coral, fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999 }}>
+            {mom.overlap}% match
+          </span>
+        )}
+      </div>
+      <div style={{ padding: '8px 10px' }}>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 800, color: C.navy }}>{title}</div>
+        {sub && <div style={{ fontFamily: 'Albert Sans', fontSize: 10.5, color: C.muted, marginTop: 1 }}>{sub}</div>}
+        {mom.sharedTags?.[0] && (
+          <span style={{ display: 'inline-block', marginTop: 6, background: C.sage, color: C.sageDark, fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>
+            {mom.sharedTags[0]}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+};
+
+// Advanced-filter button for the inline category browse (mirrors SeeAllSheet).
+const FilterIconBtn = ({ count = 0, locked = false, onClick }) => (
+  <button onClick={onClick} aria-label={locked ? 'Advanced filters · Plus' : 'Open advanced filters'}
+    className="relative flex-shrink-0 flex items-center justify-center rounded-full"
+    style={{ width: 34, height: 34, background: count > 0 ? C.coral : C.paper, color: count > 0 ? '#fff' : C.navy, border: `1px solid ${count > 0 ? C.coral : C.divider}`, cursor: 'pointer' }}>
+    <SlidersHorizontal size={14}/>
+    {locked ? (
+      <span className="absolute" style={{ top: -4, right: -4, width: 16, height: 16, borderRadius: 8, background: C.saffron, color: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${C.cream}` }}>
+        <Crown size={9}/>
+      </span>
+    ) : count > 0 && (
+      <span className="absolute" style={{ top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: C.coralDeep, color: '#fff', fontFamily: 'Albert Sans', fontWeight: 800, fontSize: 9.5, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${C.cream}` }}>
+        {count > 9 ? '9+' : count}
+      </span>
+    )}
+  </button>
 );
 
 const SectionSkeleton = () => (
@@ -791,7 +862,7 @@ const quickFilterMatch = (item, ids, userCoords) => {
 
 // -------------------------- explore-only data --------------------------
 
-// Browse-by-category grid. Each entry tap opens the SeeAllSheet for the
+// Browse-by-category grid. Each entry tap opens the inline results view for the
 // matching SECTIONS key, so the grid is the primary navigation surface for
 // every category that isn't pinned to the main scroll. `color` drives the
 // filled circle behind a white icon — Mindbody/Classpass-style polished
@@ -899,6 +970,8 @@ export const LocalPicksTab = ({
   requireVerify,
   filterOpen, setFilterOpen,
   account, openPremium,
+  nearbyMoms = [], nearbyLoading = false,
+  openMessage, openSchedule, freeLimit = 3,
   initialSeeAll = null, onConsumeSeeAll,
   goToConnectGroups,
   chatAuthor, myUserId,
@@ -1049,13 +1122,67 @@ export const LocalPicksTab = ({
   const [seeAll, setSeeAll] = useState(null);
   const seeAllSection = effectiveSections.find(s => s.key === seeAll);
 
-  // Search query — filters card titles across the visible sections. Kept
-  // simple (substring match) so the box is useful without a backend search.
+  // ── Search + browse modes ────────────────────────────────────────────────
+  // The Explore body shows ONE of three views: the main feed, a global search
+  // results view (any non-empty query), or an inline category browse (a
+  // selected section). `seeAll` holds the browsed section key; a non-empty
+  // `searchQuery` takes precedence over it.
   const [searchQuery, setSearchQuery] = useState('');
-  const matchesSearch = (title) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return String(title || '').toLowerCase().includes(q);
+  const q = searchQuery.trim().toLowerCase();
+  const isSearching = q.length > 0;
+  const hit = (...parts) => parts.some(p => String(p || '').toLowerCase().includes(q));
+
+  // Inline category-browse quick-filter chips (replaces SeeAllSheet's own state).
+  const [quickActive, setQuickActive] = useState(() => new Set());
+  const toggleQuick = (id) => setQuickActive(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const openSection = (key) => { setQuickActive(new Set()); setSeeAll(key); };
+  const closeSection = () => { setQuickActive(new Set()); setSeeAll(null); };
+
+  // Mom detail — search results open the shared MomDetailSheet.
+  const [selectedMom, setSelectedMom] = useState(null);
+
+  // Flatten every non-event section's items into {item, kind} so global search
+  // can match across all place-like categories and route the right card/opener.
+  const placeLikeItems = useMemo(() => {
+    const out = [];
+    for (const s of effectiveSections) {
+      if (s.kind === 'event') continue;
+      for (const it of (s.allItems || [])) out.push({ item: it, kind: s.kind });
+    }
+    return out;
+  }, [effectiveSections]);
+
+  // Global search matches grouped by type (computed only while searching).
+  const results = useMemo(() => {
+    if (!isSearching) return null;
+    return {
+      events: eventOnly.filter(c => hit(c.title, c.place)),
+      meetups: meetupOnly.filter(c => hit(c.title, c.place)),
+      places: placeLikeItems.filter(({ item }) =>
+        hit(item.title, item._live?.category, (item._live?.tags || []).join(' '), item._live?.address)),
+      discussions: GROUP_DISCUSSIONS.filter(g => hit(g.title, g.blurb, (g.topics || []).join(' '))),
+      moms: (nearbyMoms || []).filter(m =>
+        hit(m.name, m.firstName, m.neighborhood, m.area, m.type, m.bio, (m.sharedTags || []).join(' '))),
+    };
+  }, [isSearching, q, eventOnly, meetupOnly, placeLikeItems, nearbyMoms]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Renders one place-like result card by section kind — shared by inline
+  // category browse and the Places group in search results.
+  const renderResultCard = (item, kind) => {
+    if (kind === 'event') return (
+      <EventCard key={item.id} item={item} onClick={() => openEvent(item)} going={isGoing(item.id)} onGoing={() => toggleGoing(item)} />
+    );
+    if (kind === 'program') return (
+      <ProgramCard key={item.id} item={item} onClick={() => openProgram(item)} saved={isSaved(item.id)} onSave={() => toggleSave(item.id, item.title)} myRating={myRating(item.id)} onRate={() => openRate(item, 'place')} />
+    );
+    if (kind === 'school') return (
+      <SchoolCard key={item.id} item={item} onClick={() => openSchool(item)} saved={isSaved(item.id)} onSave={() => toggleSave(item.id, item.title)} myRating={myRating(item.id)} onRate={() => openRate(item, 'place')} />
+    );
+    return (
+      <PhotoCard key={item.id} item={item} onClick={() => openTopPlace(item)} saved={isSaved(item.id)} onSave={() => toggleSave(item.id, item.title)} myRating={myRating(item.id)} onRate={() => openRate(item, 'place')} />
+    );
   };
 
   // Trending group chats — group sheet state. Premium-gated request-join
@@ -1085,14 +1212,14 @@ export const LocalPicksTab = ({
   };
 
   // Cross-tab intent: HomeTab and ConnectTab route their "See all" links
-  // here so every "see all" lands on the same Explore SeeAllSheet (same
+  // here so every "see all" lands on the same inline results view (same
   // section, same quick filters, same advanced sheet). We accept the key
   // only if it matches a known section so a stale key doesn't open a blank
-  // sheet, then clear the parent so a plain nav-bar visit is unaffected.
+  // view, then clear the parent so a plain nav-bar visit is unaffected.
   useEffect(() => {
     if (!initialSeeAll) return;
     if (SECTIONS.some(s => s.key === initialSeeAll)) {
-      setSeeAll(initialSeeAll);
+      openSection(initialSeeAll);
     }
     onConsumeSeeAll?.();
   }, [initialSeeAll]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1102,31 +1229,22 @@ export const LocalPicksTab = ({
   //   • Trending group chats (new — uses TRENDING_GROUPS)
   //   • Top local picks (places feed)
   // Every other category is reachable through the Browse-by-category grid
-  // (each tap opens the matching SeeAllSheet).
+  // (each tap opens the matching inline results view).
   const eventsSection = effectiveSections.find(s => s.key === 'events');
   const placesSection = effectiveSections.find(s => s.key === 'places');
-  const eventsItems = (eventsSection?.items || []).filter(i => matchesSearch(i.title));
-  const placesItems = (placesSection?.items || []).filter(i => matchesSearch(i.title));
-  const trendingGroups = TRENDING_GROUPS.filter(g => matchesSearch(g.title));
+  // The main feed renders only when NOT searching/browsing, so these are
+  // unfiltered — global search has its own grouped results view.
+  const eventsItems = eventsSection?.items || [];
+  const placesItems = placesSection?.items || [];
+  const trendingGroups = TRENDING_GROUPS;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', paddingTop: 6, paddingBottom: 16 }}>
 
-        {/* "Explore" title — the location pill lives in MainApp's shared
-            header (it anchors the whole feed). Title sits just below it. */}
-        <div className="px-5" style={{ marginBottom: 10 }}>
-          <div style={{
-            fontFamily: 'Fraunces', fontSize: 32, fontWeight: 700,
-            color: C.navy, letterSpacing: '-.02em', lineHeight: 1,
-          }}>
-            Explore
-          </div>
-        </div>
-
-        {/* Search bar — no Filters button per spec; the search field spans
-            the row. Substring-matches event / group / place titles in the
-            three pinned sections (the SeeAllSheet has its own filters). */}
+        {/* Search bar — searches the whole app (events, meetups, places,
+            discussions, moms). A non-empty query swaps the feed for grouped
+            results; clearing it returns to the main view. */}
         <div className="px-5" style={{ marginBottom: 14 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -1138,19 +1256,144 @@ export const LocalPicksTab = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search events, meetups, places and more"
+              placeholder="Search events, places, moms and more"
               style={{
                 flex: 1, minWidth: 0,
                 background: 'transparent', border: 'none', outline: 'none',
                 fontFamily: 'Albert Sans', fontSize: 12.5, color: C.navy,
               }}
             />
+            {isSearching && (
+              <button onClick={() => setSearchQuery('')} aria-label="Clear search"
+                style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: C.muted, display: 'inline-flex' }}>
+                <X size={15}/>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Browse by category — 2x3 grid. Each tile opens the SeeAllSheet
-            for that section so the grid is the primary nav for every
-            category that isn't pinned to the main scroll. */}
+        {/* ── Global search results (grouped by type) ── */}
+        {isSearching && (() => {
+          const total = results.events.length + results.meetups.length + results.places.length
+            + results.discussions.length + results.moms.length;
+          if (total === 0) {
+            return (nearbyLoading || eventsLoading || placesLoading)
+              ? [0, 1].map(i => <SectionSkeleton key={`ssk-${i}`}/>)
+              : (
+                <div className="px-5" style={{ marginTop: 36, textAlign: 'center', fontFamily: 'Albert Sans', fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+                  No matches for “{searchQuery.trim()}” · try a different search
+                </div>
+              );
+          }
+          return (
+            <div style={{ paddingBottom: 8 }}>
+              {results.events.length > 0 && (
+                <ResultGroup label="Events" count={results.events.length}>
+                  <GridTwo>{results.events.map(c => renderResultCard(c, 'event'))}</GridTwo>
+                </ResultGroup>
+              )}
+              {results.meetups.length > 0 && (
+                <ResultGroup label="Meetups" count={results.meetups.length}>
+                  <GridTwo>{results.meetups.map(c => renderResultCard(c, 'event'))}</GridTwo>
+                </ResultGroup>
+              )}
+              {results.places.length > 0 && (
+                <ResultGroup label="Places" count={results.places.length}>
+                  <GridTwo>{results.places.map(({ item, kind }) => renderResultCard(item, kind))}</GridTwo>
+                </ResultGroup>
+              )}
+              {results.discussions.length > 0 && (
+                <ResultGroup label="Discussions" count={results.discussions.length}>
+                  <div className="flex" style={{ overflowX: 'auto', scrollbarWidth: 'none', gap: 10, paddingBottom: 4 }}>
+                    {results.discussions.map(g => (
+                      <GroupChatCard key={g.id} item={g} onClick={() => setSelectedDiscussion(g)}/>
+                    ))}
+                  </div>
+                </ResultGroup>
+              )}
+              {results.moms.length > 0 && (
+                <ResultGroup label="Moms" count={results.moms.length}>
+                  <GridTwo>{results.moms.map(m => (
+                    <MomResultCard key={m.id} mom={m} onClick={() => setSelectedMom(m)}/>
+                  ))}</GridTwo>
+                </ResultGroup>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── Inline category browse (replaces the old SeeAllSheet) ── */}
+        {!isSearching && seeAllSection && (() => {
+          const items = quickActive.size
+            ? seeAllSection.allItems.filter(it => quickFilterMatch(it, [...quickActive], userCoords))
+            : seeAllSection.allItems;
+          const chips = QUICK_FILTERS_BY_SECTION[seeAllSection.key] || [];
+          return (
+            <div>
+              {/* Header: back + title + advanced filter */}
+              <div className="px-5 flex items-center gap-3" style={{ marginBottom: 10 }}>
+                <button onClick={closeSection} aria-label="Back" className="rounded-full flex items-center justify-center active:scale-[.95] transition-transform"
+                  style={{ width: 34, height: 34, background: C.paper, border: `1px solid ${C.divider}`, color: C.navy, cursor: 'pointer', flexShrink: 0 }}>
+                  <ArrowLeft size={16}/>
+                </button>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontFamily: 'Fraunces', fontSize: 18, fontWeight: 700, color: C.navy, letterSpacing: '-.01em', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {seeAllSection.title}
+                  </div>
+                  {seeAllSection.seeAllSubtitle && (
+                    <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, marginTop: 2 }}>{seeAllSection.seeAllSubtitle}</div>
+                  )}
+                </div>
+                <FilterIconBtn count={advCount} locked={!isPremium} onClick={openAdvancedFilter}/>
+              </div>
+
+              {/* Quick-filter chips */}
+              {chips.length > 0 && (
+                <div className="px-5 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none', marginBottom: 10, paddingBottom: 2 }}>
+                  {chips.map(f => {
+                    const Icon = f.icon; const on = quickActive.has(f.id);
+                    return (
+                      <button key={f.id} onClick={() => toggleQuick(f.id)} style={{
+                        flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 16,
+                        background: on ? C.coral : C.paper, color: on ? '#fff' : C.navy,
+                        border: `1px solid ${on ? C.coral : C.divider}`, cursor: 'pointer',
+                        fontFamily: 'Albert Sans', fontSize: 11.5, fontWeight: 700,
+                      }}>
+                        {Icon && <Icon size={11.5}/>}{f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Results: skeletons while live data resolves → grid → empty. */}
+              <div className="px-5" style={{ paddingBottom: 16 }}>
+                {(placesLoading || eventsLoading) ? (
+                  <GridTwo>{[0, 1, 2, 3].map(i => <LpCardSkeleton key={`bsk-${i}`}/>)}</GridTwo>
+                ) : (
+                  <>
+                    <div style={{ fontFamily: 'Albert Sans', fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 10 }}>
+                      {items.length} {items.length === 1 ? 'result' : 'results'}
+                    </div>
+                    {items.length === 0 ? (
+                      <div className="text-center" style={{ paddingTop: 24, fontFamily: 'Albert Sans', fontSize: 12.5, color: C.muted }}>
+                        No results match these filters.
+                      </div>
+                    ) : (
+                      <GridTwo>{items.map(item => renderResultCard(item, seeAllSection.kind))}</GridTwo>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Main feed (only when not searching or browsing) ── */}
+        {!isSearching && !seeAllSection && (<>
+
+        {/* Browse by category — 2x3 grid. Each tile opens the inline
+            results view for that section. */}
         <div className="px-5" style={{ marginBottom: 6 }}>
           <div style={{
             fontFamily: 'Fraunces', fontSize: 16, fontWeight: 700,
@@ -1163,7 +1406,7 @@ export const LocalPicksTab = ({
             gap: 8,
           }}>
             {CATEGORIES.map(cat => (
-              <CategoryCard key={cat.key} item={cat} onClick={() => setSeeAll(cat.key)}/>
+              <CategoryCard key={cat.key} item={cat} onClick={() => openSection(cat.key)}/>
             ))}
           </div>
         </div>
@@ -1176,7 +1419,7 @@ export const LocalPicksTab = ({
         {/* Popular right now — events feed */}
         {!(placesLoading || eventsLoading) && eventsItems.length > 0 && (
           <div className="px-5" id="explore-section-events">
-            <SectionHead title="Popular right now" onLink={() => setSeeAll('events')}/>
+            <SectionHead title="Popular right now" onLink={() => openSection('events')}/>
             <div
               className="flex"
               style={{
@@ -1219,7 +1462,7 @@ export const LocalPicksTab = ({
         {/* Top local picks — places feed */}
         {!(placesLoading || eventsLoading) && placesItems.length > 0 && (
           <div className="px-5" id="explore-section-places">
-            <SectionHead title="Top local picks" onLink={() => setSeeAll('places')}/>
+            <SectionHead title="Top local picks" onLink={() => openSection('places')}/>
             <div
               className="flex"
               style={{
@@ -1243,82 +1486,36 @@ export const LocalPicksTab = ({
             fontFamily: 'Albert Sans', fontSize: 13, color: C.muted,
             lineHeight: 1.5,
           }}>
-            {searchQuery.trim()
-              ? `No matches for "${searchQuery.trim()}" · try a different search`
-              : (activeCats.length
-                ? 'No places match your filters right now · try clearing them'
-                : 'No local picks to show here yet · check back soon')}
+            {activeCats.length
+              ? 'No places match your filters right now · try clearing them'
+              : 'No local picks to show here yet · check back soon'}
           </div>
         )}
 
+        </>)}
+
       </div>
 
-      {seeAllSection && (
-        <SeeAllSheet
-          title={seeAllSection.title}
-          subtitle={seeAllSection.seeAllSubtitle}
-          items={seeAllSection.allItems}
-          renderItem={(item) => {
-            if (seeAllSection.kind === 'event') {
-              // Events & meetups intentionally drop the inline Save badge —
-              // the only save-style action moms see on these cards lives in
-              // the detail sheet, and the spec asked for it to be removed
-              // there too. We keep the inline "I'm going" CTA.
-              return (
-                <EventCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => openEvent(item)}
-                  going={isGoing(item.id)}
-                  onGoing={() => toggleGoing(item)}
-                />
-              );
-            }
-            if (seeAllSection.kind === 'program') {
-              return (
-                <ProgramCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => openProgram(item)}
-                  saved={isSaved(item.id)}
-                  onSave={() => toggleSave(item.id, item.title)}
-                  myRating={myRating(item.id)}
-                  onRate={() => openRate(item, 'place')}
-                />
-              );
-            }
-            if (seeAllSection.kind === 'school') {
-              return (
-                <SchoolCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => openSchool(item)}
-                  saved={isSaved(item.id)}
-                  onSave={() => toggleSave(item.id, item.title)}
-                  myRating={myRating(item.id)}
-                  onRate={() => openRate(item, 'place')}
-                />
-              );
-            }
-            return (
-              <PhotoCard
-                key={item.id}
-                item={item}
-                onClick={() => openTopPlace(item)}
-                saved={isSaved(item.id)}
-                onSave={() => toggleSave(item.id, item.title)}
-                myRating={myRating(item.id)}
-                onRate={() => openRate(item, 'place')}
-              />
-            );
+      {selectedMom && (
+        <MomDetailSheet
+          fullScreen
+          mom={selectedMom}
+          saved={isSaved(`mom-${selectedMom.id}`)}
+          isPremium={isPremium}
+          freeLimit={freeLimit}
+          onMessage={() => { openMessage?.(selectedMom); setSelectedMom(null); }}
+          onSchedule={() => { openSchedule?.(selectedMom); setSelectedMom(null); }}
+          onConnect={() => {
+            if (requireVerify && !requireVerify('connect', selectedMom.name)) return;
+            flash?.(`Request sent to ${selectedMom.name || 'mom'}`);
           }}
-          columns={2}
-          quickFilters={QUICK_FILTERS_BY_SECTION[seeAllSection.key]}
-          matchQuickFilter={(item, ids) => quickFilterMatch(item, ids, userCoords)}
-          onOpenAdvancedFilter={openAdvancedFilter}
-          advancedFilterCount={advCount}
-          lockedPremium={!isPremium}
-          onClose={() => setSeeAll(null)}
+          onSave={() => toggleSave(`mom-${selectedMom.id}`, selectedMom.name)}
+          onShare={() => setShareItem({
+            title: `${selectedMom.name || 'Mom'}'s profile`,
+            kind: 'Mom profile', place: selectedMom.distance, photo: selectedMom.photo,
+          })}
+          onPremium={() => openPremium?.()}
+          onClose={() => setSelectedMom(null)}
         />
       )}
 

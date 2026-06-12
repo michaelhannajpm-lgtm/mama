@@ -18,9 +18,10 @@ export const Sidebar = ({ current, onNavigate, collapsed, onToggleCollapse }) =>
       {/* Brand */}
       <div className="flex items-center gap-2.5" style={{ height: AC.headerHeight, padding: '0 16px', borderBottom: `1px solid ${AC.railBorder}` }}>
         <div className="flex items-center justify-center shrink-0" style={{
-          width: 30, height: 30, borderRadius: 8, background: AC.accent,
-          color: '#fff', fontFamily: AC.brandFont, fontSize: 17, fontWeight: 600,
-        }}>M</div>
+          width: 30, height: 30, borderRadius: 8, overflow: 'hidden',
+        }}>
+          <img src="/app-logo.png" alt="Go Mama" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
         {!collapsed && (
           <div style={{ fontFamily: AC.brandFont, fontSize: 17, fontWeight: 500, color: '#fff', letterSpacing: '-.01em', whiteSpace: 'nowrap' }}>
             Go Mama <span style={{ fontStyle: 'italic', color: AC.accent }}>Console</span>
