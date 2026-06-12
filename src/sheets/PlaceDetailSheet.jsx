@@ -67,9 +67,24 @@ export const PlaceDetailSheet = ({
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
+    const root = rootRef.current;
     const prevFocus = document.activeElement;
-    rootRef.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current?.(); } };
+    root?.focus();
+    const focusablesIn = (el) => [...el.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(n => n.offsetParent !== null);
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current?.(); return; }
+      if (e.key !== 'Tab' || !root) return;
+      const f = focusablesIn(root);
+      if (!f.length) { e.preventDefault(); root.focus(); return; }
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === root)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);

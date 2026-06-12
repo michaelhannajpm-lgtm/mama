@@ -46,9 +46,12 @@ export const C = {
   // category-chip colors used across the tabs. Added 2026-06-12 to retire the
   // hardcoded hex that had drifted into HomeTab / Explore / Profile / Connect.
   lilacDark:    '#5E4A8A',  // readable lilac/purple foreground (on C.lilac)
-  azure:        '#2F6DA8',  // info/blue foreground (saved places, Facebook pill)
+  azure:        '#1D5A94',  // info/blue foreground (saved places, Facebook pill)
+                            //   — passes WCAG AA (≈5:1) as text on C.azureSoft.
   azureSoft:    '#D6E6F4',  // pale blue chip background
-  amber:        '#B36A1D',  // warm-amber foreground (saved programs)
+  amber:        '#B36A1D',  // warm-amber ICON color (saved programs). NOTE: only
+                            //   ~3.4:1 on amberSoft — decorative/icon use only,
+                            //   not text.
   amberSoft:    '#FBE2C7',  // pale amber chip background
   // Explore category-chip accents — filled circles behind a white icon.
   catViolet:    '#8E63CC',  // Meetups

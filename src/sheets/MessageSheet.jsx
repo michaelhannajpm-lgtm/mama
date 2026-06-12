@@ -202,6 +202,17 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
           </div>
         )}
 
+        {/* Warm empty state — a fresh conversation with no history yet. Makes
+            the space before the composer feel intentional and points to the
+            pre-filled icebreaker, completing the loading → data → empty trio. */}
+        {!loading && messages.length === 0 && !dmBlocked && !limitReached && (
+          <div className="mt-4 rounded-2xl p-4 text-center" style={{ background: C.creamSoft, border: `1px dashed ${C.coralSoft}` }}>
+            <div style={{ fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, color: C.inkSoft, lineHeight: 1.5 }}>
+              Say hi to {firstName} — you've already got something in common. We've drafted an opener below.
+            </div>
+          </div>
+        )}
+
         {/* Verified-only gate · message limit upsell · or the composer */}
         {dmBlocked ? (
           <div className="mt-4 rounded-2xl p-4" style={{ background: C.creamSoft, border: `1px solid ${C.divider}` }}>

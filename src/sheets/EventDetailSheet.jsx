@@ -154,7 +154,7 @@ export const EventDetailSheet = ({
     : DEFAULT_GOING_AVATARS).slice(0, 5);
 
   return (
-    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen}>
+    <Sheet onClose={onClose} tall bleedTop fullScreen={fullScreen} label={event?.title || 'Event details'}>
       {/* All content lives inside Sheet's overflow-y-auto wrapper, so the
           whole detail view scrolls as one column — top hero to bottom CTA. */}
       <div className="pb-8">
