@@ -76,6 +76,9 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
     place_name: event.place_name || '',
     area: event.area || '',
     city: event.city || 'Tampa',
+    lat: event.lat ?? '',
+    lng: event.lng ?? '',
+    address: event.address || '',
     starts_at: dtLocal(event.starts_at),
     ends_at: dtLocal(event.ends_at),
     day_of_week: event.day_of_week || '',
@@ -106,6 +109,44 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
   const [busy, setBusy] = useState(false);
   const [lightbox, setLightbox] = useState(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Google Places lookup → populates the event's lat / lng / address.
+  const [geoQuery, setGeoQuery] = useState('');
+  const [geoResults, setGeoResults] = useState([]);
+  const [geoSearching, setGeoSearching] = useState(false);
+  const [geoConfigured, setGeoConfigured] = useState(true);
+
+  const searchGooglePlaces = async () => {
+    const q = geoQuery.trim();
+    if (!q) return;
+    setGeoSearching(true); setGeoResults([]);
+    try {
+      const r = await adminFetch('/api/admin/places/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q, city: form.city || 'Tampa, FL' }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.status);
+      setGeoConfigured(j.configured !== false);
+      setGeoResults(j.results || []);
+    } catch (e) { alert(`Place search failed: ${e.message}`); }
+    finally { setGeoSearching(false); }
+  };
+
+  // Apply a Google result: always set coordinates + address; fill place_name /
+  // city only when blank so we don't clobber an admin's existing values.
+  const applyGeo = (p) => {
+    setForm(f => ({
+      ...f,
+      lat: p.lat ?? '',
+      lng: p.lng ?? '',
+      address: p.address || '',
+      place_name: f.place_name || p.name || '',
+    }));
+    setGeoResults([]); setGeoQuery('');
+  };
+
+  const clearGeo = () => setForm(f => ({ ...f, lat: '', lng: '', address: '' }));
 
   const placeMatches = useMemo(() => {
     const q = placeQuery.trim().toLowerCase();
@@ -138,6 +179,9 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
       place_name: form.place_name || null,
       area: form.area || null,
       city: form.city || null,
+      lat: num(form.lat),
+      lng: num(form.lng),
+      address: form.address || null,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       day_of_week: form.day_of_week || null,
@@ -332,9 +376,61 @@ export const EventEditModal = ({ event, places = [], adminFetch, onClose, onSave
         </div>
         {mapsUrl && (
           <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.accent, textDecoration: 'none' }}>
-            View on Google Maps <ExternalLink size={12} />
+            Linked place on Google Maps <ExternalLink size={12} />
           </a>
         )}
+
+        {/* 5b. Location & coordinates — the event's OWN point/address (falls
+            back to the linked place at read time, but can be set directly here).
+            Search Google Places to fill lat/lng/address in one tap. */}
+        <div style={sectionHeader}>Location &amp; coordinates</div>
+        <div style={{ fontFamily: 'Albert Sans', fontSize: 12, color: AC.textSoft, marginBottom: 6 }}>
+          Search a real-world place to populate the event’s coordinates &amp; address. Used for distance &amp; “Get directions” in the app.
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            value={geoQuery}
+            onChange={e => setGeoQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchGooglePlaces(); } }}
+            placeholder="e.g. Armature Works, Tampa"
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button type="button" onClick={searchGooglePlaces} disabled={geoSearching || !geoQuery.trim()}
+            style={{ background: AC.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontFamily: 'Albert Sans', fontSize: 12.5, fontWeight: 600, cursor: geoSearching || !geoQuery.trim() ? 'default' : 'pointer', opacity: geoSearching || !geoQuery.trim() ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+            {geoSearching ? 'Searching…' : 'Search Google'}
+          </button>
+        </div>
+        {!geoConfigured && (
+          <div style={{ marginTop: 6, fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.warn, background: AC.warnSoft, borderRadius: 8, padding: '6px 9px' }}>
+            Google Places isn’t configured on the server (GOOGLE_PLACES_API_KEY missing) — enter coordinates manually below.
+          </div>
+        )}
+        {geoResults.map((p) => (
+          <button key={p.id || `${p.lat},${p.lng}`} type="button" onClick={() => applyGeo(p)}
+            style={{ display: 'block', width: '100%', textAlign: 'left', background: AC.bg, border: `1px solid ${AC.border}`, borderRadius: 8, padding: '6px 9px', fontFamily: 'Albert Sans', fontSize: 12.5, marginTop: 4, cursor: 'pointer' }}>
+            <div style={{ fontWeight: 600, color: AC.text }}>{p.name}</div>
+            <div style={{ color: AC.textMuted, fontSize: 11.5 }}>{p.address}{p.rating != null ? ` · ★ ${p.rating}` : ''}</div>
+          </button>
+        ))}
+        <div className="grid grid-cols-3 gap-2" style={{ marginTop: 8 }}>
+          {Text('lat', 'Latitude', 'number', { step: 'any' })}
+          {Text('lng', 'Longitude', 'number', { step: 'any' })}
+          {Text('address', 'Street address')}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+          {num(form.lat) != null && num(form.lng) != null && (
+            <a href={`https://www.google.com/maps/search/?api=1&query=${form.lat},${form.lng}`} target="_blank" rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'Albert Sans', fontSize: 12.5, color: AC.accent, textDecoration: 'none' }}>
+              View these coordinates <ExternalLink size={12} />
+            </a>
+          )}
+          {(form.lat !== '' || form.lng !== '' || form.address) && (
+            <button type="button" onClick={clearGeo}
+              style={{ background: 'transparent', border: `1px solid ${AC.border}`, borderRadius: 8, padding: '4px 10px', fontFamily: 'Albert Sans', fontSize: 11.5, color: AC.textSoft, cursor: 'pointer' }}>
+              Clear coordinates
+            </button>
+          )}
+        </div>
 
         {/* 6. Details */}
         <div style={sectionHeader}>Details</div>
