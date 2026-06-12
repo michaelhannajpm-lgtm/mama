@@ -207,7 +207,10 @@ const GoingButton = ({ going, onClick }) => (
     style={{
       marginTop: 8, height: 32, borderRadius: 8,
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-      background: going ? C.sage : `linear-gradient(135deg, ${C.coral}, ${C.coralDeep})`,
+      // RSVP is a community action → sage, not coral (coral is reserved for 1:1
+      // intimacy). Pre-tap is a solid sage CTA; tapped is the lighter confirmed
+      // chip so the two states still read distinctly.
+      background: going ? C.sage : C.sageDark,
       color: going ? C.sageDark : '#fff',
       border: going ? `1px solid ${C.sageDark}` : 'none',
       cursor: 'pointer',

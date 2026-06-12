@@ -41,7 +41,7 @@ export const ScheduleSheet = ({ mom, onClose, onContinue, hasAccount, prefs, set
   ];
 
   return (
-    <Sheet onClose={onClose}>
+    <Sheet onClose={onClose} label={`Schedule with ${mom.name.split(' ')[0]}`}>
       <div className="px-6 pt-2 pb-6">
         <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.terracotta, fontFamily:'Albert Sans', fontWeight:600 }}>
           Schedule with {mom.name.split(' ')[0]}

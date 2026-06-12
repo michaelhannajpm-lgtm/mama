@@ -104,7 +104,7 @@ export const CreateAccountSheet = ({ pendingAction, onClose, onComplete }) => {
   })();
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall label="Create your account">
       <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
         {phase === 'code' ? (
           <div className="pt-2">

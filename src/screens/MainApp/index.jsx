@@ -188,6 +188,7 @@ export const MainApp = ({
       {tab === 'home' && <HomeTab
         thisWeek={thisWeek} events={events}
         places={places} nearbyMoms={nearbyMoms}
+        freeLimit={freeLimit}
         nearbyLoading={nearbyLoading} eventsLoading={eventsLoading} placesLoading={placesLoading}
         localFavorite={localFavorite}
         savedItems={savedItems} setSavedItems={setSavedItems}

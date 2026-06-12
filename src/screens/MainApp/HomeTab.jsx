@@ -422,6 +422,7 @@ const LocalFavoriteCard = ({ item, onClick }) => (
 export const HomeTab = ({
   thisWeek = [], events = [],
   places = null, nearbyMoms = [],
+  freeLimit = 3,
   nearbyLoading = false, eventsLoading = false, placesLoading = false,
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
@@ -890,6 +891,7 @@ export const HomeTab = ({
         <MomDetailSheet
           fullScreen
           mom={selectedMom}
+          freeLimit={freeLimit}
           saved={isSaved(`mom-${selectedMom.id}`)}
           invited={!!invited[selectedMom.id]}
           connectionStatus={connectionStatus[selectedMom.id] || 'none'}

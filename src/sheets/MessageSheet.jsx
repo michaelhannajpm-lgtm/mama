@@ -98,7 +98,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
   // ---- unavailable state ----
   if (unavailable) {
     return (
-      <Sheet onClose={onClose} tall>
+      <Sheet onClose={onClose} tall label={`Message ${firstName}`}>
         <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
           <div>
             <div className="text-[11px] tracking-[.18em] uppercase" style={{ color: C.terracotta, fontFamily: 'Albert Sans', fontWeight: 600 }}>
@@ -119,7 +119,7 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
   }
 
   return (
-    <Sheet onClose={onClose} tall>
+    <Sheet onClose={onClose} tall label={`Message ${firstName}`}>
       <div className="px-6 pt-2 pb-6 flex flex-col" style={{ minHeight: 540 }}>
         {/* Header */}
         <div>

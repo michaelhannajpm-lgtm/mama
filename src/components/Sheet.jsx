@@ -42,6 +42,14 @@ export const Sheet = ({ children, onClose, tall, dark, hideClose, bleedTop, full
   const maxVh = tall ? '92vh' : '82vh';
 
   const panelRef = useRef(null);
+  // Keep the latest onClose in a ref so the modal effect can run ONCE for the
+  // sheet's lifetime. (Callers pass inline `onClose={() => …}` arrows, which are
+  // new references every render — depending on onClose directly would tear the
+  // effect down and re-focus the panel on every unrelated parent re-render,
+  // yanking focus out of an input mid-type.)
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
   // Modal behavior: focus in on open / restore on close, Escape-to-close, and
   // a Tab focus trap so keyboard + screen-reader users can't wander behind the
   // scrim. Capture-phase listener so it wins over anything in the content.
@@ -57,7 +65,7 @@ export const Sheet = ({ children, onClose, tall, dark, hideClose, bleedTop, full
     )].filter(el => el.offsetParent !== null);
 
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current?.(); return; }
       if (e.key !== 'Tab' || !panel) return;
       const f = focusablesIn(panel);
       if (!f.length) { e.preventDefault(); panel.focus(); return; }
@@ -74,7 +82,9 @@ export const Sheet = ({ children, onClose, tall, dark, hideClose, bleedTop, full
       // Restore focus to whatever opened the sheet (a tab, a card, a CTA).
       if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
     };
-  }, [onClose]);
+    // Intentionally run once per mount — onClose is read via onCloseRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="absolute inset-0 z-40" style={{ background: 'rgba(20,14,16,.45)' }} onClick={onClose}>

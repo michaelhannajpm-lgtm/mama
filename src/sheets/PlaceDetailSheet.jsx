@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   MapPin, Star, Phone, Globe, Bookmark, Share2,
   Sparkles, Navigation, Clock, Check, X, ArrowLeft, MessageCircle,
@@ -58,6 +58,25 @@ export const PlaceDetailSheet = ({
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+
+  // This sheet renders its own full-bleed overlay (it predates the Sheet
+  // primitive), so it wires the core dialog a11y itself: focus-in on open,
+  // Escape-to-close, and focus restore on close. onClose via a ref so the
+  // effect runs once per mount despite inline-arrow callers.
+  const rootRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    const prevFocus = document.activeElement;
+    rootRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current?.(); } };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+    };
+  }, []);
+
   if (!place) return null;
 
   const kind = place.kind || 'Place';
@@ -75,7 +94,12 @@ export const PlaceDetailSheet = ({
 
   return (
     <div
-      className="absolute inset-0 z-40 flex flex-col"
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={place.title ? `${place.title} details` : 'Place details'}
+      tabIndex={-1}
+      className="absolute inset-0 z-40 flex flex-col outline-none"
       style={{ background: C.cream, animation: 'slideUp .3s cubic-bezier(.2,.8,.2,1)' }}
     >
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
