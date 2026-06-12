@@ -20,7 +20,7 @@ import { AC } from './admin-theme';
 import { NAV_INDEX } from './nav';
 import { useAdminRoute } from './lib/adminRouter';
 import { useAdminDeepLink } from './lib/adminDeepLink';
-import { getAdminToken, clearAdminToken, fetchEndpoint, adminFetch } from './lib/adminFetch';
+import { getAdminToken, clearAdminToken, getAdminContext, fetchEndpoint, adminFetch } from './lib/adminFetch';
 import { useAdminTheme } from './lib/useAdminTheme';
 import { Sidebar } from './components/Sidebar';
 import { AdminLogin } from './components/AdminLogin';
@@ -38,6 +38,7 @@ import { EventsManager } from './managers/EventsManager';
 import { IngestionManager } from './managers/IngestionManager';
 import { SourcesManager } from './managers/SourcesManager';
 import { ConfigManager } from './managers/ConfigManager';
+import { AdminsManager } from './managers/AdminsManager';
 import { WeeklyFavoriteManager } from './managers/WeeklyFavoriteManager';
 
 // Sections that read the shared Supabase data load. Others (users, deployments,
@@ -111,6 +112,7 @@ export const AdminApp = () => {
   if (!authed) return <AdminLogin onSuccess={() => setAuthed(true)} />;
 
   const meta = NAV_INDEX[section] || NAV_INDEX.overview;
+  const admin = getAdminContext(); // signed-in identity (for header display)
   const sharedReady = moms && momProfiles && places && events;
   const sharedPending = NEEDS_SHARED.has(section) && !sharedReady;
 
@@ -156,6 +158,12 @@ export const AdminApp = () => {
             icon={(p) => <RefreshCw {...p} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />}>
             Refresh
           </Button>
+          {admin?.email && (
+            <span className="hidden sm:inline" title={admin.email} style={{
+              fontFamily: AC.font, fontSize: 12, color: AC.textMuted, maxWidth: 180,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{admin.email}</span>
+          )}
           <Button variant="ghost" size="sm" icon={ShieldOff} onClick={signOut}>Sign out</Button>
         </header>
 
@@ -262,6 +270,8 @@ function renderSection(section, ctx) {
       return <SourcesManager rows={sources || []} adminFetch={adminFetch} onReload={load} />;
     case 'config':
       return <ConfigManager adminFetch={adminFetch} />;
+    case 'admins':
+      return <AdminsManager adminFetch={adminFetch} />;
     case 'users':
       return <UsersSection />;
     case 'deployments':

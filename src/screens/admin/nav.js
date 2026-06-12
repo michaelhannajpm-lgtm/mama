@@ -6,7 +6,7 @@
 // ============================================================================
 import {
   LayoutDashboard, ListChecks, Users, UserCog, MapPin, Calendar, Star,
-  Server, Database, Settings, Rocket, Zap,
+  Server, Database, Settings, Rocket, Zap, ShieldCheck,
 } from 'lucide-react';
 
 export const NAV_GROUPS = [
@@ -42,6 +42,7 @@ export const NAV_GROUPS = [
   {
     label: 'System',
     items: [
+      { id: 'admins', label: 'Admins', icon: ShieldCheck },
       { id: 'config', label: 'Config', icon: Settings },
       { id: 'deployments', label: 'Deployments', icon: Rocket },
       { id: 'actions', label: 'Quick actions', icon: Zap },

@@ -22,6 +22,10 @@ const KEYS = {
 
 const asBool = (v) => v === true || v === 'true';
 
+// Admin-only JSON keys that live in app_config but must NEVER be exposed to the
+// browser through the public config (e.g. the admin allowlist).
+const ADMIN_ONLY = new Set(['admin_users']);
+
 export default async function handler(req, res) {
   // Short max-age: the client-side runtime cache (TTL-driven) is the real
   // control point, so the HTTP cache must not mask admin edits for long.
@@ -63,8 +67,9 @@ export default async function handler(req, res) {
         continue;
       }
 
-      // JSON lookups (only those flagged client-cacheable are exposed).
-      if (row.value_type === 'json' && row.client_cacheable !== false) {
+      // JSON lookups (only those flagged client-cacheable are exposed; admin-
+      // only keys like the allowlist are never sent to the browser).
+      if (row.value_type === 'json' && row.client_cacheable !== false && !ADMIN_ONLY.has(row.key)) {
         lookups[row.key] = row.value;
       }
     }
