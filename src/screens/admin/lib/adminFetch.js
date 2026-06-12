@@ -1,9 +1,9 @@
 // ============================================================================
-// Admin auth + fetch. The shared admin password is exchanged once (via
-// /api/admin/login) for an HMAC-signed bearer token; only the token is stored
-// and sent. A 401 from any call clears the token and signals the shell to fall
-// back to the login gate via the `gm-admin-unauthorized` window event.
-// (Lifted verbatim from the original AdminPage so behaviour is unchanged.)
+// Admin auth + fetch. Admins sign in with an email OTP (via /api/admin/otp/*),
+// receiving an HMAC-signed bearer token carrying their identity + 30-day expiry;
+// only the token is stored and sent. A 401 from any call (bad/expired token)
+// clears it and signals the shell to fall back to the login gate via the
+// `gm-admin-unauthorized` window event.
 // ============================================================================
 
 const TOKEN_KEY = 'gm_admin_token';
@@ -16,6 +16,21 @@ export const setAdminToken = (t) => {
 };
 export const clearAdminToken = () => {
   try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+};
+
+// Decode the (unverified) token payload for display purposes — the signed-in
+// admin's identity + access. The server remains the source of truth; this is
+// only used to show the email in the header and (later) filter the nav.
+// Returns { email, role, modules, iat, exp } or null.
+export const getAdminContext = () => {
+  const token = getAdminToken();
+  const dot = token.indexOf('.');
+  if (dot <= 0) return null;
+  try {
+    let b64 = token.slice(0, dot).replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    return JSON.parse(atob(b64));
+  } catch { return null; }
 };
 
 // fetch wrapper that attaches the bearer token and, on a 401, drops the token
