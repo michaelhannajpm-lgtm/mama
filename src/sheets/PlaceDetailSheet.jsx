@@ -295,17 +295,23 @@ export const PlaceDetailSheet = ({
             </button>
           )}
 
-          {/* Visited indicator placeholder — keeps social proof front-of-mind */}
-          <div className="mt-4 rounded-2xl p-3 flex items-center gap-2.5" style={{
-            background: `${C.sageDark}10`, border: `1px solid ${C.sageDark}33`,
-          }}>
-            <Check size={14} color={C.sageDark}/>
-            <div className="text-[11.5px]" style={{
-              fontFamily: 'Albert Sans', color: C.navy,
+          {/* Social proof — only when we have a REAL count from the API
+              (place.visitorsThisWeek). Never fabricate a number; an invented
+              "12 moms" erodes the trust the rest of the app is built on. */}
+          {Number.isFinite(place.visitorsThisWeek) && place.visitorsThisWeek > 0 && (
+            <div className="mt-4 rounded-2xl p-3 flex items-center gap-2.5" style={{
+              background: `${C.sageDark}10`, border: `1px solid ${C.sageDark}33`,
             }}>
-              <strong style={{ color: C.sageDark }}>12 moms</strong> in your area visited this week
+              <Check size={14} color={C.sageDark}/>
+              <div className="text-[11.5px]" style={{
+                fontFamily: 'Albert Sans', color: C.navy,
+              }}>
+                <strong style={{ color: C.sageDark }}>
+                  {place.visitorsThisWeek} mom{place.visitorsThisWeek === 1 ? '' : 's'}
+                </strong> in your area visited this week
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

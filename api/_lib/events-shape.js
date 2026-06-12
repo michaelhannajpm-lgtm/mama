@@ -21,6 +21,11 @@ const toUi = (row) => ({
   kind: row.kind,
   startsAt: row.starts_at || null,
   eventType: row.event_type || null,
+  // Location: the event's own coordinates win; otherwise inherit the linked
+  // place's. Null when neither has a point (distance/directions just hide).
+  lat: row.lat ?? row.places?.lat ?? null,
+  lng: row.lng ?? row.places?.lng ?? null,
+  address: row.address || null,
 });
 
 // All visible rows (place-gated) in UI shape.

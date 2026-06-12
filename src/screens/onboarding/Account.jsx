@@ -52,11 +52,13 @@ export const Account = ({ onBack, onLogin, account, onComplete, flash }) => {
   void account;
 
   const [phase, setPhase] = useState('choose'); // 'choose' | 'collect' | 'code'
-  const [firstName, setFirstName] = useState('Sana');
+  const [firstName, setFirstName] = useState('');
   const [method, setMethod] = useState('phone');
-  const [phone, setPhone] = useState('(813) 956-2058');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [agreed, setAgreed] = useState(true);
+  // Consent must be an explicit, affirmative action — never pre-checked
+  // (GDPR/CCPA opt-in + Apple 5.1.1). `canSend` gates the CTA on it.
+  const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
   const [error, setError] = useState(null);

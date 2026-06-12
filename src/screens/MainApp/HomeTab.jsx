@@ -75,6 +75,37 @@ const MomMeetCardSkeleton = () => (
   </div>
 );
 
+// Matches AgeProgramCard (width 142, 88px media + label/title/meta block).
+const AgeProgramCardSkeleton = () => (
+  <div style={{
+    flexShrink: 0, width: 142, background: '#fff', borderRadius: 14,
+    border: `1px solid ${C.line}`, overflow: 'hidden',
+  }}>
+    <Skeleton w="100%" h={88} radius={0}/>
+    <div style={{ padding: '8px 10px 10px' }}>
+      <Skeleton w={40} h={12} radius={6}/>
+      <Skeleton w="88%" h={11} radius={5} style={{ marginTop: 6 }}/>
+      <Skeleton w="60%" h={9} radius={5} style={{ marginTop: 6 }}/>
+    </div>
+  </div>
+);
+
+// Matches LocalFavoriteCard (full-width row: 108px media + text block).
+const LocalFavoriteCardSkeleton = () => (
+  <div style={{
+    width: '100%', background: '#fff', border: `1px solid ${C.line}`,
+    borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'stretch',
+  }}>
+    <Skeleton w={108} h={104} radius={0}/>
+    <div style={{ flex: 1, padding: '12px 12px 12px 13px' }}>
+      <Skeleton w="70%" h={14} radius={6}/>
+      <Skeleton w="45%" h={10} radius={5} style={{ marginTop: 7 }}/>
+      <Skeleton w="90%" h={9} radius={5} style={{ marginTop: 8 }}/>
+      <Skeleton w={92} h={20} radius={999} style={{ marginTop: 10 }}/>
+    </div>
+  </div>
+);
+
 // Empty state for a horizontal rail — shown when the live API returns no rows
 // for that section (mirrors the Moms section's bordered empty card so every
 // section reads as live-and-loading, never blank or hidden).
@@ -288,9 +319,9 @@ const AgeProgramCard = ({ item, onClick }) => {
 
 const CONTINUE_TYPE_META = {
   meetup:  { Icon: Calendar,       bg: C.coralSoft, fg: C.coralDeep, label: 'Saved Meetup' },
-  place:   { Icon: MapPin,         bg: '#D6E6F4',   fg: '#2F6DA8',   label: 'Saved Place'  },
+  place:   { Icon: MapPin,         bg: C.azureSoft, fg: C.azure,     label: 'Saved Place'  },
   mom:     { Icon: Users,          bg: C.sage,      fg: C.sageDark,  label: 'Saved Mom'    },
-  program: { Icon: Music,          bg: '#FBE2C7',   fg: '#B36A1D',   label: 'Saved Program'},
+  program: { Icon: Music,          bg: C.amberSoft, fg: C.amber,     label: 'Saved Program'},
 };
 
 const ContinuePlanTile = ({ item, onClick }) => {
@@ -391,7 +422,7 @@ const LocalFavoriteCard = ({ item, onClick }) => (
 export const HomeTab = ({
   thisWeek = [], events = [],
   places = null, nearbyMoms = [],
-  nearbyLoading = false, eventsLoading = false,
+  nearbyLoading = false, eventsLoading = false, placesLoading = false,
   savedItems = [], goingItems = [], setGoingItems,
   joinedEvents = [], setJoinedEvents, setSavedItems,
   profile, flash, openMessage, openSchedule,
@@ -436,6 +467,7 @@ export const HomeTab = ({
     mi: a.mi,
     photo: a.photo || EVENT_FALLBACK_PHOTO,
     place: a.place,
+    lat: a.lat, lng: a.lng, address: a.address,
   }));
 
   // Moms You May Want To Meet — already match-ranked by the API
@@ -457,6 +489,7 @@ export const HomeTab = ({
       mi: a.mi,
       photo: a.photo || EVENT_FALLBACK_PHOTO,
       place: a.place,
+      lat: a.lat, lng: a.lng, address: a.address,
     }));
 
   // Based On Your Child's Age — real, kid-age-ranked places + events.
@@ -537,6 +570,7 @@ export const HomeTab = ({
   const openMeetup = (m) => setSelectedEvent({
     id: m.id, title: m.title, photo: m.photo,
     when: m.when, place: m.place,
+    lat: m.lat, lng: m.lng, address: m.address,
     distance: m.mi != null ? `${m.mi} mi away` : 'Near you',
     tags: [], kind: 'Meetup',
   });
@@ -689,14 +723,17 @@ export const HomeTab = ({
               : <RailEmpty text="No meetups scheduled nearby yet — check back soon."/>}
         </div>
 
-        {/* Based On Your Child's Age — per-child filterable, places + events */}
-        {ageKids.length > 0 && ageRailAll.length > 0 && (
+        {/* Based On Your Child's Age — per-child filterable, places + events.
+            Stays mounted while places load (skeleton rail) so it never vanishes
+            then pops in; hidden only when the user has no kids, or when load is
+            done and there's genuinely no age-matched content. */}
+        {ageKids.length > 0 && (placesLoading || ageRailAll.length > 0) && (
           <>
             <SectionHead
               title="Based On Your Child's Age"
               onLink={goToKidsPrograms || goToPlaces}
             />
-            {ageKids.length > 1 && (
+            {!placesLoading && ageKids.length > 1 && (
               <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 8 }}>
                 {[{ label: 'All', idx: null }, ...ageKids.map((k, i) => ({ label: k.label, idx: i }))].map((chip) => {
                   const active = ageChild === chip.idx;
@@ -718,12 +755,14 @@ export const HomeTab = ({
               </div>
             )}
             <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', paddingBottom: 2 }}>
-              {ageRail.map((p) => (
-                <AgeProgramCard key={`${p.type}-${p.id}`} item={p}
-                  onClick={() => (p.type === 'event'
-                    ? openMeetup({ id: p.id, title: p.name, photo: p.photo, when: p.when, mi: null })
-                    : openPlace({ ...p, hero_photo: p.photo }))}/>
-              ))}
+              {placesLoading
+                ? [0, 1, 2].map(i => <AgeProgramCardSkeleton key={i}/>)
+                : ageRail.map((p) => (
+                    <AgeProgramCard key={`${p.type}-${p.id}`} item={p}
+                      onClick={() => (p.type === 'event'
+                        ? openMeetup({ id: p.id, title: p.name, photo: p.photo, when: p.when, mi: null })
+                        : openPlace({ ...p, hero_photo: p.photo }))}/>
+                  ))}
             </div>
           </>
         )}
@@ -741,7 +780,15 @@ export const HomeTab = ({
         )}
 
         {/* Feature this week — smart: opens place or event detail depending
-            on what the admin pinned. Hidden when there's no live feature. */}
+            on what the admin pinned. Shows a skeleton while places load (the
+            fallback feature is drawn from trending places), then the real card,
+            and hides only when load is done with no live feature. */}
+        {placesLoading && !favoriteCard && (
+          <>
+            <SectionHead title="Feature this week"/>
+            <LocalFavoriteCardSkeleton/>
+          </>
+        )}
         {favoriteCard && (
           <>
             <SectionHead title="Feature this week"/>

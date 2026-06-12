@@ -134,7 +134,7 @@ const SocialRow = ({ Icon, name, handle, linked, onConnect }) => (
     }}
   >
     <div style={{
-      width: 30, height: 30, borderRadius: 9, background: C.lilac, color: '#5E4A8A',
+      width: 30, height: 30, borderRadius: 9, background: C.lilac, color: C.lilacDark,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       <Icon size={15}/>
@@ -692,8 +692,8 @@ export const YouTab = ({
         )}
         {(igLinked || fbLinked) && (
           <div className="flex gap-1.5" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-            {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone="#5E4A8A">{socialLinks.instagram}</StatPill>}
-            {fbLinked && <StatPill Icon={Facebook} bg="#E7EEF8" tone="#2B5CA8">Facebook</StatPill>}
+            {igLinked && <StatPill Icon={Instagram} bg={C.lilac} tone={C.lilacDark}>{socialLinks.instagram}</StatPill>}
+            {fbLinked && <StatPill Icon={Facebook} bg={C.azureSoft} tone={C.azure}>Facebook</StatPill>}
           </div>
         )}
       </div>
@@ -711,13 +711,13 @@ export const YouTab = ({
         <SettingsRow Icon={MapPin} iconBg={C.peach} iconFg={C.coralDeep}
           label="Location" sub={location ? `${cityLabel} · ${distance ?? 5} mi` : 'Set your neighborhood & radius'}
           incomplete={!isDone('location')} onClick={() => setSheet('location')}/>
-        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg="#5E4A8A"
+        <SettingsRow Icon={Baby} iconBg={C.lilac} iconFg={C.lilacDark}
           label="Kids" sub={kidsCount ? `${kidsCount} ${kidsCount === 1 ? 'kid' : 'kids'}` : 'Add your kids'}
           incomplete={!isDone('kids')} onClick={() => setSheet('kids')}/>
         <SettingsRow Icon={CalendarClock} iconBg={C.sage} iconFg={C.sageDark}
           label="Availability" sub={availDays ? `Free on ${availDays} day${availDays === 1 ? '' : 's'} a week` : "Set when you're free to meet"}
           onClick={() => setSheet('avail')}/>
-        <SettingsRow Icon={Bell} iconBg="#FFF4D6" iconFg="#8A6610"
+        <SettingsRow Icon={Bell} iconBg={C.saffronSoft} iconFg={C.saffronDark}
           label="Notifications" sub="Manage your alerts" onClick={() => setSheet('notif')}/>
         <SettingsRow Icon={Lock} iconBg={C.sage} iconFg={C.sageDark}
           label="Privacy" sub="Control your data and privacy" onClick={() => setSheet('priv')}/>
@@ -750,7 +750,7 @@ export const YouTab = ({
         }}
       >
         <div style={{
-          width: 38, height: 38, borderRadius: 12, background: '#fff', color: '#5E4A8A',
+          width: 38, height: 38, borderRadius: 12, background: '#fff', color: C.lilacDark,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}><Gift size={18}/></div>
         <div style={{ flex: 1, minWidth: 0 }}>

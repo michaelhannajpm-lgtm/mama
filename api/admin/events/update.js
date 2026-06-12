@@ -11,6 +11,7 @@ import { requireAdmin } from '../../_lib/admin-auth.js';
 
 const EDITABLE = new Set([
   'name','event_type','kind','description','place_id','place_name','area','city',
+  'lat','lng','address',
   'starts_at','ends_at','day_of_week','bucket','time_label','recurring','website','source_url',
   'tags','kid_ages','indoor','hue','age_min','age_max','price_summary','hero_photo','going_count',
   'review_status','visible','family_relevant',

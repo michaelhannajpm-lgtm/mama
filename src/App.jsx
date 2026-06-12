@@ -676,6 +676,7 @@ function PrototypeApp({ bare = false }) {
             ratings={ratings} setRatings={setRatings}
             account={account} requestAccount={requestAccount}
             verifiedRequiresSocial={appConfig.verifiedRequiresSocial !== false}
+            freeLimit={dmFreeLimit}
             nearbyMoms={nearbyMomsShown}
             nearbyLoading={nearbyLoading}
             placesLoading={placesLoading}

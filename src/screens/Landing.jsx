@@ -239,24 +239,27 @@ export const Landing = ({ onBegin, onSignIn, onDevLogin }) => (
         </button>
       </div>
 
-      {/* Pick any seeded mom — available to everyone. */}
-      <div className="text-center" style={{ marginTop: 8 }}>
-        <button
-          onClick={onDevLogin}
-          className="inline-flex items-center justify-center active:scale-[.97] transition-transform"
-          style={{
-            height: 24, padding: '0 11px', gap: 5, borderRadius: 999,
-            background: 'linear-gradient(135deg, #A78BFA, #7C3AED)',
-            color: '#fff',
-            fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
-            boxShadow: '0 6px 14px -8px rgba(124,58,237,.6)',
-            border: 'none', cursor: 'pointer',
-          }}
-        >
-          <Zap size={10} strokeWidth={2.6} fill="currentColor"/>
-          Pick seeded mom
-        </button>
-      </div>
+      {/* Pick any seeded mom — dev-only test shortcut. Tree-shaken out of
+          production builds via import.meta.env.DEV (matches Account.jsx). */}
+      {import.meta.env.DEV && (
+        <div className="text-center" style={{ marginTop: 8 }}>
+          <button
+            onClick={onDevLogin}
+            className="inline-flex items-center justify-center active:scale-[.97] transition-transform"
+            style={{
+              height: 24, padding: '0 11px', gap: 5, borderRadius: 999,
+              background: 'linear-gradient(135deg, #A78BFA, #7C3AED)',
+              color: '#fff',
+              fontFamily: 'Albert Sans', fontSize: 10, fontWeight: 700,
+              boxShadow: '0 6px 14px -8px rgba(124,58,237,.6)',
+              border: 'none', cursor: 'pointer',
+            }}
+          >
+            <Zap size={10} strokeWidth={2.6} fill="currentColor"/>
+            Pick seeded mom
+          </button>
+        </div>
+      )}
 
       {/* Version stamp — when this build was published (last push). */}
       {PUBLISHED_LABEL && (

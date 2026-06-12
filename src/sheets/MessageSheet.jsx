@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Crown, MessageCircle, ShieldCheck } from 'lucide-react';
 import { C } from '../theme';
 import { Sheet } from '../components/Sheet';
+import { Skeleton } from '../components/Skeleton';
 import { getOrCreateDM, listMessages, sendMessage, subscribe } from '../lib/chat';
 import { dmFreeState, DM_FREE_LIMIT } from '../lib/chat-helpers';
 
@@ -162,8 +163,18 @@ export const MessageSheet = ({ mom, isPremium, author, myUserId, senderVerified 
           </div>
         )}
 
+        {/* Thread — chat-bubble skeleton while the conversation loads (the
+            DM round-trips to Supabase), so the sheet never flashes blank. */}
+        {loading && (
+          <div className="mt-4 space-y-2" aria-hidden="true">
+            <div className="flex justify-start"><Skeleton w="68%" h={38} radius={16}/></div>
+            <div className="flex justify-end"><Skeleton w="52%" h={30} radius={16}/></div>
+            <div className="flex justify-start"><Skeleton w="60%" h={30} radius={16}/></div>
+          </div>
+        )}
+
         {/* Thread — show messages chronologically */}
-        {messages.length > 0 && (
+        {!loading && messages.length > 0 && (
           <div className="mt-4 space-y-2 max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             {messages.map((m) => {
               const isMe = m.author_id === myUserId;

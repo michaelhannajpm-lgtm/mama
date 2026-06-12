@@ -795,12 +795,12 @@ const quickFilterMatch = (item, ids, userCoords) => {
 // chips. `fillIcon` is set when the icon is a shape (Heart, Star) that
 // looks better as a solid than an outline.
 const CATEGORIES = [
-  { key: 'events',   label: 'Events',              Icon: Calendar,      color: '#E96B7D' },
-  { key: 'meetups',  label: 'Meetups',             Icon: Users,         color: '#8E63CC' },
-  { key: 'kids',     label: 'Kids Activities',     Icon: Backpack,      color: '#F09142' },
-  { key: 'schools',  label: 'Schools & Childcare', Icon: GraduationCap, color: '#4A8A7A' },
-  { key: 'health',   label: 'Wellness & Health',   Icon: Heart,         color: '#D6446A', fillIcon: true },
-  { key: 'places',   label: 'Fun & Entertainment', Icon: Star,          color: '#D9A441', fillIcon: true },
+  { key: 'events',   label: 'Events',              Icon: Calendar,      color: C.coral },
+  { key: 'meetups',  label: 'Meetups',             Icon: Users,         color: C.catViolet },
+  { key: 'kids',     label: 'Kids Activities',     Icon: Backpack,      color: C.catOrange },
+  { key: 'schools',  label: 'Schools & Childcare', Icon: GraduationCap, color: C.catTeal },
+  { key: 'health',   label: 'Wellness & Health',   Icon: Heart,         color: C.coralDeep, fillIcon: true },
+  { key: 'places',   label: 'Fun & Entertainment', Icon: Star,          color: C.saffron, fillIcon: true },
 ];
 
 // Trending group chats — surfaced on the Explore tab between the events
@@ -1022,6 +1022,7 @@ export const LocalPicksTab = ({
       id: item.id, title: item.title, photo: item.photo,
       when: item.when, going: item.going, distance: item.distance,
       place: item.place,
+      lat: item._live?.lat, lng: item._live?.lng, address: item._live?.address,
       kind: isMeetupItem ? 'Meetup' : 'Event',
       _variant: isMeetupItem ? 'meetup' : 'event',
     });
